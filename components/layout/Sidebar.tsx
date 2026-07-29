@@ -317,7 +317,7 @@ export default function Sidebar({ open, setOpen, user }: Props) {
           {/* Footer */}
           <div className="p-5 border-t border-white/10">
             <p className="text-xs text-slate-500">
-              <span className="text-geny-green">SolvY 360 </span>Powered by GenY
+              <span className="text-geny-green">SolvY360 </span>Powered by GenY
               Tech © 2026
             </p>
           </div>
