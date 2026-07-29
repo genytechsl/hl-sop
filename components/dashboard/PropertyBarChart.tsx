@@ -61,7 +61,7 @@ export default function PropertyBarChart() {
           barSize={24}
           background={{
             fill: "#e2e8f0",
-            radius: [0, 14, 14, 0],
+            // radius: [0, 14, 14, 0],
           }}
         >
           <LabelList
