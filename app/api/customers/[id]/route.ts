@@ -1,17 +1,13 @@
-import { NextResponse } from "next/server";
 import customers from "@/data/customers.json";
 
+import { NextRequest, NextResponse } from "next/server";
+
 export async function GET(
-  request: Request,
-  {
-    params,
-  }: {
-    params: {
-      id: string;
-    };
-  },
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const customer = customers.find((item) => item.id === params.id);
+  const { id } = await params;
+  const customer = customers.find((item) => item.id === id);
 
   if (!customer) {
     return NextResponse.json(
