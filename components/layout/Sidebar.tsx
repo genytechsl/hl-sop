@@ -106,19 +106,19 @@ export default function Sidebar({ open, setOpen, user }: Props) {
           {/* Logo */}
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center justify-between md:justify-center">
-              <div className="flex items-center gap-4">
-                {/* <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white">
-                  U
-                </div> */}
+              <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center justify-center">
                   <Image
-                    src="/hl_logo_white.png" //
+                    src="/hl_logo_white.png"
                     alt="Company Logo"
-                    width={160}
-                    height={48}
-                    className="object-contain"
+                    width={400}
+                    height={150}
+                    className="w-full h-auto object-contain"
                     priority
                   />
+                </div>
+                <div>
+                  <h2>Customer Inquiry Management</h2>
                 </div>
               </div>
 
