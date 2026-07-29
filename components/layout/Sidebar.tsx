@@ -118,7 +118,7 @@ export default function Sidebar({ open, setOpen, user }: Props) {
                   />
                 </div>
                 <div>
-                  <h2 className="font-semibold color-white">
+                  <h2 className="font-semibold text-white">
                     Customer Inquiry Management
                   </h2>
                 </div>
