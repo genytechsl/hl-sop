@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  ArrowRight,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [username, setusername] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -18,87 +27,128 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    });
 
-    if (username === "admin@example.com" && password === "admin123") {
-      router.push("/dashboard");
+    if (res.ok) {
+      const data = await res.json();
+
+      router.replace(data.redirectTo);
+      router.refresh();
+
+      return;
     }
+
+    alert("Invalid username or password");
 
     setLoading(false);
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 overflow-hidden relative flex items-center justify-center px-4">
-      {/* Background Effects */}
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-6">
+      {/* Background */}
 
-      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600/20 blur-3xl rounded-full" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#dbeafe,transparent_45%)]" />
 
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-600/20 blur-3xl rounded-full" />
+      <div className="relative mx-auto grid w-full max-w-7xl gap-20 lg:grid-cols-2">
+        {/* ================================================= */}
+        {/* LEFT */}
+        {/* ================================================= */}
 
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        <div className="hidden flex-col justify-center lg:flex">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-5 py-2 text-sm font-medium text-[#2563eb]">
+            <ShieldCheck size={24} />
+            Customer Inquiry Management
+          </div>
 
-      <div className="relative w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
-        {/* Left Content */}
+          {/* <h1 className="mt-8 text-5xl font-bold leading-tight text-slate-900">
+            Customer Complaint
+            <br />
+            Management Platform
+          </h1> */}
 
-        <div className="hidden lg:block">
-          <span className="inline-flex items-center px-4 py-2 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm">
-            Unified Customer Service Platform
-          </span>
+          {/* Logo here */}
+          <div className="mt-8 flex justify-center lg:justify-start">
+            <Image
+              src="/login_page.png"
+              alt="Customer Inquiry Management Platform"
+              width={640}
+              height={536}
+              priority
+              className="h-auto w-full max-w-[640px] object-contain"
+            />
+          </div>
 
-          <h1 className="mt-8 text-5xl font-bold text-white leading-tight">
-            Deliver consistent customer service with accountability.
-          </h1>
-
-          <p className="mt-6 text-slate-400 text-lg max-w-xl">
-            Centralize customer complaints, streamline cross-department
-            collaboration, enforce SLA compliance, and ensure every customer
-            concern is tracked, owned, and resolved through a transparent
-            operational workflow.
+          <p className="mt-6 w-full text-md text-slate-600">
+            Centralize customer complaints, improve cross-functional
+            collaboration, monitor SLA performance, and ensure every issue is
+            tracked from creation to resolution.
           </p>
 
-          <div className="mt-12 flex gap-6">
+          {/* <div className="mt-12 flex gap-14">
             <div>
-              <h3 className="text-3xl font-bold text-white">100%</h3>
-              <p className="text-slate-500">Complaint Traceability</p>
+              <h3 className="text-3xl font-bold text-[#3b82f6]">100%</h3>
+              <p className="mt-1 text-slate-500">Complaint Traceability</p>
             </div>
 
             <div>
-              <h3 className="text-3xl font-bold text-white">SLA</h3>
-              <p className="text-slate-500">Driven Resolution Tracking</p>
+              <h3 className="text-3xl font-bold text-[#3b82f6]">24/7</h3>
+              <p className="mt-1 text-slate-500">SLA Monitoring</p>
             </div>
-          </div>
+
+            <div>
+              <h3 className="text-3xl font-bold text-[#3b82f6]">Secure</h3>
+              <p className="mt-1 text-slate-500">Role-Based Access</p>
+            </div>
+          </div> */}
         </div>
 
-        {/* Login Card */}
+        {/* ================================================= */}
+        {/* LOGIN CARD */}
+        {/* ================================================= */}
 
-        <div className="w-full">
-          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl p-8 md:p-10">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
+        <div className="flex items-center justify-center">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-10 shadow-xl">
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
+                <ShieldCheck className="text-[#3b82f6]" size={32} />
+              </div>
 
-              <p className="text-slate-400 mt-2">Sign in to continue</p>
+              <h2 className="text-3xl font-bold text-slate-900">
+                Welcome Back
+              </h2>
+
+              <p className="mt-2 text-slate-500">Sign in to continue</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* username */}
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* Username */}
 
               <div>
-                <label className="text-sm text-slate-300 mb-2 block">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Username
                 </label>
 
                 <div className="relative">
-                  <Mail
+                  <User
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
                   <input
-                    type="username"
+                    type="text"
                     placeholder="Enter your username"
                     value={username}
-                    onChange={(e) => setusername(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/70 border border-slate-700 text-white outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20"
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#3b82f6] focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
@@ -106,28 +156,28 @@ export default function LoginPage() {
               {/* Password */}
 
               <div>
-                <label className="text-sm text-slate-300 mb-2 block">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Password
                 </label>
 
                 <div className="relative">
                   <Lock
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3 rounded-xl bg-slate-900/70 border border-slate-700 text-white outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20"
+                    className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-12 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#3b82f6] focus:ring-4 focus:ring-blue-100"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-[#2563eb]"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -136,15 +186,15 @@ export default function LoginPage() {
 
               {/* Remember */}
 
-              <div className="flex justify-between text-sm">
-                <label className="flex items-center gap-2 text-slate-400">
-                  <input type="checkbox" className="accent-blue-500" />
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 text-slate-600">
+                  <input type="checkbox" className="accent-[#3b82f6]" />
                   Remember me
                 </label>
 
                 <button
                   type="button"
-                  className="text-blue-400 hover:text-blue-300"
+                  className="font-medium text-[#3b82f6] hover:text-[#2563eb]"
                 >
                   Forgot Password?
                 </button>
@@ -155,10 +205,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 active:scale-100"
+                className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3b82f6] font-semibold text-white shadow-md transition-all duration-200 hover:bg-[#2563eb] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
                   <>
                     Sign In
@@ -170,12 +220,38 @@ export default function LoginPage() {
                 )}
               </button>
 
-              <div className="pt-4 text-center text-sm text-slate-500">
-                Demo Credentials:
-                <br />
-                admin@example.com
-                <br />
-                admin123
+              {/* Powered by */}
+
+              {/* Powered By */}
+
+              <div className="pt-4">
+                <div className="flex items-center justify-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-5">
+                  {/* Logo */}
+
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                    <img
+                      src="/images/logo-only.png"
+                      alt="GenY Technologies"
+                      className="h-12 w-auto object-contain"
+                    />
+                  </div>
+
+                  {/* Text */}
+
+                  <div className="text-left">
+                    <p className="text-xs font-medium uppercase tracking-[0.25em] text-slate-400">
+                      Powered by
+                    </p>
+
+                    <h3 className="text-base font-semibold text-slate-800">
+                      GenY Technologies
+                    </h3>
+
+                    <p className="text-xs text-slate-500">
+                      Smart Enterprise Solutions
+                    </p>
+                  </div>
+                </div>
               </div>
             </form>
           </div>

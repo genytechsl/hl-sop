@@ -1,0 +1,1307 @@
+"use client";
+
+import { SetStateAction, useMemo, useState, useEffect } from "react";
+import {
+  Search,
+  Bold,
+  Italic,
+  Underline,
+  User,
+  Mail,
+  Phone,
+  Building2,
+  X,
+  Upload,
+  Paperclip,
+} from "lucide-react";
+// import { customers, Customer } from "./customer-data";
+import { Customer } from "@/types/customer";
+import employees from "@/data/employees.json";
+import { saveTicket } from "@/components/tickets/ticket-storage";
+import Link from "next/link";
+
+const categoryOptions = [
+  {
+    code: "CAT-A",
+    label: "Critical",
+    sla: "24 h",
+    priority: "Very High",
+  },
+  {
+    code: "CAT-B",
+    label: "Technical",
+    sla: "7 wd",
+    priority: "High",
+  },
+  {
+    code: "CAT-B2",
+    label: "SFM Facility",
+    sla: "7 d",
+    priority: "Medium",
+  },
+  {
+    code: "CAT-C",
+    label: "Admin / Pay",
+    sla: "5 wd",
+    priority: "Low",
+  },
+  {
+    code: "CAT-D",
+    label: "Legal",
+    sla: "10 wd",
+    priority: "Very Low",
+  },
+];
+
+const emailSuggestions = employees.filter((employee) => employee.active);
+
+export default function NewTicketForm() {
+  const [search, setSearch] = useState("");
+  // const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+  //   null,
+  // );
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
+  const [selectedProperty, setSelectedProperty] = useState<{
+    propertyName: string;
+    address: string;
+  } | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [ticketType, setTicketType] = useState<"COM" | "INQ">("COM");
+  const [category, setCategory] = useState(categoryOptions[0].code);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [actionOwnerId, setActionOwnerId] = useState("");
+  const [scope, setScope] = useState("");
+  const [complaintSource, setComplaintSource] = useState("Customer Call");
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [dialog, setDialog] = useState<{
+    open: boolean;
+    type: "success" | "error" | "warning";
+    title: string;
+    message: string;
+  }>({
+    open: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
+
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
+
+  const selectedCategory = useMemo(
+    () => categoryOptions.find((c) => c.code === category),
+    [category],
+  );
+  useEffect(() => {
+    async function loadCustomers() {
+      const response = await fetch("/api/customers");
+
+      const data = await response.json();
+
+      setCustomers(data);
+    }
+
+    loadCustomers();
+  }, []);
+  // const filteredCustomers = customers.filter(
+  //   (customer) =>
+  //     customer.name.toLowerCase().includes(search.toLowerCase()) ||
+  //     customer.nic.toLowerCase().includes(search.toLowerCase()) ||
+  //     customer.mobile.includes(search) ||
+  //     customer.email.toLowerCase().includes(search.toLowerCase()),
+  // );
+
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(search.toLowerCase()) ||
+      customer.NIC.toLowerCase().includes(search.toLowerCase()) ||
+      customer.mobile.some((mobile) => mobile.includes(search)) ||
+      customer.email.some((email) =>
+        email.toLowerCase().includes(search.toLowerCase()),
+      ),
+  );
+
+  useEffect(() => {
+    async function searchCustomers() {
+      const response = await fetch(`/api/customers?search=${search}`);
+
+      const data = await response.json();
+
+      setCustomers(data);
+    }
+
+    searchCustomers();
+  }, [search]);
+
+  const getSlaTarget = (category: string) => {
+    switch (category) {
+      case "CAT-A":
+        return "24 h";
+
+      case "CAT-B":
+        return "7 wd";
+
+      case "CAT-B2":
+        return "7 d";
+
+      case "CAT-C":
+        return "5 wd";
+
+      case "CAT-D":
+        return "10 wd";
+
+      default:
+        return "24 h";
+    }
+  };
+
+  const getPriority = (category: string) => {
+    switch (category) {
+      case "CAT-A":
+        return "VERY HIGH";
+
+      case "CAT-B":
+        return "HIGH";
+
+      case "CAT-B2":
+        return "MEDIUM";
+
+      case "CAT-C":
+        return "LOW";
+
+      case "CAT-D":
+        return "VERY LOW";
+
+      default:
+        return "MEDIUM";
+    }
+  };
+
+  const categoryRoleMap: Record<string, string[]> = {
+    "CAT-A": ["MEP Engineer"],
+    "CAT-B": ["MEP Engineer", "Contractor"],
+    "CAT-B2": ["SFM Department"],
+    "CAT-C": ["CMU Manager"],
+    "CAT-D": ["Operations Executive"],
+  };
+  const availableEmployees = useMemo(() => {
+    const allowedRoles = categoryRoleMap[category] || [];
+
+    return employees.filter(
+      (employee) =>
+        employee.active && allowedRoles.includes(employee.designation),
+    );
+  }, [category]);
+
+  const selectedActionOwner = useMemo(() => {
+    return employees.find((employee) => employee.id === actionOwnerId);
+  }, [actionOwnerId]);
+
+  const addFiles = (newFiles: File[]) => {
+    setAttachments((prev) => {
+      const existing = new Set(
+        prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`),
+      );
+
+      const uniqueFiles = newFiles.filter(
+        (f) => !existing.has(`${f.name}-${f.size}-${f.lastModified}`),
+      );
+
+      return [...prev, ...uniqueFiles];
+    });
+  };
+
+  // attachment upload logic start
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+
+    if (!files || files.length === 0) return;
+
+    // setAttachments((prev) => [...prev, ...Array.from(files)]);
+    addFiles(Array.from(files));
+
+    // allows selecting same file again later
+    e.target.value = "";
+  };
+
+  const removeAttachment = (indexToRemove: number) => {
+    setAttachments((prev) =>
+      prev.filter((_, index) => index !== indexToRemove),
+    );
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+
+    // prevent flickering
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+
+    if (!files || files.length === 0) return;
+
+    // setAttachments((prev) => [...prev, ...Array.from(files)]);
+    addFiles(Array.from(files));
+  };
+  // attachment upload logic end
+
+  const addEmail = (email: string) => {
+    if (!selectedEmails.includes(email)) {
+      setSelectedEmails((prev) => [...prev, email]);
+    }
+
+    setEmailInput("");
+  };
+
+  const removeEmail = (email: string) => {
+    setSelectedEmails((prev) => prev.filter((x) => x !== email));
+  };
+
+  const openSubmitConfirmation = () => {
+    setShowEmailConfirm(true);
+  };
+
+  const handleSubmit = async (sendEmail: boolean) => {
+    try {
+      if (!selectedCustomer) {
+        setDialog({
+          open: true,
+          type: "warning",
+          title: "Customer Required",
+          message: "Please select a customer before creating the ticket.",
+        });
+        return;
+      }
+
+      if (!title.trim()) {
+        setDialog({
+          open: true,
+          type: "warning",
+          title: "Title Required",
+          message: "Please enter a title for the ticket.",
+        });
+        return;
+      }
+
+      const newTicket = {
+        title,
+        description,
+        ticketType,
+        category,
+        categoryLabel: selectedCategory?.label.toUpperCase() || "",
+        property: selectedCustomer.properties,
+        status: "OPEN",
+        priority: getPriority(category),
+        assignedToId: selectedActionOwner?.id || "",
+        createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        customerName: selectedCustomer.name,
+        slaTarget: getSlaTarget(category),
+        complaintSource,
+        scope,
+        cctoList: selectedEmails,
+        customerEmail: selectedCustomer.email,
+        actionOwnerEmail: selectedActionOwner?.email,
+        actionOwnerName: selectedActionOwner?.name,
+      };
+
+      // const sendEmail = window.confirm(`Send email notification to customer?`);
+      // setShowEmailConfirm(true);
+
+      const ticketEmail = { ...newTicket, sendEmail };
+
+      const response = await fetch("/api/tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(ticketEmail),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create ticket");
+      }
+
+      const result = await response.json();
+
+      if (result.emailSent) {
+        setDialog({
+          open: true,
+          type: "success",
+          title: "Success",
+          message:
+            "The ticket has been created and the email notification has been sent.",
+        });
+      } else {
+        setDialog({
+          open: true,
+          type: "success",
+          title: "Ticket Created",
+          message: "The ticket has been created successfully.",
+        });
+      }
+
+      setTitle("");
+      setDescription("");
+      setAttachments([]);
+      setSelectedEmails([]);
+      setSearch("");
+      setSelectedCustomer(null);
+    } catch (error) {
+      console.error(error);
+
+      setDialog({
+        open: true,
+        type: "error",
+        title: "Unable to Create Ticket",
+        message:
+          "Something went wrong while creating the ticket. Please try again.",
+      });
+    }
+  };
+
+  return (
+    <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* Top Accent */}
+
+      <div className="h-1.5 bg-blue-600" />
+
+      <div className="p-6 lg:p-8 space-y-10">
+        {/* ================================================= */}
+        {/* TICKET DETAILS - ROW 1*/}
+        {/* ================================================= */}
+
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">
+            1. Ticket Details
+          </h2>
+
+          <div className="mt-6 space-y-5">
+            {/* Row 1 */}
+
+            <div className="grid md:grid-cols-4 gap-4">
+              {/* complaint or inquiry */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ticket Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTicketType("COM")}
+                    className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
+                      ticketType === "COM"
+                        ? "border-red-500 bg-red-50 shadow-sm ring-2 ring-red-100"
+                        : "border-gray-200 bg-white hover:border-red-300 hover:bg-red-50/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p
+                          className={`font-semibold ${
+                            ticketType === "COM"
+                              ? "text-red-700"
+                              : "text-gray-800"
+                          }`}
+                        >
+                          Complaint
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Report an issue requiring action
+                        </p>
+                      </div>
+
+                      <div
+                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          ticketType === "COM"
+                            ? "border-red-500"
+                            : "border-gray-300 group-hover:border-red-400"
+                        }`}
+                      >
+                        {ticketType === "COM" && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTicketType("INQ")}
+                    className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
+                      ticketType === "INQ"
+                        ? "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-100"
+                        : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p
+                          className={`font-semibold ${
+                            ticketType === "INQ"
+                              ? "text-blue-700"
+                              : "text-gray-800"
+                          }`}
+                        >
+                          Inquiry
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Request information or clarification
+                        </p>
+                      </div>
+
+                      <div
+                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          ticketType === "INQ"
+                            ? "border-blue-500"
+                            : "border-gray-300 group-hover:border-blue-400"
+                        }`}
+                      >
+                        {ticketType === "INQ" && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              {/* Category name */}
+              <SelectField
+                label="Category Code"
+                value={category}
+                onChange={(e: { target: { value: SetStateAction<string> } }) =>
+                  setCategory(e.target.value)
+                }
+              >
+                {categoryOptions.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code} ({item.label})
+                  </option>
+                ))}
+              </SelectField>
+              {/* category code */}
+              <InputField
+                label="SLA"
+                value={selectedCategory?.sla ?? ""}
+                readOnly
+              />
+            </div>
+
+            {/* Row 2 */}
+
+            <div className="grid md:grid-cols-4 gap-4">
+              {/* Action Owner */}
+              <div className="md:col-span-1">
+                <div className="col-span-2">
+                  <SelectField
+                    label="Action Owner"
+                    value={actionOwnerId}
+                    onChange={(e: any) => setActionOwnerId(e.target.value)}
+                  >
+                    <option value="">Select Action Owner</option>
+
+                    {availableEmployees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.designation} - {employee.name}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
+              </div>
+              {/* <InputField label="Scope *" placeholder="Required" /> */}
+
+              <SelectField
+                label="Scope *"
+                value={scope}
+                onChange={(e: { target: { value: SetStateAction<string> } }) =>
+                  setScope(e.target.value)
+                }
+              >
+                <option value="">Select Scope</option>
+                <option value="MEP & Technical Defects">
+                  MEP & Technical Defects
+                </option>
+                <option value="Documentation & Title Deeds">
+                  Documentation & Title Deeds
+                </option>
+                <option value="Payment, Ledger & Billing Issues">
+                  Payment, Ledger & Billing Issues
+                </option>
+                <option value="Contractual / SPA Legal Escalations">
+                  Contractual / SPA Legal Escalations
+                </option>
+              </SelectField>
+
+              <SelectField
+                label="Complaint Source"
+                value={complaintSource}
+                onChange={(e: { target: { value: SetStateAction<string> } }) =>
+                  setComplaintSource(e.target.value)
+                }
+              >
+                <option value="Customer Call">Customer Call</option>
+                <option value="Email">Email</option>
+                <option value="Whatsapp">Whatsapp</option>
+              </SelectField>
+
+              <InputField
+                label="Priority"
+                value={selectedCategory?.priority ?? ""}
+                readOnly
+              />
+            </div>
+
+            {/* Subject */}
+
+            <InputField
+              label="Subject / Short Title"
+              placeholder="Enter ticket title"
+              value={title}
+              onChange={(e: any) => setTitle(e.target.value)}
+            />
+
+            {/* Description */}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Description / Details
+              </label>
+
+              <div className="border border-slate-300 rounded-t-2xl p-3 flex gap-2 bg-slate-50">
+                <button type="button" className="p-2 hover:bg-white rounded-lg">
+                  <Bold size={16} />
+                </button>
+
+                <button type="button" className="p-2 hover:bg-white rounded-lg">
+                  <Italic size={16} />
+                </button>
+
+                <button type="button" className="p-2 hover:bg-white rounded-lg">
+                  <Underline size={16} />
+                </button>
+              </div>
+
+              <textarea
+                rows={5}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full rounded-b-2xl border border-t-0 border-slate-300 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-y-auto"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================= */}
+        {/* CUSTOMER - ROW 2*/}
+        {/* ================================================= */}
+
+        <div>
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">2. Customer</h2>
+
+              <p className="text-slate-500 mt-1">
+                Search existing customers by NIC, name, mobile or email.
+              </p>
+            </div>
+
+            <Link href={"../settings/customers/new"}>
+              <button
+                type="button"
+                className="button-heading-special inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
+              >
+                <User size={18} />
+                New Customer
+              </button>
+            </Link>
+          </div>
+
+          <div className="mt-5 relative">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+
+                if (selectedCustomer) {
+                  setSelectedCustomer(null);
+                }
+              }}
+              placeholder="Search customer..."
+              className="w-full
+                          h-12
+                          pl-12
+                          pr-4
+                          rounded-2xl
+                          border
+                          border-slate-300
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-blue-500
+                        "
+            />
+
+            {search.length > 0 && !selectedCustomer && (
+              <div
+                className="
+                    absolute
+                    top-full
+                    left-0
+                    right-0
+                    mt-2
+                    bg-white
+                    border
+                    border-slate-200
+                    rounded-2xl
+                    shadow-xl
+                    z-20
+                    max-h-64
+                    overflow-y-auto
+                  "
+              >
+                {filteredCustomers.map((customer) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(customer);
+                      setSelectedProperty(null);
+                      setSearch(customer.name);
+                    }}
+                    className="
+                          w-full
+                          text-left
+                          px-4
+                          py-3
+                          hover:bg-slate-50
+                        "
+                  >
+                    <div className="font-medium">{customer.name}</div>
+
+                    <div className="text-xs text-slate-500">
+                      {customer.mobile}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedCustomer && (
+            <div
+              className="
+                  mt-6
+                  bg-slate-50
+                  rounded-2xl
+                  border
+                  border-slate-200
+                  overflow-hidden
+                "
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                <h4 className="font-semibold text-slate-700">
+                  Selected Customer
+                </h4>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCustomer(null);
+                    setSelectedProperty(null);
+                    setSearch("");
+                  }}
+                  className="
+                      h-8
+                      w-8
+                      rounded-lg
+                      flex
+                      items-center
+                      justify-center
+                      hover:bg-slate-200
+                      transition
+                    "
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div
+                className="
+                  p-5
+                  grid
+                  md:grid-cols-2
+                  gap-4
+                  bg-blue-100/50
+                "
+              >
+                <InfoRow
+                  icon={<User size={16} />}
+                  label="Customer"
+                  value={selectedCustomer.name}
+                />
+
+                <InfoRow
+                  icon={<Mail size={16} />}
+                  label="Email"
+                  value={selectedCustomer.email}
+                />
+
+                <InfoRow
+                  icon={<Phone size={16} />}
+                  label="Mobile"
+                  value={selectedCustomer.mobile}
+                />
+
+                {/* <InfoRow
+                  icon={<Building2 size={16} />}
+                  label="Property"
+                  value={selectedCustomer.property}
+                /> */}
+
+                <div className="flex gap-3">
+                  <div className="text-blue-600 mt-1">
+                    <Building2 size={16} />
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="text-xs text-slate-500 font-medium mb-1">
+                      Property
+                    </div>
+
+                    <select
+                      value={selectedProperty?.propertyName || ""}
+                      onChange={(e) => {
+                        const property = selectedCustomer.properties.find(
+                          (item) => item.propertyName === e.target.value,
+                        );
+
+                        setSelectedProperty(property || null);
+                      }}
+                      className="
+        w-full
+        rounded-xl
+        border
+        border-slate-300
+        h-10
+        px-3
+        bg-white
+        text-sm
+        font-medium
+        text-slate-800
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
+      "
+                    >
+                      <option value="">Select Property</option>
+
+                      {selectedCustomer.properties.map((property) => (
+                        <option
+                          key={property.propertyName}
+                          value={property.propertyName}
+                        >
+                          {property.propertyName}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedProperty && (
+                      <div className="text-xs text-slate-500 mt-2">
+                        {selectedProperty.address}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ================================================= */}
+        {/* ATTACHMENTS - ROW 3*/}
+        {/* ================================================= */}
+
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">
+            3. Attachments (Optional)
+          </h2>
+
+          <div className="mt-6 grid lg:grid-cols-5 gap-6">
+            {/* Upload Area */}
+
+            <div className="lg:col-span-3">
+              <label
+                htmlFor="attachment-upload"
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`
+                        flex
+                        flex-col
+                        items-center
+                        justify-center
+                        min-h-[250px]
+                        border-2
+                        border-dashed
+                        rounded-3xl
+                        cursor-pointer
+                        transition-all
+                        duration-300
+
+                        ${
+                          dragActive
+                            ? "border-blue-600 bg-blue-100 scale-[1.01]"
+                            : "border-blue-300 bg-blue-50/50 hover:border-blue-500 hover:bg-blue-50"
+                        }
+                      `}
+              >
+                <Upload
+                  size={48}
+                  className={`
+                      mb-4 transition-all
+                      ${dragActive ? "text-blue-700" : "text-blue-600"}
+                    `}
+                />
+
+                <h4 className="font-semibold text-lg text-slate-800">
+                  Drag & Drop Files Here
+                </h4>
+
+                <p className="text-slate-500 mt-2">or click to browse</p>
+
+                <p className="text-xs text-slate-400 mt-4">
+                  PDF, Images, DOCX, XLSX
+                </p>
+
+                <input
+                  id="attachment-upload"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </label>
+            </div>
+
+            {/* Attachment List */}
+
+            <div className="lg:col-span-2">
+              <div className="border border-slate-200 rounded-3xl h-full p-5 bg-slate-50">
+                <h4 className="font-semibold text-slate-800 mb-4">
+                  Uploaded Files
+                </h4>
+
+                <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                  {attachments.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No attachments added.
+                    </p>
+                  ) : (
+                    attachments.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="
+                            flex
+                            items-center
+                            justify-between
+                            p-3
+                            rounded-xl
+                            bg-white
+                            border
+                            border-slate-200
+                          "
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Paperclip size={16} className="text-blue-600" />
+
+                          <div className="truncate">
+                            <p className="text-sm font-medium truncate">
+                              {file.name}
+                            </p>
+
+                            <p className="text-xs text-slate-500">
+                              {(file.size / 1024).toFixed(1)}
+                              kb
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="
+                              h-8
+                              w-8
+                              rounded-lg
+                              flex
+                              items-center
+                              justify-center
+                              hover:bg-red-100
+                              text-red-500
+                            "
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================= */}
+        {/* CC List Selector - ROW 4*/}
+        {/* ================================================= */}
+
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">
+            4. CC to / Notification Recipients
+          </h2>
+
+          <p className="text-slate-500 mt-1">
+            Select users who should receive ticket updates.
+          </p>
+
+          <div className="mt-5 relative">
+            <div
+              className="
+              min-h-[56px]
+              rounded-2xl
+              border
+              border-slate-300
+              p-3
+              flex
+              flex-wrap
+              gap-2
+              bg-white
+                "
+            >
+              {selectedEmails.map((email) => (
+                <div
+                  key={email}
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    bg-blue-100
+                    text-blue-700
+                    px-3
+                    py-1.5
+                    rounded-full
+                    text-sm
+                  "
+                >
+                  {email}
+
+                  <button type="button" onClick={() => removeEmail(email)}>
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+
+              <input
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="Search email recipients..."
+                className="
+                  flex-1
+                  min-w-[200px]
+                  outline-none
+                "
+              />
+            </div>
+
+            {emailInput && (
+              <div
+                className="
+                    absolute
+                    z-20
+                    left-0
+                    right-0
+                    mt-2
+                    bg-white
+                    border
+                    border-slate-200
+                    rounded-2xl
+                    shadow-xl
+                    overflow-hidden
+                    max-h-80
+                    overflow-y-auto
+                  "
+              >
+                {emailSuggestions
+                  .filter(
+                    (employee) =>
+                      employee.name
+                        .toLowerCase()
+                        .includes(emailInput.toLowerCase()) ||
+                      employee.email
+                        .toLowerCase()
+                        .includes(emailInput.toLowerCase()),
+                  )
+                  .filter(
+                    (employee) => !selectedEmails.includes(employee.email),
+                  )
+                  .map((employee) => (
+                    <button
+                      key={employee.id}
+                      type="button"
+                      onClick={() => addEmail(employee.email)}
+                      className="
+                          w-full
+                          text-left
+                          px-4
+                          py-3
+                          hover:bg-slate-50
+                          border-b
+                          border-slate-100
+                        "
+                    >
+                      <div className="font-medium">
+                        <span className="font-semibold text-black/80">
+                          {employee.name}
+                        </span>{" "}
+                        <span className="text-xs text-slate-500">
+                          {employee.designation}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-blue-600">
+                        {employee.email}
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-8 mt-8 border-t border-slate-200">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Left Side */}
+
+            <button type="button" className="button-heading w-full sm:w-auto">
+              Cancel
+            </button>
+
+            {/* Right Side */}
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                className="button-heading flex-1 sm:flex-none"
+              >
+                Save as Draft
+              </button>
+
+              <button
+                type="button"
+                onClick={openSubmitConfirmation}
+                className="button-heading-special"
+              >
+                Submit Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {dialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-7 animate-in fade-in zoom-in duration-200">
+            <div
+              className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full
+        ${
+          dialog.type === "success"
+            ? "bg-emerald-100"
+            : dialog.type === "error"
+              ? "bg-red-100"
+              : "bg-amber-100"
+        }`}
+            >
+              {dialog.type === "success" && (
+                <svg
+                  className="h-8 w-8 text-emerald-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+
+              {dialog.type === "error" && (
+                <svg
+                  className="h-8 w-8 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+
+              {dialog.type === "warning" && (
+                <svg
+                  className="h-8 w-8 text-amber-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 9v4m0 4h.01" />
+                  <path d="M10.29 3.86L1.82 18A2 2 0 003.53 21h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              )}
+            </div>
+
+            <h3 className="text-xl font-bold text-center text-slate-800">
+              {dialog.title}
+            </h3>
+
+            <p className="mt-3 text-center text-slate-500">{dialog.message}</p>
+
+            <button
+              onClick={() => setDialog((prev) => ({ ...prev, open: false }))}
+              className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showEmailConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl">
+            <h3 className="text-xl font-bold">Send Email Notification?</h3>
+
+            <p className="mt-3 text-slate-500">
+              Would you like to notify the customer and action owner via email
+              after creating this ticket?
+            </p>
+
+            <div className="mt-7 flex gap-3">
+              <button
+                className="flex-1 rounded-xl border py-3"
+                onClick={() => {
+                  setShowEmailConfirm(false);
+                  handleSubmit(true);
+                }}
+              >
+                Send Email
+              </button>
+
+              <button
+                className="flex-1 rounded-xl bg-blue-600 py-3 text-white"
+                onClick={() => {
+                  setShowEmailConfirm(false);
+                  handleSubmit(false);
+                }}
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InputField(props: any) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-2 text-slate-700">
+        {props.label}
+      </label>
+
+      <input
+        {...props}
+        className="
+          w-full
+          h-11
+          px-4
+          rounded-xl
+          border
+          border-slate-300
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+        "
+      />
+    </div>
+  );
+}
+
+function SelectField({ label, children, ...props }: any) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-2 text-slate-700">
+        {label}
+      </label>
+
+      <select
+        {...props}
+        className="
+          w-full
+          h-11
+          px-4
+          rounded-xl
+          border
+          border-slate-300
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+        "
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
+function InfoRow({ icon, label, value }: any) {
+  return (
+    <div className="flex gap-3">
+      <div className="text-blue-600">{icon}</div>
+
+      <div>
+        <div className="text-xs text-slate-500">{label}</div>
+
+        <div className="font-medium">{value}</div>
+      </div>
+    </div>
+  );
+}

@@ -13,6 +13,7 @@ export const agingData = [
     aging: "18 h",
     compliance: 92,
     color: "bg-red-500",
+    accentColor: "oklch(63.7% 0.237 25.331)",
   },
   {
     code: "CAT-B",
@@ -21,6 +22,7 @@ export const agingData = [
     aging: "3 wd",
     compliance: 95,
     color: "bg-blue-500",
+    accentColor: "oklch(62.3% 0.214 259.815)",
   },
   {
     code: "CAT-B2",
@@ -29,6 +31,7 @@ export const agingData = [
     aging: "4 d",
     compliance: 97,
     color: "bg-green-500",
+    accentColor: "oklch(72.3% 0.219 149.579)",
   },
   {
     code: "CAT-C",
@@ -37,6 +40,7 @@ export const agingData = [
     aging: "2 wd",
     compliance: 94,
     color: "bg-slate-500",
+    accentColor: "oklch(55.4% 0.046 257.417)",
   },
   {
     code: "CAT-D",
@@ -45,5 +49,6 @@ export const agingData = [
     aging: "8 wd",
     compliance: 88,
     color: "bg-purple-500",
+    accentColor: "oklch(62.7% 0.265 303.9)",
   },
 ];

@@ -1,0 +1,134 @@
+[
+  {
+    "id": "EMP02029382",
+    "name": "Kasun Perera",
+    "designation": "MEP Engineer",
+    "email": "pushpitha.info@gmail.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "safasf",
+    "security": "123A",
+    "department": "technical"
+  },
+  {
+    "id": "EMP03184725",
+    "name": "Nuwan Silva",
+    "designation": "MEP Engineer",
+    "email": "ikronyx@gmail.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "sgsdg",
+    "security": "123A",
+    "department": "technical"
+  },
+  {
+    "id": "EMP04572819",
+    "name": "Chathura Jayasinghe",
+    "designation": "MEP Engineer",
+    "email": "gayash.info@gmail.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "34f",
+    "security": "123A",
+    "department": "technical"
+  },
+  {
+    "id": "EMP05839147",
+    "name": "Ramesh Fernando",
+    "designation": "Contractor",
+    "email": "ramesh.contractor@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "sghdf",
+    "security": "123A",
+    "department": "Contracts"
+  },
+  {
+    "id": "EMP07285639",
+    "name": "Sajith Karunaratne",
+    "designation": "Contractor",
+    "email": "sajith.contractor@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "afasfw",
+    "security": "123A",
+    "department": "technical"
+  },
+  {
+    "id": "EMP09561724",
+    "name": "Ishara De Silva",
+    "designation": "SFM Department",
+    "email": "ishara.sfm@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "56fd",
+    "security": "123A",
+    "department": "sfm"
+  },
+  {
+    "id": "EMP10384576",
+    "name": "Supun Bandara",
+    "designation": "SFM Department",
+    "email": "supun.sfm@company.com",
+    "active": true,
+    "role": "admin",
+    "username": "daserty",
+    "security": "123A",
+    "department": "sfm"
+  },
+
+  {
+    "id": "EMP12653894",
+    "name": "Sanduni Perera",
+    "designation": "CMU Manager",
+    "email": "sanduni.cmu@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "e32w4",
+    "security": "123A",
+    "department": "cmu"
+  },
+  {
+    "id": "EMP13820467",
+    "name": "Harsha Wickramasinghe",
+    "designation": "CMU Manager",
+    "email": "harsha.cmu@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "j67k6",
+    "security": "123A",
+    "department": "cmu"
+  },
+  {
+    "id": "EMP14957683",
+    "name": "Lahiru Senanayake",
+    "designation": "Operations Executive",
+    "email": "lahiru.operations@company.com",
+    "active": true,
+    "role": "actionOwner",
+    "username": "faewr",
+    "security": "123A",
+    "department": "operations"
+  },
+  {
+    "id": "EMP16847599",
+    "name": "T.G. Tharindu",
+    "designation": "Assistant Operations",
+    "email": "tgtharindu@company.com",
+    "active": true,
+    "role": "dataEntry",
+    "username": "lop09",
+    "security": "123A"
+  },
+  {
+    "id": "EMP16654529",
+    "name": "Clement Peiris",
+    "designation": "Operations Executive",
+    "email": "clement.s@company.com",
+    "active": true,
+    "role": "admin",
+    "username": "clement",
+    "security": "123A",
+    "department": "operations"
+  }
+]

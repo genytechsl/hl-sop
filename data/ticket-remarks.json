@@ -1,0 +1,90 @@
+[
+  {
+    "remarkId": 0,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Customer notified via email with ticket reference and expected SLA.",
+    "statusChangedTo": "OPEN",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T09:12:00"
+  },
+  {
+    "remarkId": 1,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Assigned and contacted the plumbing contractor to inspect the reported water leakage.",
+    "statusChangedTo": "IN_PROGRESS",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T10:05:00"
+  },
+  {
+    "remarkId": 2,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Third-party plumbing service confirmed attendance and scheduled repair for the afternoon.",
+    "statusChangedTo": "IN_PROGRESS",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T11:40:00"
+  },
+  {
+    "remarkId": 3,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Repair completed. Site inspected and no further leakage observed.",
+    "statusChangedTo": "IN_PROGRESS",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T15:25:00"
+  },
+  {
+    "remarkId": 4,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Customer contacted by phone and confirmed the issue has been fully resolved.",
+    "statusChangedTo": "RESOLVED",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T16:10:00"
+  },
+  {
+    "remarkId": 5,
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "Customer feedback received. Ticket closed after successful verification and satisfaction confirmation.",
+    "statusChangedTo": "CLOSED",
+    "updatedBy": "EMP02029382",
+    "createdDate": "2026-07-23T17:05:00"
+  },
+  {
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "the case to be reopened",
+    "statusChangedTo": "OPEN",
+    "remarkId": 6,
+    "createdDate": "2026-07-23T18:46:41.424Z",
+    "updateBy": "EMP02029382"
+  },
+  {
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "The engineer is on the case",
+    "statusChangedTo": "IN_PROGRESS",
+    "remarkId": 7,
+    "createdDate": "2026-07-23T18:49:08.528Z",
+    "updatedBy": "EMP02029382"
+  },
+  {
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "closing again",
+    "statusChangedTo": "CLOSED",
+    "remarkId": 8,
+    "createdDate": "2026-07-23T18:49:50.170Z",
+    "updatedBy": "EMP02029382"
+  },
+  {
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "started working on again",
+    "statusChangedTo": "IN_PROGRESS",
+    "remarkId": 9,
+    "createdDate": "2026-07-23T19:03:58.618Z",
+    "updatedBy": "EMP02029382"
+  },
+  {
+    "ticketId": "HL-CMU-2026-459669",
+    "remarkType": "this is a new remark",
+    "statusChangedTo": "IN_PROGRESS",
+    "remarkId": 10,
+    "createdDate": "2026-07-24T09:29:18.749Z",
+    "updatedBy": "EMP02029382"
+  }
+]

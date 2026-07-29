@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 import {
   LayoutDashboard,
@@ -13,51 +14,67 @@ import {
   FileText,
   Settings,
   ChevronDown,
+  PlusCircle,
+  AlertOctagon,
   X,
+  LogOut,
 } from "lucide-react";
+
+interface User {
+  id: string;
+  name: string;
+  role: string;
+  designation: string;
+  email: string;
+}
 
 interface Props {
   open: boolean;
   setOpen: (value: boolean) => void;
+  user: User;
 }
 
-export default function Sidebar({ open, setOpen }: Props) {
+export default function Sidebar({ open, setOpen, user }: Props) {
   const pathname = usePathname();
 
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const menus = [
+  const allMenus = [
     {
       name: "Dashboard",
       href: "/dashboard",
       icon: LayoutDashboard,
+      roles: ["dataEntry", "admin"],
     },
     {
       name: "Tickets",
       href: "/tickets",
       icon: Ticket,
+      roles: ["dataEntry", "admin"],
     },
     {
-      name: "Ledger",
-      href: "/ledger",
+      name: "Assigned To Me",
+      href: "/assigned",
       icon: BookOpen,
-    },
-    {
-      name: "SLA Escalations",
-      href: "/sla-escalations",
-      icon: AlertTriangle,
+      roles: ["actionOwner"],
     },
     {
       name: "Reports",
       href: "/reports",
       icon: FileText,
-    },
-    {
-      name: "Analytics",
-      href: "/analytics",
-      icon: BarChart3,
+      roles: ["admin"],
     },
   ];
+
+  const menus = allMenus.filter((menu) => menu.roles.includes(user.role));
+
+  const logout = async () => {
+    await fetch("/api/logout", {
+      method: "POST",
+    });
+
+    window.location.href = "/";
+  };
 
   return (
     <>
@@ -87,20 +104,21 @@ export default function Sidebar({ open, setOpen }: Props) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-
           <div className="p-6 border-b border-white/10">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between md:justify-center">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white">
+                {/* <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white">
                   U
-                </div>
-
-                <div>
-                  <h2 className="font-bold text-lg">UCSP Admin</h2>
-
-                  <p className="text-xs text-slate-400">
-                    Service Desk Platform
-                  </p>
+                </div> */}
+                <div className="flex items-center justify-center">
+                  <Image
+                    src="/hl_logo_white.png" //
+                    alt="Company Logo"
+                    width={160}
+                    height={48}
+                    className="object-contain"
+                    priority
+                  />
                 </div>
               </div>
 
@@ -109,9 +127,7 @@ export default function Sidebar({ open, setOpen }: Props) {
               </button>
             </div>
           </div>
-
           {/* Menu */}
-
           <div className="flex-1 overflow-auto p-4 space-y-2">
             {menus.map((item) => {
               const Icon = item.icon;
@@ -143,46 +159,166 @@ export default function Sidebar({ open, setOpen }: Props) {
             })}
 
             {/* Settings */}
-
-            <button
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-slate-300 hover:bg-slate-800"
-            >
-              <div className="flex items-center gap-3">
-                <Settings size={18} />
-                Settings
-              </div>
-
-              <ChevronDown
-                className={`transition ${settingsOpen ? "rotate-180" : ""}`}
-                size={16}
-              />
-            </button>
-
-            {settingsOpen && (
-              <div className="ml-6 space-y-2">
-                <Link
-                  href="/settings/user-settings"
-                  className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            {user && user.role === "admin" && (
+              <>
+                <button
+                  onClick={() => setSettingsOpen(!settingsOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-slate-300 hover:bg-slate-800"
                 >
-                  User Settings
-                </Link>
+                  <div className="flex items-center gap-3">
+                    <Settings size={18} />
+                    Settings
+                  </div>
 
-                <Link
-                  href="/settings/other-settings"
-                  className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-                >
-                  Other Settings
-                </Link>
-              </div>
+                  <ChevronDown
+                    className={`transition ${settingsOpen ? "rotate-180" : ""}`}
+                    size={16}
+                  />
+                </button>
+                {settingsOpen && (
+                  <div className="ml-6 space-y-2">
+                    <Link
+                      href="/settings/user/"
+                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                    >
+                      Users
+                    </Link>
+
+                    <Link
+                      href="/settings/customers/new"
+                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                    >
+                      Customers
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </div>
+          {/* Quick Actions */}
+          {user && (user.role === "admin" || user.role === "dataEntry") && (
+            <div className="px-4 pb-4">
+              <div className="rounded-2xl bg-slate-800/50 border border-white/10 p-4">
+                <p className="text-xs uppercase tracking-wider text-slate-500 mb-4 font-semibold">
+                  Quick Actions
+                </p>
 
+                <div className="grid grid-cols-3 gap-3">
+                  <Link
+                    href="/tickets/new"
+                    className="
+                      group
+                      flex
+                      flex-col
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      bg-blue-500/10
+                      border
+                      border-blue-500/20
+                      p-3
+                      hover:bg-blue-500/20
+                      transition-all
+                    "
+                  >
+                    <PlusCircle
+                      size={20}
+                      className="text-blue-400 group-hover:scale-110 transition-transform"
+                    />
+
+                    <span className="text-[11px] text-slate-300 text-center">
+                      Ticket
+                    </span>
+                  </Link>
+
+                  <Link
+                    href="/reports"
+                    className="
+                      group
+                      flex
+                      flex-col
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      bg-amber-500/10
+                      border
+                      border-amber-500/20
+                      p-3
+                      hover:bg-amber-500/20
+                      transition-all
+                    "
+                  >
+                    <AlertOctagon
+                      size={20}
+                      className="text-amber-400 group-hover:scale-110 transition-transform"
+                    />
+
+                    <span className="text-[11px] text-slate-300 text-center">
+                      Escalations
+                    </span>
+                  </Link>
+                  {user.role === "admin" && (
+                    <Link
+                      href="/settings/user"
+                      className="
+                    group
+                    flex
+                    flex-col
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-purple-500/10
+                    border
+                    border-purple-500/20
+                    p-3
+                    hover:bg-purple-500/20
+                    transition-all
+                  "
+                    >
+                      <Settings
+                        size={20}
+                        className="text-purple-400 group-hover:rotate-90 transition-transform duration-300"
+                      />
+
+                      <span className="text-[11px] text-slate-300">
+                        Settings
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          ;{/* Logout function */}
+          <div className="px-4 pb-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-4">
+              <div>
+                <p className="text-sm font-semibold text-white">{user.name}</p>
+                <p className="text-xs text-slate-400">{user.designation}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {user.email}
+                </p>
+              </div>
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border cursor-pointer border-red-500/20  py-3 text-sm font-medium text-red-300 transition-all hover:bg-red-500/20 hover:text-white"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
           {/* Footer */}
-
           <div className="p-5 border-t border-white/10">
             <p className="text-xs text-slate-500">
-              Developed by GenY Tech © 2026
+              <span className="text-geny-green">SolvY 360 </span>Powered by GenY
+              Tech © 2026
             </p>
           </div>
         </div>
