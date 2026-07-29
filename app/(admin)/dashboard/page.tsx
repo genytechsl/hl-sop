@@ -14,7 +14,7 @@ export default function DashboardPage() {
 
       <DashboardCharts />
 
-      <section className="white-card">
+      <section>
         <div className="mt-3 flex items-center justify-end gap-2">
           <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse"></span>
 

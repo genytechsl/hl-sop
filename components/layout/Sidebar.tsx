@@ -297,6 +297,17 @@ export default function Sidebar({ open, setOpen, user }: Props) {
           ;{/* Logout function */}
           <div className="px-4 pb-3">
             <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-4">
+              <div className="flex justify-end">
+                {user.role === "admin" ? (
+                  <p className="text-sm font-normal text-red-400">
+                    Administrator
+                  </p>
+                ) : user.role === "actionOwner" ? (
+                  <p className="text-sm font-normal">Operator</p>
+                ) : (
+                  <p className="text-sm font-normal">Data Entry</p>
+                )}
+              </div>
               <div>
                 <p className="text-sm font-semibold text-white">{user.name}</p>
                 <p className="text-xs text-slate-400">{user.designation}</p>

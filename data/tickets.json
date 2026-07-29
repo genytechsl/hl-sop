@@ -13,7 +13,7 @@
     "assignedTo": "Facilities Team",
     "createdAt": "2026-07-18 09:15",
     "customerName": "J. Sunimal Fernando",
-    "slaTarget": "24 h"
+    "slaTarget": "24"
   },
   {
     "id": "HL-CMU-2026-0002",
@@ -29,7 +29,7 @@
     "assignedTo": "Electrical Team",
     "createdAt": "2026-07-20 14:30",
     "customerName": "Y. E. Peiris",
-    "slaTarget": "24 h"
+    "slaTarget": "24"
   },
   {
     "id": "HL-CMU-2026-0003",
@@ -45,7 +45,7 @@
     "assignedTo": "MEP Team",
     "createdAt": "2026-07-19 10:45",
     "customerName": "Reshani Perera",
-    "slaTarget": "7 wd"
+    "slaTarget": "168"
   },
   {
     "id": "HL-CMU-2026-459669",
@@ -60,7 +60,7 @@
     "assignedToId": "EMP02029382",
     "createdAt": "2026-07-23 14:04",
     "customerName": "Gayashan",
-    "slaTarget": "24 h",
+    "slaTarget": "24",
     "complaintSource": "Email"
   },
   {
@@ -75,7 +75,7 @@
     "assignedToId": "EMP03184725",
     "createdAt": "2026-07-23 20:02",
     "customerName": "Gayashan",
-    "slaTarget": "7 wd",
+    "slaTarget": "168",
     "complaintSource": "Whatsapp",
     "scope": "Payment, Ledger & Billing Issues"
   },
@@ -91,7 +91,7 @@
     "assignedToId": "EMP14957683",
     "createdAt": "2026-07-23 20:04",
     "customerName": "Gayashan",
-    "slaTarget": "10 wd",
+    "slaTarget": "240",
     "complaintSource": "Whatsapp",
     "scope": "Payment, Ledger & Billing Issues"
   },
@@ -107,7 +107,7 @@
     "assignedToId": "EMP02029382",
     "createdAt": "2026-07-24 09:14",
     "customerName": "Gayashan",
-    "slaTarget": "24 h",
+    "slaTarget": "24",
     "complaintSource": "Customer Call",
     "scope": "Documentation & Title Deeds"
   },
@@ -123,13 +123,10 @@
     "assignedToId": "EMP02029382",
     "createdAt": "2026-07-27 07:27",
     "customerName": "Amodh",
-    "slaTarget": "24 h",
+    "slaTarget": "24",
     "complaintSource": "Email",
     "scope": "Payment, Ledger & Billing Issues",
-    "selectedEmails": [
-      "gayash.info@gmail.com",
-      "tharindu.sfm@company.com"
-    ]
+    "selectedEmails": ["gayash.info@gmail.com", "tharindu.sfm@company.com"]
   },
   {
     "id": "INQ-2026function getMonth() { [native code] }-854700",
@@ -143,7 +140,7 @@
     "assignedToId": "EMP02029382",
     "createdAt": "2026-07-27 07:37",
     "customerName": "Gayashan",
-    "slaTarget": "7 wd",
+    "slaTarget": "168",
     "complaintSource": "Whatsapp",
     "scope": "Payment, Ledger & Billing Issues",
     "selectedEmails": []
@@ -160,7 +157,7 @@
     "assignedToId": "EMP02029382",
     "createdAt": "2026-07-27 07:38",
     "customerName": "Gayashan",
-    "slaTarget": "24 h",
+    "slaTarget": "24",
     "complaintSource": "Customer Call",
     "scope": "Contractual / SPA Legal Escalations",
     "selectedEmails": []

@@ -4,6 +4,7 @@ import {
   createTicket,
   getTicketsByAssignedTo,
   getTicketOverview,
+  getAgingOverview,
 } from "@/lib/ticket-service";
 import { cookies } from "next/headers";
 
@@ -75,6 +76,9 @@ export async function GET(request: NextRequest) {
 
   if (searchParams.get("overview") === "true") {
     return NextResponse.json(await getTicketOverview());
+  }
+  if (searchParams.get("aging") === "true") {
+    return NextResponse.json(await getAgingOverview());
   }
 
   const cookieStore = await cookies();

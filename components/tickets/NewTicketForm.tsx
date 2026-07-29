@@ -144,22 +144,22 @@ export default function NewTicketForm() {
   const getSlaTarget = (category: string) => {
     switch (category) {
       case "CAT-A":
-        return "24 h";
+        return "24";
 
       case "CAT-B":
-        return "7 wd";
+        return "168";
 
       case "CAT-B2":
-        return "7 d";
+        return "168";
 
       case "CAT-C":
-        return "5 wd";
+        return "120";
 
       case "CAT-D":
-        return "10 wd";
+        return "240";
 
       default:
-        return "24 h";
+        return "24";
     }
   };
 

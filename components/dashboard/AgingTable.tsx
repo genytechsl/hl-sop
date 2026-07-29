@@ -1,7 +1,17 @@
+"use client";
+
 import { ArrowRight, Info } from "lucide-react";
-import { agingData } from "./dashboard-data";
+import { use, useEffect, useState } from "react";
+// import { agingData } from "./dashboard-data";
 
 export default function AgingTable() {
+  const [agingData, setAgingData] = useState([]);
+
+  useEffect(() => {
+    fetch("/api/tickets?aging=true")
+      .then((res) => res.json())
+      .then(setAgingData);
+  }, []);
   return (
     <section className="mt-8">
       <div className="flex items-center gap-2 mb-4">
@@ -25,13 +35,12 @@ export default function AgingTable() {
                 <th className="text-left px-5 py-4">Target SLA</th>
                 <th className="text-left px-5 py-4">Average Aging</th>
                 <th className="text-left px-5 py-4">SLA Compliance</th>
-                <th className="text-left px-5 py-4">vs SLA</th>
                 <th className="text-left px-5 py-4"></th>
               </tr>
             </thead>
 
             <tbody>
-              {agingData.map((row) => (
+              {agingData.map((row: any) => (
                 <tr key={row.code}>
                   <td className="px-5 py-4">
                     <span
@@ -44,9 +53,9 @@ export default function AgingTable() {
                     </span>
                   </td>
 
-                  <td className="px-5 py-4">{row.target}</td>
+                  <td className="px-5 py-4">{row.slaTarget}</td>
 
-                  <td className="px-5 py-4">{row.aging}</td>
+                  <td className="px-5 py-4">{row.averageAge}</td>
 
                   {/* <td className="px-5 py-4">{row.compliance}%</td> */}
 
@@ -67,10 +76,6 @@ export default function AgingTable() {
                         />
                       </div>
                     </div>
-                  </td>
-
-                  <td className="px-5 py-4 text-green-400 text-center">
-                    Within SLA
                   </td>
 
                   <td className="px-5 py-4 text-center">

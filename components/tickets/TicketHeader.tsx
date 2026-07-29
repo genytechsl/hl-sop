@@ -54,6 +54,26 @@ export default function TicketHeader({ ticket }: Props) {
     }
   };
 
+  function isSlaBreached(): boolean {
+    const createdAt = new Date(ticket.createdAt.replace(" ", "T"));
+
+    const ageHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+    let slaHours = 0;
+
+    const value = parseInt(ticket.slaTarget);
+
+    if (ticket.slaTarget.includes("wd")) {
+      slaHours = value * 24 * 5;
+    } else if (ticket.slaTarget.includes("d")) {
+      slaHours = value * 24;
+    } else if (ticket.slaTarget.includes("h")) {
+      slaHours = value;
+    }
+
+    return ageHours > slaHours;
+  }
+
   const statusConfig = getStatusConfig(ticket.status);
   const StatusIcon = statusConfig.icon;
 
@@ -319,6 +339,10 @@ export default function TicketHeader({ ticket }: Props) {
                 <option value="CLOSED" className="text-green-600">
                   Closed
                 </option>
+
+                <option value="RETURN" className="text-gray-600">
+                  Return
+                </option>
               </select>
             </div>
           </div>
@@ -333,6 +357,7 @@ export default function TicketHeader({ ticket }: Props) {
             <textarea
               rows={2}
               value={remark}
+              required={status === "RETURN" || isSlaBreached()}
               onChange={(e) => setRemark(e.target.value)}
               placeholder="Enter update remarks, actions taken, notes, observations, etc..."
               className="
