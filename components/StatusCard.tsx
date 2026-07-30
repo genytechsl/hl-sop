@@ -44,12 +44,12 @@ export default function StatusCard({
         <p className="mt-1 text-4xl font-bold text-(--surface)">{value}</p>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      {/* <div className="mt-5 flex justify-end">
         <button className="flex items-center gap-2 text-xl text-blue-500 group-hover:text-blue-300">
           View Details
           <ArrowRight size={14} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }

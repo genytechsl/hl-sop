@@ -78,14 +78,14 @@ export default function AgingTable() {
                     </div>
                   </td>
 
-                  <td className="px-5 py-4 text-center">
+                  {/* <td className="px-5 py-4 text-center">
                     <div className="mt-5 flex justify-end align-middle">
                       <button className="flex items-center gap-2 text-xl text-blue-500 group-hover:text-blue-300">
                         View Details
                         <ArrowRight size={14} />
                       </button>
                     </div>
-                  </td>
+                  </td> */}
                 </tr>
               ))}
             </tbody>
