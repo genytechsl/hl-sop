@@ -2,11 +2,25 @@
 
 import { Search, Filter, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 // import { ticketData } from "./ticket-data";
-import { useEffect, useState } from "react";
+import {
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useState,
+  useEffect,
+} from "react";
 import TicketSlaOverview from "./TicketSlaOverview";
 import Link from "next/link";
+import jsPDF from "jspdf";
+import { toPng } from "html-to-image";
+import autoTable from "jspdf-autotable";
 
-export default function TicketTable() {
+export interface TicketTableRef {
+  exportPdf: () => Promise<void>;
+  exportCsv: () => void;
+}
+
+const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [isLoading, setisLoading] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -205,9 +219,128 @@ export default function TicketTable() {
       </tbody>
     );
   }
+  const tableRef = useRef<HTMLDivElement>(null);
 
+  useImperativeHandle(ref, () => ({
+    exportPdf,
+    exportCsv,
+  }));
+
+  // async function exportPdf() {
+  //   if (!tableRef.current) return;
+
+  //   const dataUrl = await toPng(tableRef.current, {
+  //     cacheBust: true,
+  //     pixelRatio: 2,
+  //   });
+
+  //   const pdf = new jsPDF("l", "mm", "a4");
+
+  //   const imgProps = pdf.getImageProperties(dataUrl);
+
+  //   const pdfWidth = pdf.internal.pageSize.getWidth();
+
+  //   const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+  //   pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+  //   pdf.save("tickets.pdf");
+  // }
+  async function exportPdf() {
+    const pdf = new jsPDF("l", "mm", "a4");
+
+    autoTable(pdf, {
+      head: [
+        [
+          "#",
+          "Ticket ID",
+          "Category",
+          "Subject",
+          "Customer",
+          "Status",
+          "Target SLA",
+          "Age",
+          "Created",
+        ],
+      ],
+      body: filteredTickets.map((ticket, index) => {
+        const metrics = getTicketMetrics(ticket);
+
+        return [
+          index + 1,
+          ticket.id,
+          ticket.category,
+          ticket.title,
+          ticket.customerName,
+          ticket.status,
+          ticket.slaTarget,
+          formatAge(metrics.ageHours),
+          new Date(ticket.createdAt).toLocaleDateString(),
+        ];
+      }),
+    });
+
+    pdf.save("tickets.pdf");
+  }
+
+  //csv exporter
+  function exportCsv() {
+    const headers = [
+      "#",
+      "Ticket ID",
+      "Category",
+      "Subject",
+      "Customer",
+      "Status",
+      "Target SLA",
+      "Age",
+      "Created At",
+    ];
+
+    const rows = filteredTickets.map((ticket, index) => {
+      const metrics = getTicketMetrics(ticket);
+
+      return [
+        index + 1,
+        ticket.id,
+        ticket.category,
+        ticket.title,
+        ticket.customerName,
+        ticket.status,
+        ticket.slaTarget,
+        formatAge(metrics.ageHours),
+        ticket.createdAt,
+      ];
+    });
+
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  }
   return (
-    <section className="white-section overflow-hidden">
+    <section ref={tableRef} className="white-section overflow-hidden">
       <TicketSlaOverview
         tickets={tickets}
         getTicketMetrics={getTicketMetrics}
@@ -250,11 +383,11 @@ export default function TicketTable() {
 
           <div
             className="
-flex
-flex-col
-sm:flex-row
-gap-3
-"
+                          flex
+                          flex-col
+                          sm:flex-row
+                          gap-3
+                          "
           >
             {/* Status */}
 
@@ -265,14 +398,14 @@ gap-3
                 setCurrentPage(1);
               }}
               className="
-h-11
-rounded-xl
-border
-border-slate-200
-px-4
-bg-white
-text-sm
-"
+                              h-11
+                              rounded-xl
+                              border
+                              border-slate-200
+                              px-4
+                              bg-white
+                              text-sm
+                              "
             >
               <option value="ALL">All Status</option>
 
@@ -295,13 +428,13 @@ text-sm
                 setCurrentPage(1);
               }}
               className="
-h-11
-rounded-xl
-border
-border-slate-200
-px-4
-text-sm
-"
+                      h-11
+                      rounded-xl
+                      border
+                      border-slate-200
+                      px-4
+                      text-sm
+                      "
             />
 
             {/* To Date */}
@@ -314,13 +447,13 @@ text-sm
                 setCurrentPage(1);
               }}
               className="
-h-11
-rounded-xl
-border
-border-slate-200
-px-4
-text-sm
-"
+                h-11
+                rounded-xl
+                border
+                border-slate-200
+                px-4
+                text-sm
+                "
             />
 
             <button
@@ -331,15 +464,15 @@ text-sm
                 setCurrentPage(1);
               }}
               className="
-h-11
-px-4
-rounded-xl
-border
-border-slate-200
-hover:bg-slate-50
-text-sm
-font-medium
-"
+                h-11
+                px-4
+                rounded-xl
+                border
+                border-slate-200
+                hover:bg-slate-50
+                text-sm
+                font-medium
+                "
             >
               Reset
             </button>
@@ -618,4 +751,6 @@ text-slate-500
       </div>
     </section>
   );
-}
+});
+
+export default TicketTable;

@@ -33,11 +33,8 @@ export default function SlaBreachRateCard() {
 
   function getHoursFromSla(sla: string) {
     const value = parseInt(sla);
-
     if (sla.includes("wd")) return value * 24 * 5;
-
     if (sla.includes("d")) return value * 24;
-
     return value;
   }
 

@@ -68,3 +68,28 @@ export async function generateCustomerId(): Promise<string> {
 
   return `CUS-${String(lastCustomerNumber + 1).padStart(6, "0")}`;
 }
+export async function updateCustomer(
+  updatedCustomer: Customer,
+): Promise<Customer> {
+  try {
+    const customers = await getCustomers();
+
+    const index = customers.findIndex(
+      (customer) => customer.id === updatedCustomer.id,
+    );
+
+    if (index === -1) {
+      throw new Error("Customer not found");
+    }
+
+    customers[index] = updatedCustomer;
+
+    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2), "utf8");
+
+    return updatedCustomer;
+  } catch (error) {
+    console.error("Error updating customer:", error);
+
+    throw error;
+  }
+}

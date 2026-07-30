@@ -1,12 +1,12 @@
 import DashboardHeader from "@/components/DashboardHeader";
-import UserManagementTable from "@/components/users/UserManagementTable";
+import CustomerManagementTable from "@/components/customers/CustomerManagementTable";
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8">
-      <DashboardHeader header="Customer Management" page={5} />
+    <div className="1">
+      <DashboardHeader header="Customer Management" page={51} />
 
-      {/* <UserManagementTable /> */}
+      <CustomerManagementTable />
 
       <section className=".white-card">
         <h4 className="font-semibold text-gray-500">Last Updated</h4>

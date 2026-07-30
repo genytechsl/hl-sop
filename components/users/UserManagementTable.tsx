@@ -118,7 +118,7 @@ export default function UserManagementTable() {
       {/* Header */}
 
       <div className="flex items-center gap-3 mb-6">
-        <div
+        {/* <div
           className="
           rounded-xl
           bg-blue-50
@@ -137,7 +137,7 @@ export default function UserManagementTable() {
           <p className="text-sm text-slate-500">
             Manage employee access permissions
           </p>
-        </div>
+        </div> */}
       </div>
 
       {message && (

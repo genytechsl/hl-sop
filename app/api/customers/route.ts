@@ -5,6 +5,7 @@ import {
   generateCustomerId,
   getCustomers,
   searchCustomers,
+  updateCustomer,
 } from "@/lib/customer-service";
 
 import { Customer } from "@/types/customer";
@@ -49,4 +50,36 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(savedCustomer, {
     status: 201,
   });
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const updatedCustomer: Customer = {
+      id: body.id,
+      name: body.name,
+      email: body.email ?? [],
+      mobile: body.mobile ?? [],
+      NIC: body.NIC,
+      active: body.active,
+      createdDate: body.createdDate,
+      properties: body.properties ?? [],
+    };
+
+    const customer = await updateCustomer(updatedCustomer);
+
+    return NextResponse.json(customer);
+  } catch (error) {
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        message: "Failed to update customer",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }

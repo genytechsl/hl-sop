@@ -89,16 +89,11 @@ export default function Sidebar({ open, setOpen, user }: Props) {
         className={`
           fixed top-0 left-0 z-50
           h-screen w-72
-
           bg-slate-900/95
           backdrop-blur-xl
-
           border-r border-white/10
-
           transform transition-all duration-300
-
           ${open ? "translate-x-0" : "-translate-x-full"}
-
           lg:translate-x-0
         `}
       >
@@ -187,7 +182,7 @@ export default function Sidebar({ open, setOpen, user }: Props) {
                     </Link>
 
                     <Link
-                      href="/settings/customers/new"
+                      href="/settings/customers/"
                       className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
                     >
                       Customers
@@ -265,20 +260,20 @@ export default function Sidebar({ open, setOpen, user }: Props) {
                     <Link
                       href="/settings/user"
                       className="
-                    group
-                    flex
-                    flex-col
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-purple-500/10
-                    border
-                    border-purple-500/20
-                    p-3
-                    hover:bg-purple-500/20
-                    transition-all
-                  "
+                        group
+                        flex
+                        flex-col
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-xl
+                        bg-purple-500/10
+                        border
+                        border-purple-500/20
+                        p-3
+                        hover:bg-purple-500/20
+                        transition-all
+                      "
                     >
                       <Settings
                         size={20}
@@ -297,37 +292,51 @@ export default function Sidebar({ open, setOpen, user }: Props) {
           ;{/* Logout function */}
           <div className="px-4 pb-3">
             <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-4">
-              <div className="flex justify-end">
+              {/* Top Row */}
+              <div className="flex items-center justify-between mb-4">
                 {user.role === "admin" ? (
-                  <p className="text-sm font-normal text-red-600 mb-4">
+                  <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300">
                     System Administrator
-                  </p>
+                  </span>
                 ) : user.role === "actionOwner" ? (
-                  <p className="text-sm font-normal text-cyan-300 mb-4">
+                  <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-300">
                     Case Owner
-                  </p>
+                  </span>
                 ) : (
-                  <p className="text-sm font-normal text-amber-300 mb-4">
+                  <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300">
                     Case Coordinator
-                  </p>
+                  </span>
                 )}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{user.name}</p>
-                <p className="text-xs text-slate-400">{user.designation}</p>
-                <p className="mt-1 truncate text-xs text-slate-500">
-                  {user.email}
-                </p>
-              </div>
 
-              <div className="mt-4 border-t border-white/10 pt-4">
                 <button
                   onClick={logout}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border cursor-pointer border-red-500/20  py-3 text-sm font-medium text-red-300 transition-all hover:bg-red-500/20 hover:text-white"
+                  title="Logout"
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-red-500/20
+                    text-red-300
+                    transition-all
+                    hover:bg-red-500/20
+                    hover:text-white
+                    cursor-pointer
+                  "
                 >
                   <LogOut size={18} />
-                  Logout
                 </button>
+              </div>
+
+              {/* User Details */}
+              <div>
+                <p className="text-sm font-semibold text-white">{user.name}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {user.designation}
+                </p>
               </div>
             </div>
           </div>
