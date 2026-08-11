@@ -36,7 +36,7 @@ export async function GET() {
       // Already notified?
       //----------------------------------------
 
-      if (ticket.warning80Sent) continue;
+      // if (ticket.warning80Sent) continue;
 
       //----------------------------------------
       // Calculate age
@@ -91,8 +91,8 @@ export async function GET() {
       // Update ticket
       //----------------------------------------
 
-      ticket.warning80Sent = true;
-      ticket.warning80SentAt = new Date().toISOString();
+      // ticket.warning80Sent = true;
+      // ticket.warning80SentAt = new Date().toISOString();
 
       await updateTicket(ticket);
 
