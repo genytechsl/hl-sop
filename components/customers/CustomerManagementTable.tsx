@@ -19,8 +19,8 @@ interface Property {
 interface Customer {
   id: string;
   name: string;
-  email: string[];
-  mobile: string[];
+  email: string;
+  mobile: string;
   NIC: string;
   active: boolean;
   createdDate: string;
@@ -55,7 +55,8 @@ export default function CustomerManagementTable() {
       const matchesSearch =
         customer.name.toLowerCase().includes(keyword) ||
         customer.NIC.toLowerCase().includes(keyword) ||
-        customer.mobile.some((m) => m.toLowerCase().includes(keyword));
+        customer.email.toLowerCase().includes(keyword) ||
+        customer.mobile.toLowerCase().includes(keyword);
 
       const matchesStatus =
         statusFilter === "all"
@@ -235,7 +236,7 @@ export default function CustomerManagementTable() {
                 <th className="px-4 py-4 text-left">#</th>
                 <th className="px-4 py-4 text-left">Customer ID</th>
                 <th className="px-4 py-4 text-left">Name</th>
-                <th className="px-4 py-4 text-left">Emails</th>
+                <th className="px-4 py-4 text-left">Email</th>
                 <th className="px-4 py-4 text-left">Mobile</th>
                 <th className="px-4 py-4 text-left">Properties</th>
                 <th className="px-4 py-4 text-left">Status</th>
@@ -293,26 +294,14 @@ export default function CustomerManagementTable() {
 
                   <td className="px-4 py-2">
                     <div className="font-medium text-slate-700">
-                      {customer.email[0]}
+                      {customer.email}
                     </div>
-
-                    {customer.email.length > 1 && (
-                      <div className="mt-1 text-xs text-slate-500">
-                        +{customer.email.length - 1} more
-                      </div>
-                    )}
                   </td>
 
                   <td className="px-4 py-2">
                     <div className="font-medium text-slate-700">
-                      {customer.mobile[0]}
+                      {customer.mobile}
                     </div>
-
-                    {customer.mobile.length > 1 && (
-                      <div className="mt-1 text-xs text-slate-500">
-                        +{customer.mobile.length - 1} more
-                      </div>
-                    )}
                   </td>
 
                   <td className="px-4 py-2">
@@ -381,8 +370,10 @@ export default function CustomerManagementTable() {
             <div className="text-sm text-slate-500">
               Showing{" "}
               <span className="font-medium">
-                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-              </span>{" "}
+                {filteredCustomers.length === 0
+                  ? 0
+                  : (currentPage - 1) * ITEMS_PER_PAGE + 1}
+              </span>
               -
               <span className="font-medium">
                 {" "}

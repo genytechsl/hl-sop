@@ -2,14 +2,8 @@
   {
     "id": "CUS-000001",
     "name": "Nimal Perera",
-    "email": [
-      "nimal.perera@gmail.com",
-      "nimal.office@company.com"
-    ],
-    "mobile": [
-      "+94771234567",
-      "+94112345678"
-    ],
+    "email": "john@gmail.com",
+    "mobile": "0771234567",
     "NIC": "781234567V",
     "active": true,
     "createdDate": "2025-01-15",
@@ -27,12 +21,8 @@
   {
     "id": "CUS-000002",
     "name": "Kumari Fernando",
-    "email": [
-      "kumari.fernando@gmail.com"
-    ],
-    "mobile": [
-      "+94772345678"
-    ],
+    "email": "john@gmail.com",
+    "mobile": "0771234567",
     "NIC": "825678901V",
     "active": true,
     "createdDate": "2025-02-20",
@@ -46,14 +36,8 @@
   {
     "id": "CUS-000003",
     "name": "Ruwan Jayasinghe",
-    "email": [
-      "ruwan.j@gmail.com",
-      "r.jayasinghe@business.com"
-    ],
-    "mobile": [
-      "+94773456789",
-      "+94779876543"
-    ],
+    "email": "john@gmail.com",
+    "mobile": "0771234567",
     "NIC": "760987654V",
     "active": true,
     "createdDate": "2025-03-10",
@@ -75,12 +59,8 @@
   {
     "id": "CUS-000004",
     "name": "Shanika Wijesinghe",
-    "email": [
-      "shanika.w@gmail.com"
-    ],
-    "mobile": [
-      "+94774567890"
-    ],
+    "email": "john@gmail.com",
+    "mobile": "0771234567",
     "NIC": "906543210V",
     "active": false,
     "createdDate": "2025-04-05",
@@ -94,13 +74,8 @@
   {
     "id": "CUS-000005",
     "name": "Dilan Peris",
-    "email": [
-      "dilan.peris@gmail.com",
-      "dilan.business@gmail.com"
-    ],
-    "mobile": [
-      "+94775678901"
-    ],
+    "email": "john@gmail.com",
+    "mobile": "0771234567",
     "NIC": "851234567V",
     "active": true,
     "createdDate": "2025-05-12",
@@ -117,130 +92,37 @@
   },
   {
     "id": "CUS-000006",
-    "name": "Tharindu Silva",
-    "email": [
-      "tharindu.silva@gmail.com"
-    ],
-    "mobile": [
-      "+94776789012",
-      "+94770112233"
-    ],
-    "NIC": "930123456V",
+    "name": "af",
+    "email": "gayashanlocal@gmail",
+    "mobile": "0770400185",
+    "NIC": "111111111V",
     "active": true,
-    "createdDate": "2025-06-18",
+    "createdDate": "2026-08-01",
     "properties": [
       {
-        "propertyName": "Metro Heights Apartment",
-        "address": "No 35, Baseline Road, Colombo 09"
+        "propertyName": "Nevora house 2",
+        "address": "31H, Nevora Housing Scheme, Malabe"
       }
     ]
   },
   {
     "id": "CUS-000007",
-    "name": "Ishara Madushani",
-    "email": [
-      "ishara.m@gmail.com"
-    ],
-    "mobile": [
-      "+94777890123"
-    ],
-    "NIC": "887654321V",
-    "active": false,
-    "createdDate": "2025-07-25",
-    "properties": [
-      {
-        "propertyName": "Sunrise Residency",
-        "address": "No 75, Temple Road, Mount Lavinia"
-      }
-    ]
-  },
-  {
-    "id": "CUS-000008",
-    "name": "Kasun Weerasinghe",
-    "email": [
-      "kasun.weera@gmail.com",
-      "kasun.property@gmail.com"
-    ],
-    "mobile": [
-      "+94778901234"
-    ],
-    "NIC": "799876543V",
+    "name": "Upul W. Seneviratne",
+    "email": "upul@company.com",
+    "mobile": "0000000000",
+    "NIC": "862123432V",
     "active": true,
-    "createdDate": "2025-08-30",
+    "receiveEmail": true,
+    "receiveSMS": true,
+    "createdDate": "2026-08-05",
     "properties": [
       {
-        "propertyName": "Central Park Apartments",
-        "address": "No 90, Park Street, Colombo 02"
+        "propertyName": "Private Villa",
+        "address": "789, Base State road, Kelaniya"
       },
       {
-        "propertyName": "Hill Country Villa",
-        "address": "No 12, Peradeniya Road, Kandy"
-      }
-    ]
-  },
-  {
-    "id": "CUS-000009",
-    "name": "Sachini Rathnayake",
-    "email": [
-      "sachini.r@gmail.com"
-    ],
-    "mobile": [
-      "+94779012345"
-    ],
-    "NIC": "916789012V",
-    "active": true,
-    "createdDate": "2025-09-14",
-    "properties": [
-      {
-        "propertyName": "Emerald Residences",
-        "address": "No 60, School Lane, Rajagiriya"
-      }
-    ]
-  },
-  {
-    "id": "CUS-000010",
-    "name": "Pradeep Gunawardena",
-    "email": [
-      "pradeep.g@gmail.com",
-      "pgunawardena@company.com"
-    ],
-    "mobile": [
-      "+94770123456"
-    ],
-    "NIC": "745678901V",
-    "active": true,
-    "createdDate": "2025-10-22",
-    "properties": [
-      {
-        "propertyName": "Skyline Business Tower",
-        "address": "No 200, Galle Road, Colombo 03"
-      },
-      {
-        "propertyName": "Suburban Residence",
-        "address": "No 14, Wijerama Road, Nugegoda"
-      }
-    ]
-  },
-  {
-    "id": "CUS-000011",
-    "name": "test",
-    "email": [
-      "sjodsaidisafnia"
-    ],
-    "mobile": [
-      "911191"
-    ],
-    "NIC": "124214124",
-    "active": true,
-    "createdDate": "2026-07-27",
-    "properties": [
-      {
-        "propertyName": "asdas",
-        "address": "asfasfas"
-      },
-      {
-        "propertyName": "safasfsa",
-        "address": "safsafsaf"
+        "propertyName": "New House",
+        "address": "33/4B, Rosemand street, New Town, Mulleriyawa"
       }
     ]
   }

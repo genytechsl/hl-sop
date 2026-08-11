@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, Calendar, TagPlus, ArrowLeft } from "lucide-react";
+import {
+  Download,
+  Calendar,
+  TagPlus,
+  ArrowLeft,
+  UserRoundPlus,
+  UserPlus,
+  ClockPlus,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -38,7 +46,7 @@ export default function DashboardHeader({
         <h1 className="text-3xl font-bold text-(--text-heading)">{header}</h1>
         {page && page === 1 && (
           <p className="mt-1 text-slate-400">
-            Monitor ticket volumes, SLA performance and operational metrics.
+            Monitor ticket volumes, SLA performance and operational metrics
           </p>
         )}
         {page && page === 41 && (
@@ -51,11 +59,21 @@ export default function DashboardHeader({
             View & Update Customer Information
           </p>
         )}
+        {page && page === 6 && (
+          <p className="mt-1 text-slate-400">
+            Manage automated dashboard report deliveries
+          </p>
+        )}
+        {page && page === 61 && (
+          <p className="mt-1 text-slate-400">
+            Configure automated dashboard report delivery
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-3">
         {page && page === 1 && (
           <>
-            <button className="button-heading flex items-center gap-2 transition">
+            {/* <button className="button-heading flex items-center gap-2 transition">
               <Calendar size={16} />
               Last 30 Days
             </button>
@@ -65,9 +83,12 @@ export default function DashboardHeader({
               <option>Critical</option>
               <option>Technical</option>
               <option>Facility</option>
-            </select>
+            </select> */}
 
-            <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
+            <button
+              onClick={onExport}
+              className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition"
+            >
               <Download size={16} />
               Export
             </button>
@@ -164,7 +185,7 @@ export default function DashboardHeader({
         {page && page === 41 && (
           <Link href="../settings/user/new">
             <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-              <TagPlus size={16} />
+              <UserRoundPlus size={16} />
               Add New User
             </button>
           </Link>
@@ -172,8 +193,16 @@ export default function DashboardHeader({
         {page && page === 51 && (
           <Link href="../settings/customers/new">
             <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-              <TagPlus size={16} />
+              <UserPlus size={16} />
               Add New Customer
+            </button>
+          </Link>
+        )}
+        {page && page === 6 && (
+          <Link href="../settings/report-schedular/new">
+            <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
+              <ClockPlus size={16} />
+              New Schedular
             </button>
           </Link>
         )}

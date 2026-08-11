@@ -1,90 +1,106 @@
 [
   {
-    "remarkId": 0,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Customer notified via email with ticket reference and expected SLA.",
-    "statusChangedTo": "OPEN",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T09:12:00"
-  },
-  {
-    "remarkId": 1,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Assigned and contacted the plumbing contractor to inspect the reported water leakage.",
-    "statusChangedTo": "IN_PROGRESS",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T10:05:00"
-  },
-  {
+    "ticketId": "COM-202607-000004",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 2,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Third-party plumbing service confirmed attendance and scheduled repair for the afternoon.",
-    "statusChangedTo": "IN_PROGRESS",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T11:40:00"
+    "createdDate": "2026-07-30T15:53:35.476Z",
+    "updatedBy": "EMP16654529"
   },
   {
+    "ticketId": "COM-202607-000005",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 3,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Repair completed. Site inspected and no further leakage observed.",
-    "statusChangedTo": "IN_PROGRESS",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T15:25:00"
+    "createdDate": "2026-07-30T15:54:55.995Z",
+    "updatedBy": "EMP16654529"
   },
   {
+    "ticketId": "COM-202607-000006",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 4,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Customer contacted by phone and confirmed the issue has been fully resolved.",
-    "statusChangedTo": "RESOLVED",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T16:10:00"
+    "createdDate": "2026-07-30T15:55:16.274Z",
+    "updatedBy": "EMP16654529"
   },
   {
+    "ticketId": "COM-202607-000007",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 5,
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "Customer feedback received. Ticket closed after successful verification and satisfaction confirmation.",
-    "statusChangedTo": "CLOSED",
-    "updatedBy": "EMP02029382",
-    "createdDate": "2026-07-23T17:05:00"
+    "createdDate": "2026-07-30T16:01:28.187Z",
+    "updatedBy": "EMP16654529"
   },
   {
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "the case to be reopened",
-    "statusChangedTo": "OPEN",
+    "ticketId": "COM-202607-000008",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 6,
-    "createdDate": "2026-07-23T18:46:41.424Z",
-    "updateBy": "EMP02029382"
+    "createdDate": "2026-07-30T16:02:52.700Z",
+    "updatedBy": "EMP16654529"
   },
   {
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "The engineer is on the case",
-    "statusChangedTo": "IN_PROGRESS",
+    "ticketId": "COM-202607-000009",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "Open",
     "remarkId": 7,
-    "createdDate": "2026-07-23T18:49:08.528Z",
-    "updatedBy": "EMP02029382"
+    "createdDate": "2026-07-30T16:03:36.280Z",
+    "updatedBy": "EMP16654529"
   },
   {
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "closing again",
-    "statusChangedTo": "CLOSED",
+    "ticketId": "INQ-202608-000001",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "OPEN",
     "remarkId": 8,
-    "createdDate": "2026-07-23T18:49:50.170Z",
-    "updatedBy": "EMP02029382"
+    "createdDate": "2026-08-05T05:33:31.031Z",
+    "updatedBy": "EMP16654529"
   },
   {
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "started working on again",
-    "statusChangedTo": "IN_PROGRESS",
+    "ticketId": "INQ-202608-000002",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "OPEN",
     "remarkId": 9,
-    "createdDate": "2026-07-23T19:03:58.618Z",
-    "updatedBy": "EMP02029382"
+    "createdDate": "2026-08-05T05:44:58.136Z",
+    "updatedBy": "EMP16654529"
   },
   {
-    "ticketId": "HL-CMU-2026-459669",
-    "remarkType": "this is a new remark",
-    "statusChangedTo": "IN_PROGRESS",
+    "ticketId": "INQ-202608-000003",
+    "remarkType": "New Ticket Open",
+    "statusChangedTo": "OPEN",
     "remarkId": 10,
-    "createdDate": "2026-07-24T09:29:18.749Z",
-    "updatedBy": "EMP02029382"
+    "createdDate": "2026-08-05T05:58:46.832Z",
+    "updatedBy": "EMP16654529"
+  },
+  {
+    "ticketId": "COM-202607-000008",
+    "remarkType": "An officer has been appointed",
+    "statusChangedTo": "IN_PROGRESS",
+    "remarkId": 11,
+    "createdDate": "2026-08-05T06:45:20.220Z",
+    "updatedBy": "EMP16654529"
+  },
+  {
+    "ticketId": "COM-202607-000008",
+    "remarkType": "Officer is at the site reviewing",
+    "statusChangedTo": "BEING_PROCESSED",
+    "remarkId": 12,
+    "createdDate": "2026-08-05T06:46:00.799Z",
+    "updatedBy": "EMP16654529"
+  },
+  {
+    "ticketId": "COM-202607-000008",
+    "remarkType": "The issue has been resolved. waiting for the admin approval to close the ticket",
+    "statusChangedTo": "RESOLVED",
+    "remarkId": 13,
+    "createdDate": "2026-08-05T06:46:30.033Z",
+    "updatedBy": "EMP16654529"
+  },
+  {
+    "ticketId": "COM-202607-000008",
+    "remarkType": "Closed by the admin",
+    "statusChangedTo": "CLOSED",
+    "remarkId": 14,
+    "createdDate": "2026-08-05T06:46:40.762Z",
+    "updatedBy": "EMP16654529"
   }
 ]

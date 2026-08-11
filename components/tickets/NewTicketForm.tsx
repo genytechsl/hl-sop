@@ -13,12 +13,59 @@ import {
   X,
   Upload,
   Paperclip,
+  LoaderCircle,
+  Save,
 } from "lucide-react";
 // import { customers, Customer } from "./customer-data";
 import { Customer } from "@/types/customer";
 import employees from "@/data/employees.json";
 import { saveTicket } from "@/components/tickets/ticket-storage";
 import Link from "next/link";
+import Toast from "../BottomRIghtToast";
+
+const getSlaTarget = (category: string) => {
+  switch (category) {
+    case "CAT-A":
+      return "24";
+
+    case "CAT-B":
+      return "168";
+
+    case "CAT-B2":
+      return "168";
+
+    case "CAT-C":
+      return "120";
+
+    case "CAT-D":
+      return "240";
+
+    default:
+      return "24";
+  }
+};
+
+const getPriority = (category: string) => {
+  switch (category) {
+    case "CAT-A":
+      return "VERY HIGH";
+
+    case "CAT-B":
+      return "HIGH";
+
+    case "CAT-B2":
+      return "MEDIUM";
+
+    case "CAT-C":
+      return "LOW";
+
+    case "CAT-D":
+      return "VERY LOW";
+
+    default:
+      return "MEDIUM";
+  }
+};
 
 const categoryOptions = [
   {
@@ -79,8 +126,9 @@ export default function NewTicketForm() {
   const [description, setDescription] = useState("");
   const [actionOwnerId, setActionOwnerId] = useState("");
   const [scope, setScope] = useState("");
-  const [complaintSource, setComplaintSource] = useState("Customer Call");
+  const [complaintSource, setComplaintSource] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSaving, setisSaving] = useState<boolean>(false);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -93,6 +141,34 @@ export default function NewTicketForm() {
     title: "",
     message: "",
   });
+
+  const [newTicketToast, setNewTicketToast] = useState<{
+    open: boolean;
+    ticketId: string;
+  }>({
+    open: false,
+    ticketId: "",
+  });
+
+  const [toast, setToast] = useState({
+    open: false,
+    type: "success" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    if (!toast.open) return;
+
+    const timer = setTimeout(() => {
+      setToast((prev) => ({
+        ...prev,
+        open: false,
+      }));
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [toast.open]);
 
   const [showEmailConfirm, setShowEmailConfirm] = useState(false);
 
@@ -111,22 +187,13 @@ export default function NewTicketForm() {
 
     loadCustomers();
   }, []);
-  // const filteredCustomers = customers.filter(
-  //   (customer) =>
-  //     customer.name.toLowerCase().includes(search.toLowerCase()) ||
-  //     customer.nic.toLowerCase().includes(search.toLowerCase()) ||
-  //     customer.mobile.includes(search) ||
-  //     customer.email.toLowerCase().includes(search.toLowerCase()),
-  // );
 
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(search.toLowerCase()) ||
       customer.NIC.toLowerCase().includes(search.toLowerCase()) ||
-      customer.mobile.some((mobile) => mobile.includes(search)) ||
-      customer.email.some((email) =>
-        email.toLowerCase().includes(search.toLowerCase()),
-      ),
+      customer.email.toLowerCase().includes(search) ||
+      customer.mobile.includes(search),
   );
 
   useEffect(() => {
@@ -140,50 +207,6 @@ export default function NewTicketForm() {
 
     searchCustomers();
   }, [search]);
-
-  const getSlaTarget = (category: string) => {
-    switch (category) {
-      case "CAT-A":
-        return "24";
-
-      case "CAT-B":
-        return "168";
-
-      case "CAT-B2":
-        return "168";
-
-      case "CAT-C":
-        return "120";
-
-      case "CAT-D":
-        return "240";
-
-      default:
-        return "24";
-    }
-  };
-
-  const getPriority = (category: string) => {
-    switch (category) {
-      case "CAT-A":
-        return "VERY HIGH";
-
-      case "CAT-B":
-        return "HIGH";
-
-      case "CAT-B2":
-        return "MEDIUM";
-
-      case "CAT-C":
-        return "LOW";
-
-      case "CAT-D":
-        return "VERY LOW";
-
-      default:
-        return "MEDIUM";
-    }
-  };
 
   const categoryRoleMap: Record<string, string[]> = {
     "CAT-A": ["MEP Engineer"],
@@ -282,48 +305,58 @@ export default function NewTicketForm() {
   };
 
   const openSubmitConfirmation = () => {
+    if (!selectedCustomer) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Missing Information",
+        message: "Please select a customer before creating the ticket.",
+      });
+      return;
+    }
+
+    if (!actionOwnerId) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Missing Information",
+        message: "Please assign a user to the ticket.",
+      });
+      return;
+    }
+
+    if (!title.trim()) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Missing Information",
+        message: "Please enter a title for the ticket.",
+      });
+      return;
+    }
     setShowEmailConfirm(true);
   };
 
   const handleSubmit = async (sendEmail: boolean) => {
     try {
-      if (!selectedCustomer) {
-        setDialog({
-          open: true,
-          type: "warning",
-          title: "Customer Required",
-          message: "Please select a customer before creating the ticket.",
-        });
-        return;
-      }
-
-      if (!title.trim()) {
-        setDialog({
-          open: true,
-          type: "warning",
-          title: "Title Required",
-          message: "Please enter a title for the ticket.",
-        });
-        return;
-      }
-
+      setisSaving(true);
       const newTicket = {
         title,
         description,
         ticketType,
         category,
         categoryLabel: selectedCategory?.label.toUpperCase() || "",
-        property: selectedCustomer.properties,
+        property: selectedProperty,
         status: "OPEN",
         priority: getPriority(category),
         assignedToId: selectedActionOwner?.id || "",
         createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
-        customerName: selectedCustomer.name,
+        customerName: selectedCustomer?.name,
         slaTarget: getSlaTarget(category),
         complaintSource,
         scope,
         cctoList: selectedEmails,
-        customerEmail: selectedCustomer.email,
+        customerEmail: selectedCustomer?.email[0],
         actionOwnerEmail: selectedActionOwner?.email,
         actionOwnerName: selectedActionOwner?.name,
       };
@@ -341,321 +374,384 @@ export default function NewTicketForm() {
         body: JSON.stringify(ticketEmail),
       });
 
+      const result_newTicketCreated = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to create ticket");
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed!",
+          message: `Failed to open a new ticket. ${result_newTicketCreated.message}.`,
+        });
       }
 
-      const result = await response.json();
+      const response_remark = await fetch("/api/remarks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketId: result_newTicketCreated.ticketId,
+          remarkType: "New Ticket Open",
+          statusChangedTo: "OPEN",
+        }),
+      });
 
-      if (result.emailSent) {
-        setDialog({
+      if (result_newTicketCreated.emailSent) {
+        setNewTicketToast({
           open: true,
-          type: "success",
-          title: "Success",
-          message:
-            "The ticket has been created and the email notification has been sent.",
+          ticketId: result_newTicketCreated.ticketId,
         });
+        setTitle("");
+        setDescription("");
+        setAttachments([]);
+        setSelectedEmails([]);
+        setSearch("");
+        setSelectedCustomer(null);
       } else {
-        setDialog({
+        setNewTicketToast({
           open: true,
-          type: "success",
-          title: "Ticket Created",
-          message: "The ticket has been created successfully.",
+          ticketId: result_newTicketCreated.ticketId,
         });
+        setTitle("");
+        setDescription("");
+        setAttachments([]);
+        setSelectedEmails([]);
+        setSearch("");
+        setSelectedCustomer(null);
       }
-
-      setTitle("");
-      setDescription("");
-      setAttachments([]);
-      setSelectedEmails([]);
-      setSearch("");
-      setSelectedCustomer(null);
     } catch (error) {
-      console.error(error);
-
-      setDialog({
+      setToast({
         open: true,
         type: "error",
-        title: "Unable to Create Ticket",
+        title: "Failed!",
         message:
           "Something went wrong while creating the ticket. Please try again.",
       });
+    } finally {
+      setisSaving(false);
     }
   };
 
-  return (
-    <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-      {/* Top Accent */}
+  useEffect(() => {
+    if (!newTicketToast.open) return;
 
-      <div className="h-1.5 bg-blue-600" />
+    const timer = setTimeout(() => {
+      setNewTicketToast({
+        open: false,
+        ticketId: "",
+      });
+    }, 7000);
 
-      <div className="p-6 lg:p-8 space-y-10">
-        {/* ================================================= */}
-        {/* TICKET DETAILS - ROW 1*/}
-        {/* ================================================= */}
+    return () => clearTimeout(timer);
+  }, [newTicketToast.open]);
+  if (isSaving) {
+    return (
+      <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div
+          className="
+        absolute inset-0 z-50
+        flex flex-col items-center justify-center
+        bg-white/80 backdrop-blur-[2px]
+      "
+        >
+          <LoaderCircle size={42} className="animate-spin text-blue-600" />
 
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">
-            1. Ticket Details
-          </h2>
+          <p className="mt-4 text-base font-medium text-slate-700">
+            Saving ticket...
+          </p>
 
-          <div className="mt-6 space-y-5">
-            {/* Row 1 */}
-
-            <div className="grid md:grid-cols-4 gap-4">
-              {/* complaint or inquiry */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ticket Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTicketType("COM")}
-                    className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
-                      ticketType === "COM"
-                        ? "border-red-500 bg-red-50 shadow-sm ring-2 ring-red-100"
-                        : "border-gray-200 bg-white hover:border-red-300 hover:bg-red-50/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p
-                          className={`font-semibold ${
-                            ticketType === "COM"
-                              ? "text-red-700"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          Complaint
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Report an issue requiring action
-                        </p>
-                      </div>
-
-                      <div
-                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          ticketType === "COM"
-                            ? "border-red-500"
-                            : "border-gray-300 group-hover:border-red-400"
-                        }`}
-                      >
-                        {ticketType === "COM" && (
-                          <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTicketType("INQ")}
-                    className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
-                      ticketType === "INQ"
-                        ? "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-100"
-                        : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p
-                          className={`font-semibold ${
-                            ticketType === "INQ"
-                              ? "text-blue-700"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          Inquiry
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Request information or clarification
-                        </p>
-                      </div>
-
-                      <div
-                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          ticketType === "INQ"
-                            ? "border-blue-500"
-                            : "border-gray-300 group-hover:border-blue-400"
-                        }`}
-                      >
-                        {ticketType === "INQ" && (
-                          <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-              {/* Category name */}
-              <SelectField
-                label="Category Code"
-                value={category}
-                onChange={(e: { target: { value: SetStateAction<string> } }) =>
-                  setCategory(e.target.value)
-                }
-              >
-                {categoryOptions.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code} ({item.label})
-                  </option>
-                ))}
-              </SelectField>
-              {/* category code */}
-              <InputField
-                label="SLA"
-                value={selectedCategory?.sla ?? ""}
-                readOnly
-              />
-            </div>
-
-            {/* Row 2 */}
-
-            <div className="grid md:grid-cols-4 gap-4">
-              {/* Action Owner */}
-              <div className="md:col-span-1">
-                <div className="col-span-2">
-                  <SelectField
-                    label="Action Owner"
-                    value={actionOwnerId}
-                    onChange={(e: any) => setActionOwnerId(e.target.value)}
-                  >
-                    <option value="">Select Action Owner</option>
-
-                    {availableEmployees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.designation} - {employee.name}
-                      </option>
-                    ))}
-                  </SelectField>
-                </div>
-              </div>
-              {/* <InputField label="Scope *" placeholder="Required" /> */}
-
-              <SelectField
-                label="Scope *"
-                value={scope}
-                onChange={(e: { target: { value: SetStateAction<string> } }) =>
-                  setScope(e.target.value)
-                }
-              >
-                <option value="">Select Scope</option>
-                <option value="MEP & Technical Defects">
-                  MEP & Technical Defects
-                </option>
-                <option value="Documentation & Title Deeds">
-                  Documentation & Title Deeds
-                </option>
-                <option value="Payment, Ledger & Billing Issues">
-                  Payment, Ledger & Billing Issues
-                </option>
-                <option value="Contractual / SPA Legal Escalations">
-                  Contractual / SPA Legal Escalations
-                </option>
-              </SelectField>
-
-              <SelectField
-                label="Complaint Source"
-                value={complaintSource}
-                onChange={(e: { target: { value: SetStateAction<string> } }) =>
-                  setComplaintSource(e.target.value)
-                }
-              >
-                <option value="Customer Call">Customer Call</option>
-                <option value="Email">Email</option>
-                <option value="Whatsapp">Whatsapp</option>
-              </SelectField>
-
-              <InputField
-                label="Priority"
-                value={selectedCategory?.priority ?? ""}
-                readOnly
-              />
-            </div>
-
-            {/* Subject */}
-
-            <InputField
-              label="Subject / Short Title"
-              placeholder="Enter ticket title"
-              value={title}
-              onChange={(e: any) => setTitle(e.target.value)}
-            />
-
-            {/* Description */}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Description / Details
-              </label>
-
-              <div className="border border-slate-300 rounded-t-2xl p-3 flex gap-2 bg-slate-50">
-                <button type="button" className="p-2 hover:bg-white rounded-lg">
-                  <Bold size={16} />
-                </button>
-
-                <button type="button" className="p-2 hover:bg-white rounded-lg">
-                  <Italic size={16} />
-                </button>
-
-                <button type="button" className="p-2 hover:bg-white rounded-lg">
-                  <Underline size={16} />
-                </button>
-              </div>
-
-              <textarea
-                rows={5}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-b-2xl border border-t-0 border-slate-300 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-y-auto"
-              />
-            </div>
-          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Please wait while we create the ticket.
+          </p>
         </div>
+      </section>
+    );
+  } else {
+    return (
+      <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Top Accent */}
 
-        {/* ================================================= */}
-        {/* CUSTOMER - ROW 2*/}
-        {/* ================================================= */}
+        <div className="h-1.5 bg-blue-600" />
 
-        <div>
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">2. Customer</h2>
+        <div className="p-6 lg:p-8 space-y-10">
+          {/* ================================================= */}
+          {/* TICKET DETAILS - ROW 1*/}
+          {/* ================================================= */}
 
-              <p className="text-slate-500 mt-1">
-                Search existing customers by NIC, name, mobile or email.
-              </p>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              1. Ticket Details
+            </h2>
+
+            <div className="mt-6 space-y-5">
+              {/* Row 1 */}
+
+              <div className="grid md:grid-cols-4 gap-4">
+                {/* complaint or inquiry */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ticket Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTicketType("COM")}
+                      className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
+                        ticketType === "COM"
+                          ? "border-red-500 bg-red-50 shadow-sm ring-2 ring-red-100"
+                          : "border-gray-200 bg-white hover:border-red-300 hover:bg-red-50/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p
+                            className={`font-semibold ${
+                              ticketType === "COM"
+                                ? "text-red-700"
+                                : "text-gray-800"
+                            }`}
+                          >
+                            Complaint
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Report an issue requiring action
+                          </p>
+                        </div>
+
+                        <div
+                          className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            ticketType === "COM"
+                              ? "border-red-500"
+                              : "border-gray-300 group-hover:border-red-400"
+                          }`}
+                        >
+                          {ticketType === "COM" && (
+                            <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTicketType("INQ")}
+                      className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
+                        ticketType === "INQ"
+                          ? "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-100"
+                          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p
+                            className={`font-semibold ${
+                              ticketType === "INQ"
+                                ? "text-blue-700"
+                                : "text-gray-800"
+                            }`}
+                          >
+                            Inquiry
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Request information or clarification
+                          </p>
+                        </div>
+
+                        <div
+                          className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            ticketType === "INQ"
+                              ? "border-blue-500"
+                              : "border-gray-300 group-hover:border-blue-400"
+                          }`}
+                        >
+                          {ticketType === "INQ" && (
+                            <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                {/* Category name */}
+                <SelectField
+                  label="Category Code"
+                  value={category}
+                  onChange={(e: {
+                    target: { value: SetStateAction<string> };
+                  }) => setCategory(e.target.value)}
+                >
+                  {categoryOptions.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} ({item.label})
+                    </option>
+                  ))}
+                </SelectField>
+                {/* category code */}
+                <InputField
+                  label="SLA"
+                  value={selectedCategory?.sla ?? ""}
+                  readOnly
+                />
+              </div>
+
+              {/* Row 2 */}
+
+              <div className="grid md:grid-cols-4 gap-4">
+                {/* Action Owner */}
+                <div className="md:col-span-1">
+                  <div className="col-span-2">
+                    <SelectField
+                      label="Action Owner"
+                      value={actionOwnerId}
+                      onChange={(e: any) => setActionOwnerId(e.target.value)}
+                    >
+                      <option value="">Select Action Owner</option>
+
+                      {availableEmployees.map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.designation} - {employee.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
+                </div>
+                {/* <InputField label="Scope *" placeholder="Required" /> */}
+
+                <SelectField
+                  label="Scope *"
+                  value={scope}
+                  onChange={(e: {
+                    target: { value: SetStateAction<string> };
+                  }) => setScope(e.target.value)}
+                >
+                  <option value="">Select Scope</option>
+                  <option value="MEP & Technical Defects">
+                    MEP & Technical Defects
+                  </option>
+                  <option value="Documentation & Title Deeds">
+                    Documentation & Title Deeds
+                  </option>
+                  <option value="Payment, Ledger & Billing Issues">
+                    Payment, Ledger & Billing Issues
+                  </option>
+                  <option value="Contractual / SPA Legal Escalations">
+                    Contractual / SPA Legal Escalations
+                  </option>
+                </SelectField>
+
+                <SelectField
+                  label="Complaint Source"
+                  value={complaintSource}
+                  onChange={(e: {
+                    target: { value: SetStateAction<string> };
+                  }) => setComplaintSource(e.target.value)}
+                >
+                  <option value="Customer Call">Customer Call</option>
+                  <option value="Email">Email</option>
+                  <option value="Whatsapp">Whatsapp</option>
+                </SelectField>
+
+                <InputField
+                  label="Priority"
+                  value={selectedCategory?.priority ?? ""}
+                  readOnly
+                />
+              </div>
+
+              {/* Subject */}
+
+              <InputField
+                label="Subject / Short Title"
+                placeholder="Enter ticket title"
+                value={title}
+                onChange={(e: any) => setTitle(e.target.value)}
+              />
+
+              {/* Description */}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Description / Details
+                </label>
+
+                <div className="border border-slate-300 rounded-t-2xl p-3 flex gap-2 bg-slate-50">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-white rounded-lg"
+                  >
+                    <Bold size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-white rounded-lg"
+                  >
+                    <Italic size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-white rounded-lg"
+                  >
+                    <Underline size={16} />
+                  </button>
+                </div>
+
+                <textarea
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full rounded-b-2xl border border-t-0 border-slate-300 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-y-auto"
+                />
+              </div>
             </div>
-
-            <Link href={"../settings/customers/new"}>
-              <button
-                type="button"
-                className="button-heading-special inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
-              >
-                <User size={18} />
-                New Customer
-              </button>
-            </Link>
           </div>
 
-          <div className="mt-5 relative">
-            <Search
-              size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+          {/* ================================================= */}
+          {/* CUSTOMER - ROW 2*/}
+          {/* ================================================= */}
 
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+          <div>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  2. Customer
+                </h2>
 
-                if (selectedCustomer) {
-                  setSelectedCustomer(null);
-                }
-              }}
-              placeholder="Search customer..."
-              className="w-full
+                <p className="text-slate-500 mt-1">
+                  Search existing customers by NIC, name, mobile or email.
+                </p>
+              </div>
+
+              <Link href={"../settings/customers/new"}>
+                <button
+                  type="button"
+                  className="button-heading-special inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
+                >
+                  <User size={18} />
+                  New Customer
+                </button>
+              </Link>
+            </div>
+
+            <div className="mt-5 relative">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+
+                  if (selectedCustomer) {
+                    setSelectedCustomer(null);
+                  }
+                }}
+                placeholder="Search customer..."
+                className="w-full
                           h-12
                           pl-12
                           pr-4
@@ -666,11 +762,11 @@ export default function NewTicketForm() {
                           focus:ring-2
                           focus:ring-blue-500
                         "
-            />
+              />
 
-            {search.length > 0 && !selectedCustomer && (
-              <div
-                className="
+              {search.length > 0 && !selectedCustomer && (
+                <div
+                  className="
                     absolute
                     top-full
                     left-0
@@ -685,38 +781,38 @@ export default function NewTicketForm() {
                     max-h-64
                     overflow-y-auto
                   "
-              >
-                {filteredCustomers.map((customer) => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomer(customer);
-                      setSelectedProperty(null);
-                      setSearch(customer.name);
-                    }}
-                    className="
+                >
+                  {filteredCustomers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setSelectedProperty(null);
+                        setSearch(customer.name);
+                      }}
+                      className="
                           w-full
                           text-left
                           px-4
                           py-3
                           hover:bg-slate-50
                         "
-                  >
-                    <div className="font-medium">{customer.name}</div>
+                    >
+                      <div className="font-medium">{customer.name}</div>
 
-                    <div className="text-xs text-slate-500">
-                      {customer.mobile}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className="text-xs text-slate-500">
+                        {customer.mobile}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {selectedCustomer && (
-            <div
-              className="
+            {selectedCustomer && (
+              <div
+                className="
                   mt-6
                   bg-slate-50
                   rounded-2xl
@@ -724,20 +820,20 @@ export default function NewTicketForm() {
                   border-slate-200
                   overflow-hidden
                 "
-            >
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
-                <h4 className="font-semibold text-slate-700">
-                  Selected Customer
-                </h4>
+              >
+                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                  <h4 className="font-semibold text-slate-700">
+                    Selected Customer
+                  </h4>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCustomer(null);
-                    setSelectedProperty(null);
-                    setSearch("");
-                  }}
-                  className="
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setSelectedProperty(null);
+                      setSearch("");
+                    }}
+                    className="
                       h-8
                       w-8
                       rounded-lg
@@ -747,123 +843,123 @@ export default function NewTicketForm() {
                       hover:bg-slate-200
                       transition
                     "
-                >
-                  <X size={16} />
-                </button>
-              </div>
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
 
-              <div
-                className="
+                <div
+                  className="
                   p-5
                   grid
                   md:grid-cols-2
                   gap-4
                   bg-blue-100/50
                 "
-              >
-                <InfoRow
-                  icon={<User size={16} />}
-                  label="Customer"
-                  value={selectedCustomer.name}
-                />
+                >
+                  <InfoRow
+                    icon={<User size={16} />}
+                    label="Customer"
+                    value={selectedCustomer.name}
+                  />
 
-                <InfoRow
-                  icon={<Mail size={16} />}
-                  label="Email"
-                  value={selectedCustomer.email}
-                />
+                  <InfoRow
+                    icon={<Mail size={16} />}
+                    label="Email"
+                    value={selectedCustomer.email}
+                  />
 
-                <InfoRow
-                  icon={<Phone size={16} />}
-                  label="Mobile"
-                  value={selectedCustomer.mobile}
-                />
+                  <InfoRow
+                    icon={<Phone size={16} />}
+                    label="Mobile"
+                    value={selectedCustomer.mobile}
+                  />
 
-                {/* <InfoRow
+                  {/* <InfoRow
                   icon={<Building2 size={16} />}
                   label="Property"
                   value={selectedCustomer.property}
                 /> */}
 
-                <div className="flex gap-3">
-                  <div className="text-blue-600 mt-1">
-                    <Building2 size={16} />
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="text-xs text-slate-500 font-medium mb-1">
-                      Property
+                  <div className="flex gap-3">
+                    <div className="text-blue-600 mt-1">
+                      <Building2 size={16} />
                     </div>
 
-                    <select
-                      value={selectedProperty?.propertyName || ""}
-                      onChange={(e) => {
-                        const property = selectedCustomer.properties.find(
-                          (item) => item.propertyName === e.target.value,
-                        );
-
-                        setSelectedProperty(property || null);
-                      }}
-                      className="
-        w-full
-        rounded-xl
-        border
-        border-slate-300
-        h-10
-        px-3
-        bg-white
-        text-sm
-        font-medium
-        text-slate-800
-        focus:outline-none
-        focus:ring-2
-        focus:ring-blue-500
-      "
-                    >
-                      <option value="">Select Property</option>
-
-                      {selectedCustomer.properties.map((property) => (
-                        <option
-                          key={property.propertyName}
-                          value={property.propertyName}
-                        >
-                          {property.propertyName}
-                        </option>
-                      ))}
-                    </select>
-
-                    {selectedProperty && (
-                      <div className="text-xs text-slate-500 mt-2">
-                        {selectedProperty.address}
+                    <div className="flex-1">
+                      <div className="text-xs text-slate-500 font-medium mb-1">
+                        Property
                       </div>
-                    )}
+
+                      <select
+                        value={selectedProperty?.propertyName || ""}
+                        onChange={(e) => {
+                          const property = selectedCustomer.properties.find(
+                            (item) => item.propertyName === e.target.value,
+                          );
+
+                          setSelectedProperty(property || null);
+                        }}
+                        className="
+                            w-full
+                            rounded-xl
+                            border
+                            border-slate-300
+                            h-10
+                            px-3
+                            bg-white
+                            text-sm
+                            font-medium
+                            text-slate-800
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                          "
+                      >
+                        <option value="">Select Property</option>
+
+                        {selectedCustomer.properties.map((property) => (
+                          <option
+                            key={property.propertyName}
+                            value={property.propertyName}
+                          >
+                            {property.propertyName}
+                          </option>
+                        ))}
+                      </select>
+
+                      {selectedProperty && (
+                        <div className="text-xs text-slate-500 mt-2">
+                          {selectedProperty.address}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* ================================================= */}
-        {/* ATTACHMENTS - ROW 3*/}
-        {/* ================================================= */}
+          {/* ================================================= */}
+          {/* ATTACHMENTS - ROW 3*/}
+          {/* ================================================= */}
 
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">
-            3. Attachments (Optional)
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              3. Attachments (Optional)
+            </h2>
 
-          <div className="mt-6 grid lg:grid-cols-5 gap-6">
-            {/* Upload Area */}
+            <div className="mt-6 grid lg:grid-cols-5 gap-6">
+              {/* Upload Area */}
 
-            <div className="lg:col-span-3">
-              <label
-                htmlFor="attachment-upload"
-                onDragEnter={handleDragEnter}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="attachment-upload"
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`
                         flex
                         flex-col
                         items-center
@@ -882,53 +978,53 @@ export default function NewTicketForm() {
                             : "border-blue-300 bg-blue-50/50 hover:border-blue-500 hover:bg-blue-50"
                         }
                       `}
-              >
-                <Upload
-                  size={48}
-                  className={`
+                >
+                  <Upload
+                    size={48}
+                    className={`
                       mb-4 transition-all
                       ${dragActive ? "text-blue-700" : "text-blue-600"}
                     `}
-                />
+                  />
 
-                <h4 className="font-semibold text-lg text-slate-800">
-                  Drag & Drop Files Here
-                </h4>
+                  <h4 className="font-semibold text-lg text-slate-800">
+                    Drag & Drop Files Here
+                  </h4>
 
-                <p className="text-slate-500 mt-2">or click to browse</p>
+                  <p className="text-slate-500 mt-2">or click to browse</p>
 
-                <p className="text-xs text-slate-400 mt-4">
-                  PDF, Images, DOCX, XLSX
-                </p>
+                  <p className="text-xs text-slate-400 mt-4">
+                    PDF, Images, DOCX, XLSX
+                  </p>
 
-                <input
-                  id="attachment-upload"
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-              </label>
-            </div>
+                  <input
+                    id="attachment-upload"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                </label>
+              </div>
 
-            {/* Attachment List */}
+              {/* Attachment List */}
 
-            <div className="lg:col-span-2">
-              <div className="border border-slate-200 rounded-3xl h-full p-5 bg-slate-50">
-                <h4 className="font-semibold text-slate-800 mb-4">
-                  Uploaded Files
-                </h4>
+              <div className="lg:col-span-2">
+                <div className="border border-slate-200 rounded-3xl h-full p-5 bg-slate-50">
+                  <h4 className="font-semibold text-slate-800 mb-4">
+                    Uploaded Files
+                  </h4>
 
-                <div className="space-y-3 max-h-[250px] overflow-y-auto">
-                  {attachments.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No attachments added.
-                    </p>
-                  ) : (
-                    attachments.map((file, index) => (
-                      <div
-                        key={`${file.name}-${index}`}
-                        className="
+                  <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                    {attachments.length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        No attachments added.
+                      </p>
+                    ) : (
+                      attachments.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="
                             flex
                             items-center
                             justify-between
@@ -938,26 +1034,26 @@ export default function NewTicketForm() {
                             border
                             border-slate-200
                           "
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Paperclip size={16} className="text-blue-600" />
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Paperclip size={16} className="text-blue-600" />
 
-                          <div className="truncate">
-                            <p className="text-sm font-medium truncate">
-                              {file.name}
-                            </p>
+                            <div className="truncate">
+                              <p className="text-sm font-medium truncate">
+                                {file.name}
+                              </p>
 
-                            <p className="text-xs text-slate-500">
-                              {(file.size / 1024).toFixed(1)}
-                              kb
-                            </p>
+                              <p className="text-xs text-slate-500">
+                                {(file.size / 1024).toFixed(1)}
+                                kb
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => removeAttachment(index)}
-                          className="
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(index)}
+                            className="
                               h-8
                               w-8
                               rounded-lg
@@ -967,34 +1063,34 @@ export default function NewTicketForm() {
                               hover:bg-red-100
                               text-red-500
                             "
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))
-                  )}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ================================================= */}
-        {/* CC List Selector - ROW 4*/}
-        {/* ================================================= */}
+          {/* ================================================= */}
+          {/* CC List Selector - ROW 4*/}
+          {/* ================================================= */}
 
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">
-            4. CC to / Notification Recipients
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              4. CC to / Notification Recipients
+            </h2>
 
-          <p className="text-slate-500 mt-1">
-            Select users who should receive ticket updates.
-          </p>
+            <p className="text-slate-500 mt-1">
+              Select users who should receive ticket updates.
+            </p>
 
-          <div className="mt-5 relative">
-            <div
-              className="
+            <div className="mt-5 relative">
+              <div
+                className="
               min-h-[56px]
               rounded-2xl
               border
@@ -1005,11 +1101,11 @@ export default function NewTicketForm() {
               gap-2
               bg-white
                 "
-            >
-              {selectedEmails.map((email) => (
-                <div
-                  key={email}
-                  className="
+              >
+                {selectedEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="
                     flex
                     items-center
                     gap-2
@@ -1020,30 +1116,30 @@ export default function NewTicketForm() {
                     rounded-full
                     text-sm
                   "
-                >
-                  {email}
+                  >
+                    {email}
 
-                  <button type="button" onClick={() => removeEmail(email)}>
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
+                    <button type="button" onClick={() => removeEmail(email)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
 
-              <input
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="Search email recipients..."
-                className="
+                <input
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="Search email recipients..."
+                  className="
                   flex-1
                   min-w-[200px]
                   outline-none
                 "
-              />
-            </div>
+                />
+              </div>
 
-            {emailInput && (
-              <div
-                className="
+              {emailInput && (
+                <div
+                  className="
                     absolute
                     z-20
                     left-0
@@ -1058,26 +1154,26 @@ export default function NewTicketForm() {
                     max-h-80
                     overflow-y-auto
                   "
-              >
-                {emailSuggestions
-                  .filter(
-                    (employee) =>
-                      employee.name
-                        .toLowerCase()
-                        .includes(emailInput.toLowerCase()) ||
-                      employee.email
-                        .toLowerCase()
-                        .includes(emailInput.toLowerCase()),
-                  )
-                  .filter(
-                    (employee) => !selectedEmails.includes(employee.email),
-                  )
-                  .map((employee) => (
-                    <button
-                      key={employee.id}
-                      type="button"
-                      onClick={() => addEmail(employee.email)}
-                      className="
+                >
+                  {emailSuggestions
+                    .filter(
+                      (employee) =>
+                        employee.name
+                          .toLowerCase()
+                          .includes(emailInput.toLowerCase()) ||
+                        employee.email
+                          .toLowerCase()
+                          .includes(emailInput.toLowerCase()),
+                    )
+                    .filter(
+                      (employee) => !selectedEmails.includes(employee.email),
+                    )
+                    .map((employee) => (
+                      <button
+                        key={employee.id}
+                        type="button"
+                        onClick={() => addEmail(employee.email)}
+                        className="
                           w-full
                           text-left
                           px-4
@@ -1086,60 +1182,74 @@ export default function NewTicketForm() {
                           border-b
                           border-slate-100
                         "
-                    >
-                      <div className="font-medium">
-                        <span className="font-semibold text-black/80">
-                          {employee.name}
-                        </span>{" "}
-                        <span className="text-xs text-slate-500">
-                          {employee.designation}
-                        </span>
-                      </div>
+                      >
+                        <div className="font-medium">
+                          <span className="font-semibold text-black/80">
+                            {employee.name}
+                          </span>{" "}
+                          <span className="text-xs text-slate-500">
+                            {employee.designation}
+                          </span>
+                        </div>
 
-                      <div className="text-xs text-blue-600">
-                        {employee.email}
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            )}
+                        <div className="text-xs text-blue-600">
+                          {employee.email}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="pt-8 mt-8 border-t border-slate-200">
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Left Side */}
+          <div className="pt-8 mt-8 border-t border-slate-200">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
+              {/* Left Side */}
 
-            <button type="button" className="button-heading w-full sm:w-auto">
-              Cancel
-            </button>
-
-            {/* Right Side */}
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                className="button-heading flex-1 sm:flex-none"
-              >
-                Save as Draft
+              <button type="button" className="button-heading w-full sm:w-auto">
+                Cancel
               </button>
 
-              <button
+              {/* Right Side */}
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  className="button-heading flex-1 sm:flex-none"
+                >
+                  Save as Draft
+                </button>
+
+                {/* <button
                 type="button"
                 onClick={openSubmitConfirmation}
                 className="button-heading-special"
               >
                 Submit Ticket
-              </button>
+              </button> */}
+                <button
+                  onClick={openSubmitConfirmation}
+                  disabled={isSaving}
+                  className="button-heading-special flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <LoaderCircle size={16} className="animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      {dialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-7 animate-in fade-in zoom-in duration-200">
-            <div
-              className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full
+
+        {dialog.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-7 animate-in fade-in zoom-in duration-200">
+              <div
+                className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full
         ${
           dialog.type === "success"
             ? "bg-emerald-100"
@@ -1147,97 +1257,228 @@ export default function NewTicketForm() {
               ? "bg-red-100"
               : "bg-amber-100"
         }`}
-            >
-              {dialog.type === "success" && (
-                <svg
-                  className="h-8 w-8 text-emerald-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-
-              {dialog.type === "error" && (
-                <svg
-                  className="h-8 w-8 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-
-              {dialog.type === "warning" && (
-                <svg
-                  className="h-8 w-8 text-amber-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 9v4m0 4h.01" />
-                  <path d="M10.29 3.86L1.82 18A2 2 0 003.53 21h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
-              )}
-            </div>
-
-            <h3 className="text-xl font-bold text-center text-slate-800">
-              {dialog.title}
-            </h3>
-
-            <p className="mt-3 text-center text-slate-500">{dialog.message}</p>
-
-            <button
-              onClick={() => setDialog((prev) => ({ ...prev, open: false }))}
-              className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showEmailConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl">
-            <h3 className="text-xl font-bold">Send Email Notification?</h3>
-
-            <p className="mt-3 text-slate-500">
-              Would you like to notify the customer and action owner via email
-              after creating this ticket?
-            </p>
-
-            <div className="mt-7 flex gap-3">
-              <button
-                className="flex-1 rounded-xl border py-3"
-                onClick={() => {
-                  setShowEmailConfirm(false);
-                  handleSubmit(true);
-                }}
               >
-                Send Email
-              </button>
+                {dialog.type === "success" && (
+                  <svg
+                    className="h-8 w-8 text-emerald-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+
+                {dialog.type === "error" && (
+                  <svg
+                    className="h-8 w-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+
+                {dialog.type === "warning" && (
+                  <svg
+                    className="h-8 w-8 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 9v4m0 4h.01" />
+                    <path d="M10.29 3.86L1.82 18A2 2 0 003.53 21h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                )}
+              </div>
+
+              <h3 className="text-xl font-bold text-center text-slate-800">
+                {dialog.title}
+              </h3>
+
+              <p className="mt-3 text-center text-slate-500">
+                {dialog.message}
+              </p>
 
               <button
-                className="flex-1 rounded-xl bg-blue-600 py-3 text-white"
-                onClick={() => {
-                  setShowEmailConfirm(false);
-                  handleSubmit(false);
-                }}
+                onClick={() => setDialog((prev) => ({ ...prev, open: false }))}
+                className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
               >
-                Skip
+                OK
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </section>
-  );
+        )}
+
+        {newTicketToast.open && (
+          <div
+            className="
+      fixed
+      bottom-6
+      right-6
+      w-[380px]
+      rounded-2xl
+      border
+      border-green-200
+      bg-blue-200
+      shadow-2xl
+      p-5
+      z-[9999]
+      animate-in
+      slide-in-from-bottom-5
+      fade-in
+    "
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className="
+          h-12
+          w-12
+          rounded-full
+          bg-green-100
+          flex
+          items-center
+          justify-center
+          shrink-0
+        "
+              >
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-800">
+                  New Ticket Created
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Ticket{" "}
+                  <span className="font-semibold text-slate-700">
+                    {newTicketToast.ticketId}
+                  </span>{" "}
+                  has been created successfully.
+                </p>
+
+                <div className="mt-4 flex gap-2">
+                  <Link
+                    href={`/tickets/view?id=${newTicketToast.ticketId}`}
+                    className="
+                      rounded-lg
+                      bg-blue-600
+                      px-4
+                      py-2
+                      text-sm
+                      font-medium
+                      text-white
+                      hover:bg-blue-700
+                    "
+                  >
+                    View Ticket
+                  </Link>
+
+                  <button
+                    onClick={() =>
+                      setNewTicketToast({
+                        open: false,
+                        ticketId: "",
+                      })
+                    }
+                    className="
+              rounded-lg
+              border
+              border-slate-200
+              px-4
+              py-2
+              text-sm
+              hover:bg-slate-50
+            "
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() =>
+                  setNewTicketToast({
+                    open: false,
+                    ticketId: "",
+                  })
+                }
+                className="text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Toast
+          open={toast.open}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          confirmButton="View Ticket"
+          onClose={() =>
+            setToast((prev) => ({
+              ...prev,
+              open: false,
+            }))
+          }
+        />
+
+        {showEmailConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl">
+              <h3 className="text-xl font-bold">Send Email Notification?</h3>
+
+              <p className="mt-3 text-slate-500">
+                Would you like to notify the customer and action owner via email
+                after creating this ticket?
+              </p>
+
+              <div className="mt-7 flex gap-3">
+                <button
+                  className="flex-1 rounded-xl border py-3"
+                  onClick={() => {
+                    setShowEmailConfirm(false);
+                    handleSubmit(true);
+                  }}
+                >
+                  Send Email
+                </button>
+
+                <button
+                  className="flex-1 rounded-xl bg-blue-600 py-3 text-white"
+                  onClick={() => {
+                    setShowEmailConfirm(false);
+                    handleSubmit(false);
+                  }}
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  }
 }
 
 function InputField(props: any) {

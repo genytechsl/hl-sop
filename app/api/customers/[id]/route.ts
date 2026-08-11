@@ -1,24 +1,37 @@
-import customers from "@/data/customers.json";
-
 import { NextRequest, NextResponse } from "next/server";
+import { getCustomerById } from "@/lib/customer-service";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-  const customer = customers.find((item) => item.id === id);
+  try {
+    const { id } = await params;
 
-  if (!customer) {
+    const customer = await getCustomerById(id);
+
+    if (!customer) {
+      return NextResponse.json(
+        {
+          message: "Customer not found",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    return NextResponse.json(customer);
+  } catch (error) {
+    console.error("GET /api/customers/[id] error:", error);
+
     return NextResponse.json(
       {
-        message: "Customer not found",
+        message: "Failed to load customer",
       },
       {
-        status: 404,
+        status: 500,
       },
     );
   }
-
-  return NextResponse.json(customer);
 }

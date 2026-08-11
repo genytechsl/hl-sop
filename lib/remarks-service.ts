@@ -1,148 +1,164 @@
-import fs from "fs";
-import path from "path";
-
-const filePath = path.join(process.cwd(), "data", "ticket-remarks.json");
+import { prisma } from "@/lib/prisma";
 
 export type TicketRemark = {
   remarkId: number;
   ticketId: string;
   remarkType: string;
-  statusChangedTo: string;
+  statusChangedTo: string | null;
   updatedBy: string;
   createdDate: string;
 };
 
-export async function getRemarks(): Promise<TicketRemark[]> {
-  try {
-    const fileContents = fs.readFileSync(filePath, "utf8");
-
-    const remarks = JSON.parse(fileContents);
-
-    return Array.isArray(remarks) ? remarks : [];
-  } catch (error) {
-    console.error("Error reading ticket-remarks.json:", error);
-
-    return [];
-  }
+function mapRemark(remark: any): TicketRemark {
+  return {
+    remarkId: remark.id,
+    ticketId: remark.ticketId,
+    remarkType: remark.remarkType,
+    statusChangedTo: remark.statusChangedTo,
+    updatedBy: remark.updatedById,
+    createdDate: remark.createdAt.toISOString(),
+  };
 }
 
-/**
- * Get a single remark by its ID
- */
+export async function getRemarks(): Promise<TicketRemark[]> {
+  const remarks = await prisma.ticketRemark.findMany({
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  return remarks.map(mapRemark);
+}
+
 export async function getRemarkById(
   remarkId: number,
 ): Promise<TicketRemark | undefined> {
-  const remarks = await getRemarks();
+  const remark = await prisma.ticketRemark.findUnique({
+    where: {
+      id: remarkId,
+    },
+  });
 
-  return remarks.find((remark) => remark.remarkId === remarkId);
+  return remark ? mapRemark(remark) : undefined;
 }
 
-/**
- * Get all remarks belonging to a ticket
- */
 export async function getRemarksByTicketId(
   ticketId: string,
 ): Promise<TicketRemark[]> {
-  const remarks = await getRemarks();
+  const remarks = await prisma.ticketRemark.findMany({
+    where: {
+      ticketId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
 
-  return remarks
-    .filter((remark) => remark.ticketId === ticketId)
-    .sort(
-      (a, b) =>
-        new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime(),
-    );
+  return remarks.map(mapRemark);
 }
 
-/**
- * Get all remarks made by an employee
- */
 export async function getRemarksByUpdatedBy(
   updatedBy: string,
 ): Promise<TicketRemark[]> {
-  const remarks = await getRemarks();
+  const remarks = await prisma.ticketRemark.findMany({
+    where: {
+      updatedById: updatedBy,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
 
-  return remarks.filter((remark) => remark.updatedBy === updatedBy);
+  return remarks.map(mapRemark);
 }
 
-/**
- * Get remarks by status
- */
 export async function getRemarksByStatus(
   status: string,
 ): Promise<TicketRemark[]> {
-  const remarks = await getRemarks();
+  const remarks = await prisma.ticketRemark.findMany({
+    where: {
+      statusChangedTo: {
+        equals: status,
+        mode: "insensitive",
+      },
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
 
-  return remarks.filter(
-    (remark) => remark.statusChangedTo.toLowerCase() === status.toLowerCase(),
-  );
+  return remarks.map(mapRemark);
 }
 
-/**
- * Create a new remark
- */
-export async function createRemark(
-  remark: TicketRemark,
-): Promise<TicketRemark> {
-  const remarks = await getRemarks();
+export async function createRemark(data: {
+  ticketId: string;
+  remarkType: string;
+  statusChangedTo?: string | null;
+  updatedById: string;
+}): Promise<TicketRemark> {
+  const remark = await prisma.ticketRemark.create({
+    data: {
+      ticketId: data.ticketId,
+      remarkType: data.remarkType,
+      statusChangedTo: data.statusChangedTo ?? null,
+      updatedById: data.updatedById,
+      createdAt: new Date(),
+    },
+  });
 
-  remarks.push(remark);
-
-  fs.writeFileSync(filePath, JSON.stringify(remarks, null, 2), "utf8");
-
-  return remark;
+  return mapRemark(remark);
 }
 
-/**
- * Update an existing remark
- */
 export async function updateRemark(
   remarkId: number,
-  updates: Partial<TicketRemark>,
+  updates: Partial<{
+    remarkType: string;
+    statusChangedTo: string | null;
+    updatedById: string;
+  }>,
 ): Promise<TicketRemark | null> {
-  const remarks = await getRemarks();
+  try {
+    const remark = await prisma.ticketRemark.update({
+      where: {
+        id: remarkId,
+      },
+      data: {
+        ...(updates.remarkType !== undefined && {
+          remarkType: updates.remarkType,
+        }),
+        ...(updates.statusChangedTo !== undefined && {
+          statusChangedTo: updates.statusChangedTo,
+        }),
+        ...(updates.updatedById !== undefined && {
+          updatedById: updates.updatedById,
+        }),
+      },
+    });
 
-  const index = remarks.findIndex((r) => r.remarkId === remarkId);
+    return mapRemark(remark);
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return null;
+    }
 
-  if (index === -1) {
-    return null;
+    throw error;
   }
-
-  remarks[index] = {
-    ...remarks[index],
-    ...updates,
-  };
-
-  fs.writeFileSync(filePath, JSON.stringify(remarks, null, 2), "utf8");
-
-  return remarks[index];
 }
 
-/**
- * Delete a remark
- */
 export async function deleteRemark(remarkId: number): Promise<boolean> {
-  const remarks = await getRemarks();
+  try {
+    await prisma.ticketRemark.delete({
+      where: {
+        id: remarkId,
+      },
+    });
 
-  const filtered = remarks.filter((r) => r.remarkId !== remarkId);
+    return true;
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return false;
+    }
 
-  if (filtered.length === remarks.length) {
-    return false;
+    throw error;
   }
-
-  fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2), "utf8");
-
-  return true;
-}
-
-/**
- * Generate the next remark ID
- */
-export async function getNextRemarkId(): Promise<number> {
-  const remarks = await getRemarks();
-
-  if (remarks.length === 0) {
-    return 0;
-  }
-
-  return Math.max(...remarks.map((r) => r.remarkId)) + 1;
 }

@@ -24,6 +24,8 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [isLoading, setisLoading] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
 
   const [fromDate, setFromDate] = useState("");
 
@@ -66,20 +68,14 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   const getTicketMetrics = (ticket: any) => {
     const createdAt = new Date(ticket.createdAt);
     const now = new Date();
-
     const ageHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-
     const targetHours = getHoursFromSla(ticket.slaTarget);
-
     const percent = Math.round((ageHours / targetHours) * 100);
-
     const breached =
       ageHours > targetHours && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-
     const dueDate = new Date(
       createdAt.getTime() + targetHours * 60 * 60 * 1000,
     );
-
     return {
       ageHours,
       targetHours,
@@ -94,29 +90,41 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   });
 
   const filteredTickets = sortedTickets.filter((ticket) => {
-    // Status filter
+    // Search by customer name or title
+    const search = searchTerm.trim().toLowerCase();
 
+    if (
+      search &&
+      !ticket.customerName?.toLowerCase().includes(search) &&
+      !ticket.title?.toLowerCase().includes(search)
+    ) {
+      return false;
+    }
+
+    // Status
     if (statusFilter !== "ALL" && ticket.status !== statusFilter) {
       return false;
     }
 
-    // Date range filter
+    // Category
+    if (categoryFilter !== "ALL" && ticket.category !== categoryFilter) {
+      return false;
+    }
 
+    // Date From
     const ticketDate = new Date(ticket.createdAt);
 
     if (fromDate) {
       const start = new Date(fromDate);
-
       if (ticketDate < start) {
         return false;
       }
     }
 
+    // Date To
     if (toDate) {
       const end = new Date(toDate);
-
       end.setHours(23, 59, 59, 999);
-
       if (ticketDate > end) {
         return false;
       }
@@ -253,6 +261,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
       head: [
         [
           "#",
+          "SLA Breach %",
           "Ticket ID",
           "Category",
           "Subject",
@@ -269,6 +278,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
         return [
           index + 1,
           ticket.id,
+          metrics.percent,
           ticket.category,
           ticket.title,
           ticket.customerName,
@@ -288,6 +298,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
     const headers = [
       "#",
       "Ticket ID",
+      "SLA Breach %",
       "Category",
       "Subject",
       "Customer",
@@ -303,6 +314,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
       return [
         index + 1,
         ticket.id,
+        metrics.percent,
         ticket.category,
         ticket.title,
         ticket.customerName,
@@ -364,7 +376,13 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
             />
 
             <input
-              placeholder="Search tickets..."
+              type="text"
+              placeholder="Search customer or subject..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="
                 h-11
                 pl-10
@@ -389,6 +407,30 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                           gap-3
                           "
           >
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
+                  h-11
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-4
+                  bg-white
+                  text-sm
+                "
+            >
+              <option value="ALL">All Categories</option>
+              <option value="CAT-A">CAT-A</option>
+              <option value="CAT-B">CAT-B</option>
+              <option value="CAT-B2">CAT-B2</option>
+              <option value="CAT-C">CAT-C</option>
+              <option value="CAT-D">CAT-D</option>
+            </select>
+
             {/* Status */}
 
             <select
@@ -408,13 +450,9 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                               "
             >
               <option value="ALL">All Status</option>
-
               <option value="OPEN">Open</option>
-
               <option value="IN_PROGRESS">In Progress</option>
-
               <option value="RESOLVED">Resolved</option>
-
               <option value="CLOSED">Closed</option>
             </select>
 
@@ -458,7 +496,9 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
 
             <button
               onClick={() => {
+                setSearchTerm("");
                 setStatusFilter("ALL");
+                setCategoryFilter("ALL");
                 setFromDate("");
                 setToDate("");
                 setCurrentPage(1);
@@ -474,7 +514,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                 font-medium
                 "
             >
-              Reset
+              Reset Filters
             </button>
           </div>
         </div>
@@ -594,10 +634,10 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                   <td
                     colSpan={11}
                     className="
-text-center
-py-12
-text-slate-500
-"
+                              text-center
+                              py-12
+                              text-slate-500
+                              "
                   >
                     No tickets found for selected filters.
                   </td>

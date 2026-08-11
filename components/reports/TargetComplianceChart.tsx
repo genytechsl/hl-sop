@@ -41,26 +41,61 @@ export default function SlaBreachRateCard() {
   const metrics = useMemo(() => {
     const now = new Date();
 
-    const breached = tickets.filter((ticket) => {
-      if (ticket.status !== "IN_PROGRESS" && ticket.status !== "OPEN")
-        return false;
+    let breached = 0;
+    let closedTickets = 0;
+    let breachedClosed = 0;
+    let openedTickets = 0;
+    let breachedOpened = 0;
 
+    tickets.forEach((ticket) => {
       const created = new Date(ticket.createdAt.replace(" ", "T"));
 
       const age = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
 
-      return age > getHoursFromSla(ticket.slaTarget);
-    }).length;
+      const isBreached = age > getHoursFromSla(ticket.slaTarget);
 
-    const percentage =
-      tickets.length === 0
-        ? 0
-        : Number(((breached / tickets.length) * 100).toFixed(1));
+      if (ticket.status === "CLOSED") {
+        closedTickets++;
+
+        if (isBreached) {
+          breachedClosed++;
+        }
+      }
+
+      if (ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") {
+        openedTickets++;
+
+        if (isBreached) {
+          breachedOpened++;
+        }
+      }
+
+      if (
+        (ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") &&
+        isBreached
+      ) {
+        breached++;
+      }
+    });
 
     return {
       breached,
       total: tickets.length,
-      percentage,
+
+      percentage:
+        tickets.length === 0
+          ? 0
+          : Number(((breached / tickets.length) * 100).toFixed(1)),
+
+      closedBreachRate:
+        closedTickets === 0
+          ? 0
+          : Number(((breachedClosed / closedTickets) * 100).toFixed(1)),
+
+      openedBreachRate:
+        openedTickets === 0
+          ? 0
+          : Number(((breachedOpened / openedTickets) * 100).toFixed(1)),
     };
   }, [tickets]);
 
@@ -127,43 +162,59 @@ export default function SlaBreachRateCard() {
         </button>
       </div>
 
-      <div className="mt-8 h-[280px]">
-        <ResponsiveContainer>
-          <RadialBarChart
-            innerRadius="78%"
-            outerRadius="100%"
-            startAngle={90}
-            endAngle={-270}
-            data={chartData}
-          >
-            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-
-            <RadialBar
-              dataKey="value"
-              cornerRadius={20}
-              fill={color}
-              background
-            />
-
-            <text
-              x="50%"
-              y="48%"
-              textAnchor="middle"
-              className="fill-slate-800 text-4xl font-bold"
+      <div className="mt-8 grid grid-cols-3 gap-4 items-center">
+        {/* Main SLA Breach Chart */}
+        <div className="col-span-2 h-[280px]">
+          <ResponsiveContainer>
+            <RadialBarChart
+              innerRadius="78%"
+              outerRadius="100%"
+              startAngle={90}
+              endAngle={-270}
+              data={chartData}
             >
-              {metrics.percentage}%
-            </text>
+              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
 
-            <text
-              x="50%"
-              y="58%"
-              textAnchor="middle"
-              className="fill-slate-500 text-sm"
-            >
-              Breach Rate
-            </text>
-          </RadialBarChart>
-        </ResponsiveContainer>
+              <RadialBar
+                dataKey="value"
+                cornerRadius={20}
+                fill={color}
+                background
+              />
+
+              <text
+                x="50%"
+                y="48%"
+                textAnchor="middle"
+                className="fill-slate-800 text-4xl font-bold"
+              >
+                {metrics.percentage}%
+              </text>
+
+              <text
+                x="50%"
+                y="58%"
+                textAnchor="middle"
+                className="fill-slate-500 text-sm"
+              >
+                Overall Breach
+              </text>
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Right Side Small Charts */}
+        <div className="col-span-1 flex flex-col gap-6">
+          <SmallBreachChart
+            value={metrics.closedBreachRate}
+            label="Closed Tickets"
+          />
+
+          <SmallBreachChart
+            value={metrics.openedBreachRate}
+            label="Open Tickets"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -186,6 +237,46 @@ export default function SlaBreachRateCard() {
             {metrics.total}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SmallBreachChart({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-40 w-40">
+        <ResponsiveContainer>
+          <RadialBarChart
+            innerRadius="70%"
+            outerRadius="100%"
+            startAngle={90}
+            endAngle={-270}
+            data={[{ value }]}
+          >
+            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+
+            <RadialBar
+              dataKey="value"
+              cornerRadius={10}
+              fill={value < 25 ? "#19e334" : value < 50 ? "#f59e0b" : "#ef4444"}
+              background
+            />
+
+            <text
+              x="50%"
+              y="52%"
+              textAnchor="middle"
+              className="fill-slate-800 text-sm font-bold"
+            >
+              {value}%
+            </text>
+          </RadialBarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div>
+        <p className="text-xs text-slate-500">{label}</p>
       </div>
     </div>
   );

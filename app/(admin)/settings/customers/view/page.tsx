@@ -12,6 +12,7 @@ import {
   Mail,
   CheckCircle,
 } from "lucide-react";
+import Toast from "@/components/BottomRIghtToast";
 import DashboardHeader from "@/components/DashboardHeader";
 
 interface Property {
@@ -22,8 +23,8 @@ interface Property {
 interface Customer {
   id: string;
   name: string;
-  email: string[];
-  mobile: string[];
+  email: string;
+  mobile: string;
   NIC: string;
   active: boolean;
   createdDate: string;
@@ -50,23 +51,152 @@ export default function CustomerViewPage() {
     setCustomer(data);
     setLoading(false);
   }
+  const [toast, setToast] = useState({
+    open: false,
+    type: "success" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+  });
+  useEffect(() => {
+    if (!toast.open) return;
+
+    const timer = setTimeout(() => {
+      setToast((prev) => ({
+        ...prev,
+        open: false,
+      }));
+    }, 7000);
+
+    return () => clearTimeout(timer);
+  }, [toast.open]);
+
+  function isRequiredFieldsValid(): boolean {
+    if (!customer) return false;
+
+    if (
+      customer.name.trim() === "" ||
+      customer.email.trim() === "" ||
+      customer.mobile.trim() === "" ||
+      customer.NIC.trim() === ""
+    ) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Missing Information",
+        message: "Please complete all required fields.",
+      });
+
+      return false;
+    }
+
+    return true;
+  }
+
+  function isEmail(): boolean {
+    if (!customer) return false;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(customer.email.trim())) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Invalid Email",
+        message: "Please enter a valid email address.",
+      });
+
+      return false;
+    }
+
+    return true;
+  }
+
+  function isMobileValid(): boolean {
+    if (!customer) return false;
+
+    const regex = /^0\d{9}$/;
+
+    if (!regex.test(customer.mobile.trim())) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Invalid Mobile Number",
+        message: "Please enter a valid Sri Lankan mobile number.",
+      });
+
+      return false;
+    }
+
+    return true;
+  }
+
+  function isProperty(): boolean {
+    if (!customer) return false;
+
+    const validProperties = customer.properties.filter(
+      (property) =>
+        property.propertyName.trim() !== "" && property.address.trim() !== "",
+    );
+
+    if (validProperties.length === 0) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Property Required",
+        message: "Please add at least one property.",
+      });
+
+      return false;
+    }
+
+    return true;
+  }
 
   async function saveCustomer() {
     if (!customer) return;
 
-    setSaving(true);
+    if (
+      !isRequiredFieldsValid() ||
+      !isEmail() ||
+      !isMobileValid() ||
+      !isProperty()
+    ) {
+      return;
+    }
 
-    await fetch("/api/customers", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(customer),
-    });
+    try {
+      setSaving(true);
 
-    setSaving(false);
+      const response = await fetch("/api/customers", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(customer),
+      });
 
-    alert("Customer updated successfully.");
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      setToast({
+        open: true,
+        type: "success",
+        title: "Customer Updated",
+        message: `${customer.id} has been updated successfully.`,
+      });
+    } catch (error) {
+      console.error(error);
+
+      setToast({
+        open: true,
+        type: "error",
+        title: "Update Failed",
+        message: "Failed to update customer.",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading || !customer) {
@@ -161,55 +291,73 @@ export default function CustomerViewPage() {
         <div className="white-section">
           <div className="flex items-center gap-2 mb-5">
             <Mail size={20} />
-            <h3 className="text-lg font-semibold">Email Addresses</h3>
+            <h3 className="text-lg font-semibold">Email Address</h3>
           </div>
 
-          {customer.email.map((email, index) => (
-            <input
-              key={index}
-              className="mb-3 w-full rounded-xl border p-3"
-              value={email}
-              onChange={(e) => {
-                const emails = [...customer.email];
-                emails[index] = e.target.value;
-
-                setCustomer({
-                  ...customer,
-                  email: emails,
-                });
-              }}
-            />
-          ))}
+          <input
+            className="w-full rounded-xl border p-3"
+            value={customer.email}
+            onChange={(e) =>
+              setCustomer({
+                ...customer,
+                email: e.target.value,
+              })
+            }
+          />
         </div>
 
         <div className="white-section">
           <div className="flex items-center gap-2 mb-5">
             <Phone size={20} />
-            <h3 className="text-lg font-semibold">Mobile Numbers</h3>
+            <h3 className="text-lg font-semibold">Mobile Number</h3>
           </div>
 
-          {customer.mobile.map((mobile, index) => (
-            <input
-              key={index}
-              className="mb-3 w-full rounded-xl border p-3"
-              value={mobile}
-              onChange={(e) => {
-                const numbers = [...customer.mobile];
-                numbers[index] = e.target.value;
-
-                setCustomer({
-                  ...customer,
-                  mobile: numbers,
-                });
-              }}
-            />
-          ))}
+          <input
+            className="w-full rounded-xl border p-3"
+            value={customer.mobile}
+            onChange={(e) =>
+              setCustomer({
+                ...customer,
+                mobile: e.target.value,
+              })
+            }
+          />
         </div>
 
         <div className="white-section">
           <div className="flex items-center gap-2 mb-5">
             <Building2 size={20} />
             <h3 className="text-lg font-semibold">Properties</h3>
+          </div>
+
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setCustomer({
+                  ...customer,
+                  properties: [
+                    ...customer.properties,
+                    {
+                      propertyName: "",
+                      address: "",
+                    },
+                  ],
+                })
+              }
+              className="
+      rounded-lg
+      px-4
+      py-2
+      text-sm
+      font-medium
+      text-blue-600
+      transition
+      hover:bg-blue-50
+    "
+            >
+              + Add Property
+            </button>
           </div>
 
           {customer.properties.map((property, index) => (
@@ -246,6 +394,36 @@ export default function CustomerViewPage() {
                   });
                 }}
               />
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  disabled={customer.properties.length === 1}
+                  onClick={() => {
+                    setCustomer({
+                      ...customer,
+                      properties: customer.properties.filter(
+                        (_, i) => i !== index,
+                      ),
+                    });
+                  }}
+                  className="
+      rounded-lg
+      px-4
+      py-2
+      text-sm
+      font-medium
+      text-red-600
+      transition
+      hover:bg-red-50
+      disabled:cursor-not-allowed
+      disabled:text-slate-400
+      disabled:hover:bg-transparent
+    "
+                >
+                  Remove Property
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -264,6 +442,19 @@ export default function CustomerViewPage() {
             Save Customer
           </button>
         </div>
+
+        <Toast
+          open={toast.open}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() =>
+            setToast((prev) => ({
+              ...prev,
+              open: false,
+            }))
+          }
+        />
       </div>
     </div>
   );

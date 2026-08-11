@@ -1,95 +1,220 @@
-import fs from "fs";
-import path from "path";
-
+import { prisma } from "@/lib/prisma";
 import { Customer } from "@/types/customer";
 
-const filePath = path.join(process.cwd(), "data", "customers.json");
+function mapCustomer(customer: any): Customer {
+  return {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    mobile: customer.mobile,
+    NIC: customer.nic,
+    active: customer.active,
+    createdDate: customer.createdAt.toISOString().split("T")[0],
+    properties: customer.properties.map((property: any) => ({
+      propertyName: property.propertyName,
+      address: property.address,
+    })),
+    receiveEmail: false,
+    receiveSMS: false,
+  };
+}
 
 export async function getCustomers(): Promise<Customer[]> {
-  try {
-    const fileContents = fs.readFileSync(filePath, "utf8");
+  const customers = await prisma.customer.findMany({
+    include: {
+      properties: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-    const customers = JSON.parse(fileContents);
-
-    return Array.isArray(customers) ? customers : [];
-  } catch (error) {
-    console.error("Error reading customers.json:", error);
-
-    return [];
-  }
+  return customers.map(mapCustomer);
 }
 
 export async function getCustomerById(
   id: string,
 ): Promise<Customer | undefined> {
-  const customers = await getCustomers();
+  const customer = await prisma.customer.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      properties: true,
+    },
+  });
 
-  return customers.find((customer) => customer.id === id);
+  if (!customer) {
+    return undefined;
+  }
+
+  return mapCustomer(customer);
 }
 
 export async function searchCustomers(keyword: string): Promise<Customer[]> {
-  const customers = await getCustomers();
+  const search = keyword.trim();
 
-  const search = keyword.toLowerCase();
+  if (!search) {
+    return getCustomers();
+  }
 
-  return customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(search) ||
-      customer.NIC.toLowerCase().includes(search) ||
-      customer.email.some((email) => email.toLowerCase().includes(search)) ||
-      customer.mobile.some((mobile) => mobile.includes(search)),
-  );
+  const customers = await prisma.customer.findMany({
+    where: {
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          nic: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          mobile: {
+            contains: search,
+          },
+        },
+      ],
+    },
+    include: {
+      properties: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return customers.map(mapCustomer);
 }
 
 export async function createCustomer(customer: Customer): Promise<Customer> {
-  try {
-    const customers = await getCustomers();
+  const existingCustomer = await prisma.customer.findUnique({
+    where: {
+      id: customer.id,
+    },
+  });
 
-    customers.push(customer);
-
-    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2), "utf8");
-
-    return customer;
-  } catch (error) {
-    console.error("Error writing customer:", error);
-
-    throw error;
+  if (existingCustomer) {
+    throw new Error("Customer already exists");
   }
+
+  const existingNic = await prisma.customer.findFirst({
+    where: {
+      nic: customer.NIC,
+    },
+  });
+
+  if (existingNic) {
+    throw new Error("Existing account found under this NIC");
+  }
+
+  const createdCustomer = await prisma.customer.create({
+    data: {
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      mobile: customer.mobile,
+      nic: customer.NIC,
+      active: customer.active,
+      properties: {
+        create: customer.properties.map((property) => ({
+          propertyName: property.propertyName,
+          address: property.address,
+        })),
+      },
+    },
+    include: {
+      properties: true,
+    },
+  });
+
+  return mapCustomer(createdCustomer);
 }
 
 export async function generateCustomerId(): Promise<string> {
-  const customers = await getCustomers();
+  const lastCustomer = await prisma.customer.findFirst({
+    orderBy: {
+      id: "desc",
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const lastCustomerNumber = customers.reduce((max, customer) => {
-    const number = Number(customer.id.replace("CUS-", ""));
+  if (!lastCustomer) {
+    return "CUS-000001";
+  }
 
-    return number > max ? number : max;
-  }, 0);
+  const lastNumber = Number(lastCustomer.id.replace("CUS-", ""));
 
-  return `CUS-${String(lastCustomerNumber + 1).padStart(6, "0")}`;
+  return `CUS-${String(lastNumber + 1).padStart(6, "0")}`;
 }
+
 export async function updateCustomer(
   updatedCustomer: Customer,
 ): Promise<Customer> {
-  try {
-    const customers = await getCustomers();
+  const existingCustomer = await prisma.customer.findUnique({
+    where: {
+      id: updatedCustomer.id,
+    },
+  });
 
-    const index = customers.findIndex(
-      (customer) => customer.id === updatedCustomer.id,
-    );
-
-    if (index === -1) {
-      throw new Error("Customer not found");
-    }
-
-    customers[index] = updatedCustomer;
-
-    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2), "utf8");
-
-    return updatedCustomer;
-  } catch (error) {
-    console.error("Error updating customer:", error);
-
-    throw error;
+  if (!existingCustomer) {
+    throw new Error("Customer not found");
   }
+
+  const duplicateNic = await prisma.customer.findFirst({
+    where: {
+      nic: updatedCustomer.NIC,
+      NOT: {
+        id: updatedCustomer.id,
+      },
+    },
+  });
+
+  if (duplicateNic) {
+    throw new Error("Existing account found under this NIC");
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.customerProperty.deleteMany({
+      where: {
+        customerId: updatedCustomer.id,
+      },
+    });
+
+    return tx.customer.update({
+      where: {
+        id: updatedCustomer.id,
+      },
+      data: {
+        name: updatedCustomer.name,
+        email: updatedCustomer.email,
+        mobile: updatedCustomer.mobile,
+        nic: updatedCustomer.NIC,
+        active: updatedCustomer.active,
+        properties: {
+          create: updatedCustomer.properties.map((property) => ({
+            propertyName: property.propertyName,
+            address: property.address,
+          })),
+        },
+      },
+      include: {
+        properties: true,
+      },
+    });
+  });
+
+  return mapCustomer(updated);
 }

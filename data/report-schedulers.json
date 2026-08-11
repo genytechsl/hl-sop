@@ -1,0 +1,32 @@
+[
+  {
+    "id": "SCH001",
+    "email": "manager@company.com",
+    "report": "dashboard",
+    "frequency": "MONTHLY",
+    "day": 31,
+    "time": "17:00",
+    "active": true,
+    "createdDate": "2026-08-03"
+  },
+  {
+    "id": "SCH002",
+    "email": "gayashanlocal@gmail.com",
+    "report": "dashboard",
+    "frequency": "DAILY",
+    "day": 29,
+    "time": "19:00",
+    "active": true,
+    "createdDate": "2026-08-03"
+  },
+  {
+    "id": "SCH003",
+    "email": "gayashanlocal@gmail.com",
+    "report": "dashboard",
+    "frequency": "DAILY",
+    "day": 29,
+    "time": "19:00",
+    "active": true,
+    "createdDate": "2026-08-03"
+  }
+]

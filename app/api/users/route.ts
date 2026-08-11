@@ -1,4 +1,6 @@
+import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 
 import {
   getEmployees,
@@ -8,7 +10,9 @@ import {
   getEmployeesByDesignation,
   createEmployee,
   updateEmployeeRole,
+  usernameExists,
 } from "@/lib/employee-service";
+import { userRegistrationEmail } from "@/lib/employee-registration-email";
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,6 +75,15 @@ export async function GET(request: NextRequest) {
 
       return all users
     */
+    const username = searchParams.get("username");
+
+    if (username) {
+      const exists = await usernameExists(username);
+
+      return NextResponse.json({
+        exists,
+      });
+    }
 
     const users = await getEmployees();
 
@@ -93,17 +106,71 @@ export async function POST(request: NextRequest) {
   try {
     const user = await request.json();
 
-    const createdUser = await createEmployee(user);
+    if (
+      !user.id ||
+      !user.name ||
+      !user.designation ||
+      !user.email ||
+      !user.username ||
+      !user.password ||
+      !user.role
+    ) {
+      return NextResponse.json(
+        {
+          message: "All required fields must be provided",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
 
-    return NextResponse.json(createdUser, {
+    const passwordHash = await bcrypt.hash(user.password, 12);
+
+    const createdUser = await createEmployee({
+      id: user.id,
+      name: user.name,
+      designation: user.designation,
+      email: user.email,
+      active: user.active ?? true,
+      role: user.role,
+      username: user.username,
+      passwordHash,
+      department: user.department || null,
+    });
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: [user.email].filter(Boolean),
+      subject: "Welcome To SolvY360",
+      html: userRegistrationEmail({
+        username: createdUser.username,
+        role: createdUser.role,
+      }),
+    });
+
+    // Never send passwordHash back to the browser
+    const { passwordHash: _, ...safeUser } = createdUser;
+
+    return NextResponse.json(safeUser, {
       status: 201,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST users error:", error);
 
     return NextResponse.json(
       {
-        message: "Failed to create user",
+        message: error.message || "Failed to create user!",
       },
       {
         status: 500,

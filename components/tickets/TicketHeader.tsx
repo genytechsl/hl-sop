@@ -10,15 +10,49 @@ import {
   CheckCircle2,
   LoaderCircle,
   FolderOpen,
+  ChevronDown,
 } from "lucide-react";
 import TicketDetailsTabs from "./TicketDetailsTabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Toast from "../BottomRIghtToast";
 
 interface Props {
   ticket: any;
 }
 
 export default function TicketHeader({ ticket }: Props) {
+  const [dialog, setDialog] = useState<{
+    open: boolean;
+    type: "success" | "error" | "warning";
+    title: string;
+    message: string;
+  }>({
+    open: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
+
+  const [toast, setToast] = useState({
+    open: false,
+    type: "success" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    if (!toast.open) return;
+
+    const timer = setTimeout(() => {
+      setToast((prev) => ({
+        ...prev,
+        open: false,
+      }));
+    }, 7000);
+
+    return () => clearTimeout(timer);
+  }, [toast.open]);
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "CAT-A":
@@ -83,7 +117,12 @@ export default function TicketHeader({ ticket }: Props) {
 
   const handleUpdateStatus = async () => {
     if (!remark.trim()) {
-      alert("Please enter remarks.");
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Remarks Required!",
+        message: `Please add a comment before updating status.`,
+      });
       return;
     }
 
@@ -103,7 +142,12 @@ export default function TicketHeader({ ticket }: Props) {
       });
 
       if (!response.ok) {
-        throw new Error();
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: `Unable to add remarks. Please try again`,
+        });
       }
 
       const response_updateTicketStatus = await fetch(
@@ -122,18 +166,30 @@ export default function TicketHeader({ ticket }: Props) {
       );
 
       if (!response_updateTicketStatus.ok) {
-        throw new Error("Failed to update ticket");
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: `Unable to add remarks. Please try again.`,
+        });
+      } else if (response_updateTicketStatus.ok) {
+        setToast({
+          open: true,
+          type: "success",
+          title: "Success",
+          message: `Status updated successfully. Remark Added.`,
+        });
+        setRemark("");
+        // Refresh the page so the latest ticket and remarks are loaded
+        window.location.reload();
       }
-
-      // Refresh the page so the latest ticket and remarks are loaded
-      window.location.reload();
-
-      // reload remarks
-      // refresh ticket
-
-      setRemark("");
     } catch (err) {
-      console.error(err);
+      setToast({
+        open: true,
+        type: "error",
+        title: "Failed",
+        message: `Unable to add remarks. Please try again.`,
+      });
     } finally {
       setSaving(false);
     }
@@ -173,7 +229,7 @@ export default function TicketHeader({ ticket }: Props) {
 
               <div className="mt-3 flex items-center gap-2 text-slate-500">
                 <MapPin size={16} />
-                <span>{ticket.property}</span>
+                <span>{ticket.property.propertyName}</span>
               </div>
             </div>
 
@@ -298,52 +354,68 @@ export default function TicketHeader({ ticket }: Props) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className={`
-                    w-full
-                    h-11
-                    rounded-xl
-                    border
-                    border-slate-200
-                    bg-white
-                    px-4
-                    font-medium
-                    focus:outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    ${
-                      ticket.status === "OPEN"
-                        ? "text-red-600"
-                        : ticket.status === "IN_PROGRESS"
-                          ? "text-amber-600"
-                          : ticket.status === "RESOLVED"
-                            ? "text-blue-600"
-                            : "text-green-600"
-                    }
-                  `}
+                            w-full
+                            rounded-xl
+                            border
+                            p-4
+                            font-semibold
+                            shadow-sm
+                            transition-all
+                            duration-200
+
+                            bg-gradient-to-b
+                            from-white
+                            to-slate-50
+
+                            border-slate-200
+
+                            hover:border-slate-300
+                            hover:shadow-md
+
+                            focus:outline-none
+                            focus:ring-4
+                            focus:ring-blue-100
+                            focus:border-blue-500
+                            appearance-none
+
+                            ${
+                              status === "OPEN"
+                                ? "text-red-600"
+                                : status === "IN_PROGRESS"
+                                  ? "text-amber-600"
+                                  : status === "BEING_PROCESSED"
+                                    ? "text-fuchsia-600"
+                                    : status === "RESOLVED"
+                                      ? "text-blue-600"
+                                      : status === "RETURN"
+                                        ? "text-slate-600"
+                                        : "text-green-600"
+                            }
+                          `}
               >
                 <option value="OPEN" className="text-red-600">
                   Open
                 </option>
-
                 <option value="IN_PROGRESS" className="text-amber-600">
                   In Progress
                 </option>
-
                 <option value="BEING_PROCESSED" className="text-fuchsia-600">
                   Being Attended
                 </option>
-
                 <option value="RESOLVED" className="text-blue-600">
                   Resolved
                 </option>
-
                 <option value="CLOSED" className="text-green-600">
                   Closed
                 </option>
-
                 <option value="RETURN" className="text-gray-600">
                   Return
                 </option>
               </select>
+              <ChevronDown
+                size={18}
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
             </div>
           </div>
 
@@ -355,7 +427,7 @@ export default function TicketHeader({ ticket }: Props) {
             </label>
 
             <textarea
-              rows={2}
+              rows={1}
               value={remark}
               required={status === "RETURN" || isSlaBreached()}
               onChange={(e) => setRemark(e.target.value)}
@@ -379,8 +451,8 @@ export default function TicketHeader({ ticket }: Props) {
 
         <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
           <div className="text-sm text-slate-500">
-            Last updated by <span className="font-medium">Facilities Team</span>{" "}
-            on 20 Jul 2026 · 10:45 AM
+            {/* Last updated by <span className="font-medium">Facilities Team</span>{" "}
+            on 20 Jul 2026 · 10:45 AM */}
           </div>
 
           <button
@@ -405,6 +477,88 @@ export default function TicketHeader({ ticket }: Props) {
             {saving ? "Updating..." : "Update Status"}
           </button>
         </div>
+
+        {dialog.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-7 animate-in fade-in zoom-in duration-200">
+              <div
+                className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full
+        ${
+          dialog.type === "success"
+            ? "bg-emerald-100"
+            : dialog.type === "error"
+              ? "bg-red-100"
+              : "bg-amber-100"
+        }`}
+              >
+                {dialog.type === "success" && (
+                  <svg
+                    className="h-8 w-8 text-emerald-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+
+                {dialog.type === "error" && (
+                  <svg
+                    className="h-8 w-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+
+                {dialog.type === "warning" && (
+                  <svg
+                    className="h-8 w-8 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 9v4m0 4h.01" />
+                    <path d="M10.29 3.86L1.82 18A2 2 0 003.53 21h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                )}
+              </div>
+
+              <h3 className="text-xl font-bold text-center text-slate-800">
+                {dialog.title}
+              </h3>
+
+              <p className="mt-3 text-center text-slate-500">
+                {dialog.message}
+              </p>
+
+              <button
+                onClick={() => setDialog((prev) => ({ ...prev, open: false }))}
+                className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Toast
+          open={toast.open}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() =>
+            setToast((prev) => ({
+              ...prev,
+              open: false,
+            }))
+          }
+        />
       </div>
     </>
   );

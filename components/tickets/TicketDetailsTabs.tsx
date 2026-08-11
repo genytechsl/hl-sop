@@ -143,7 +143,10 @@ export default function TicketDetailsTabs({ ticket }: Props) {
               <div className="grid md:grid-cols-2 gap-4">
                 <InfoField label="Customer Name" value={ticket.customerName} />
 
-                <InfoField label="Property" value={ticket.property} />
+                <InfoField
+                  label="Property"
+                  value={ticket.property.propertyName}
+                />
 
                 <InfoField label="Mobile" value="+94 77 123 4567" />
 
@@ -209,7 +212,7 @@ export default function TicketDetailsTabs({ ticket }: Props) {
         {/* ACTIVITY TAB */}
 
         {activeTab === "activity" && (
-          <div className="timeline-scroll max-h-[500px] overflow-y-auto pr-2">
+          <div className="timeline-scroll max-h-full overflow-y-auto pr-2">
             {loadingRemarks ? (
               <p className="py-10 text-center text-slate-500">
                 Loading activity...
@@ -308,8 +311,8 @@ export default function TicketDetailsTabs({ ticket }: Props) {
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="font-medium">{value}</p>
+      <p className="text-xs tracking-wide text-slate-500">{label}</p>
+      <p className="font-medium mt-1">{value}</p>
     </div>
   );
 }
@@ -376,7 +379,7 @@ function TimelineActivityItem({
   const Icon = config.icon;
 
   return (
-    <div className="relative flex gap-5 pb-8">
+    <div className="relative flex gap-5 pb-4">
       {/* Timeline */}
 
       <div className="relative flex flex-col items-center">
@@ -396,7 +399,9 @@ function TimelineActivityItem({
           <Icon size={18} className="text-white" />
         </div>
 
-        {!last && <div className="absolute top-10 w-px h-full bg-slate-200" />}
+        {!last && (
+          <div className="absolute top-10 w-[3px] h-full bg-blue-200" />
+        )}
       </div>
 
       {/* Card */}
@@ -416,7 +421,7 @@ function TimelineActivityItem({
         "
       >
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="mt-2">
             <p className="font-semibold text-slate-800">{remark.remarkType}</p>
 
             <p className="mt-2 text-sm text-slate-500">
@@ -442,9 +447,9 @@ function TimelineActivityItem({
           </span>
         </div>
 
-        <div className="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between">
+        <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between">
           <span className="text-xs uppercase tracking-wide text-slate-400">
-            Activity
+            {/* Activity */}
           </span>
 
           <span className="text-xs text-slate-500">

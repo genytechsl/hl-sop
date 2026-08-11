@@ -1,11 +1,23 @@
-import fs from "fs";
-import path from "path";
+import { prisma } from "@/lib/prisma";
+import { getEmployeeById } from "./employee-service";
 
-const filePath = path.join(process.cwd(), "data", "tickets.json");
+type SlaUnit = "hours" | "days" | "workingDays";
+
+interface Category {
+  code: string;
+  label: string;
+  color: string;
+  sla: number;
+  slaTarget: string;
+  accentColor: string;
+  unit: SlaUnit;
+}
 
 export type Ticket = {
   id: string;
   title: string;
+  description: string;
+  ticketType: string;
   category: string;
   categoryLabel: string;
   property: string;
@@ -14,151 +26,370 @@ export type Ticket = {
   assignedToId: string;
   createdAt: string;
   customerName: string;
+  customerEmail?: string;
+  actionOwnerEmail?: string;
+  actionOwnerName?: string;
   slaTarget: string;
   scope: string;
-  ccList: string[];
+  cctoList: string[];
   complaintSource: string;
+  ticketNumber?: string;
+  sendEmail?: boolean;
+  propertyId?: number;
+  customerId?: string;
 };
 
+export type CreateTicketInput = {
+  id: string;
+  title: string;
+  description: string;
+  ticketType: string;
+  category: string;
+  categoryLabel: string;
+  status: string;
+  priority: string;
+  customerId: string;
+  propertyId: number;
+  assignedToId?: string;
+  slaTarget: string;
+  complaintSource: string;
+  scope: string;
+  cctoList: string[];
+  sendEmail: boolean;
+  createdAt: string;
+};
+
+function formatTicket(ticket: any): Ticket {
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    description: ticket.description,
+    ticketType: ticket.ticketType,
+    category: ticket.category,
+    categoryLabel: ticket.categoryLabel,
+    property: ticket.property
+      ? `${ticket.property.propertyName}, ${ticket.property.address}`
+      : "",
+    status: ticket.status,
+    priority: ticket.priority,
+    assignedToId: ticket.assignedToId ?? "",
+    createdAt: formatDateTime(ticket.createdAt),
+    customerName: ticket.customer?.name ?? "",
+    customerEmail: ticket.customer?.email ?? "",
+    actionOwnerEmail: ticket.assignedTo?.email ?? "",
+    actionOwnerName: ticket.assignedTo?.name ?? "",
+    slaTarget: ticket.slaTarget,
+    scope: ticket.scope,
+    cctoList: Array.isArray(ticket.cctoList) ? ticket.cctoList : [],
+    complaintSource: ticket.complaintSource,
+    ticketNumber: ticket.id,
+    sendEmail: ticket.sendEmail,
+    customerId: ticket.customerId,
+    propertyId: ticket.propertyId,
+  };
+}
+
+function formatDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+const ticketInclude = {
+  customer: true,
+  property: true,
+  assignedTo: true,
+  slaNotification: true,
+} as const;
+
 export async function getTickets(): Promise<Ticket[]> {
-  try {
-    const fileContents = fs.readFileSync(filePath, "utf8");
+  const tickets = await prisma.ticket.findMany({
+    include: ticketInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-    const tickets = JSON.parse(fileContents);
+  return tickets.map(formatTicket);
+}
 
-    return Array.isArray(tickets) ? tickets : [];
-  } catch (error) {
-    console.error("Error reading tickets.json:", error);
+export async function getTicketById(id: string): Promise<Ticket | undefined> {
+  const ticket = await prisma.ticket.findUnique({
+    where: {
+      id,
+    },
+    include: ticketInclude,
+  });
 
-    return [];
+  if (!ticket) {
+    return undefined;
   }
+
+  return formatTicket(ticket);
 }
 
-export async function getTicketById(id: string) {
-  const tickets = await getTickets();
+export async function getTicketsByAssignedTo(
+  assignedTo: string,
+): Promise<Ticket[]> {
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      assignedToId: assignedTo,
+    },
+    include: ticketInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-  return tickets.find((ticket) => ticket.id === id);
+  return tickets.map(formatTicket);
 }
 
-export async function getTicketsByAssignedTo(assignedTo: string) {
-  console.log("assigned to true ");
-  const tickets = await getTickets();
-
-  return tickets.filter((ticket) => ticket.assignedToId === assignedTo);
-}
-
-export async function createTicket(ticket: Ticket): Promise<Ticket> {
-  try {
-    const tickets = await getTickets();
-
-    tickets.push(ticket);
-
-    fs.writeFileSync(filePath, JSON.stringify(tickets, null, 2), "utf8");
-
-    return ticket;
-  } catch (error) {
-    console.error("Error writing ticket:", error);
-    throw error;
+export async function createTicket(ticket: CreateTicketInput): Promise<Ticket> {
+  if (!ticket.customerId) {
+    throw new Error("Customer ID is required");
   }
+
+  if (!ticket.propertyId) {
+    throw new Error("Property ID is required");
+  }
+
+  const createdTicket = await prisma.ticket.create({
+    data: {
+      id: ticket.id,
+      title: ticket.title,
+      description: ticket.description,
+      ticketType: ticket.ticketType,
+      category: ticket.category,
+      categoryLabel: ticket.categoryLabel,
+      status: ticket.status,
+      priority: ticket.priority,
+      customerId: ticket.customerId,
+      propertyId: ticket.propertyId,
+      assignedToId: ticket.assignedToId || null,
+      slaTarget: ticket.slaTarget,
+      complaintSource: ticket.complaintSource,
+      scope: ticket.scope,
+      cctoList: ticket.cctoList ?? [],
+      sendEmail: ticket.sendEmail ?? false,
+      createdAt: new Date(ticket.createdAt),
+      slaNotification: {
+        create: {
+          warning80Sent: false,
+        },
+      },
+    },
+    include: ticketInclude,
+  });
+
+  return formatTicket(createdTicket);
 }
 
 export async function updateTicketStatus(
   ticketId: string,
   status: string,
 ): Promise<Ticket | null> {
-  const tickets = await getTickets();
+  const existing = await prisma.ticket.findUnique({
+    where: {
+      id: ticketId,
+    },
+  });
 
-  const index = tickets.findIndex((ticket) => ticket.id === ticketId);
-
-  if (index === -1) {
+  if (!existing) {
     return null;
   }
 
-  tickets[index].status = status;
+  const updatedTicket = await prisma.ticket.update({
+    where: {
+      id: ticketId,
+    },
+    data: {
+      status,
+    },
+    include: ticketInclude,
+  });
 
-  fs.writeFileSync(filePath, JSON.stringify(tickets, null, 2), "utf8");
+  return formatTicket(updatedTicket);
+}
 
-  return tickets[index];
+export async function updateTicket(
+  updatedTicket: Ticket,
+): Promise<Ticket | null> {
+  const existing = await prisma.ticket.findUnique({
+    where: {
+      id: updatedTicket.id,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const ticket = await prisma.ticket.update({
+    where: {
+      id: updatedTicket.id,
+    },
+    data: {
+      title: updatedTicket.title,
+      description: updatedTicket.description,
+      ticketType: updatedTicket.ticketType,
+      category: updatedTicket.category,
+      categoryLabel: updatedTicket.categoryLabel,
+      status: updatedTicket.status,
+      priority: updatedTicket.priority,
+      customerId: updatedTicket.customerId,
+      propertyId: updatedTicket.propertyId,
+      assignedToId: updatedTicket.assignedToId || null,
+      slaTarget: updatedTicket.slaTarget,
+      complaintSource: updatedTicket.complaintSource,
+      scope: updatedTicket.scope,
+      cctoList: updatedTicket.cctoList ?? [],
+      sendEmail: updatedTicket.sendEmail ?? false,
+    },
+    include: ticketInclude,
+  });
+
+  return formatTicket(ticket);
 }
 
 export async function getTicketOverview() {
-  const tickets = await getTickets();
-
-  const open = tickets.filter((t) => t.status === "OPEN").length;
-  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const closed = tickets.filter((t) => t.status === "CLOSED").length;
+  const [open, inProgress, closed, total] = await Promise.all([
+    prisma.ticket.count({
+      where: {
+        status: "OPEN",
+      },
+    }),
+    prisma.ticket.count({
+      where: {
+        status: "IN_PROGRESS",
+      },
+    }),
+    prisma.ticket.count({
+      where: {
+        status: "CLOSED",
+      },
+    }),
+    prisma.ticket.count(),
+  ]);
 
   return {
     open,
     inProgress,
     closed,
-    total: tickets.length,
+    total,
   };
 }
 
-function getSlaHours(sla: string) {
-  const value = parseInt(sla);
+function getWorkingDays(start: Date, end: Date) {
+  let count = 0;
+  const current = new Date(start);
 
-  if (sla.includes("wd")) return value * 24 * 5;
-  if (sla.includes("d")) return value * 24;
-  if (sla.includes("h")) return value;
+  while (current <= end) {
+    const day = current.getDay();
 
-  return 0;
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
 }
 
 function getAgeHours(createdAt: string) {
-  const [date, time] = createdAt.split(" ");
+  const created = parseDate(createdAt);
+  return (Date.now() - created.getTime()) / 3600000;
+}
+
+function getAgeDays(createdAt: string) {
+  const created = parseDate(createdAt);
+  return (Date.now() - created.getTime()) / 86400000;
+}
+
+function getAgeWorkingDays(createdAt: string) {
+  const created = parseDate(createdAt);
+  return getWorkingDays(created, new Date());
+}
+
+function getAge(createdAt: string, unit: "hours" | "days" | "workingDays") {
+  switch (unit) {
+    case "hours":
+      return getAgeHours(createdAt);
+
+    case "days":
+      return getAgeDays(createdAt);
+
+    case "workingDays":
+      return getAgeWorkingDays(createdAt);
+  }
+}
+
+function parseDate(dateTime: string): Date {
+  const [date, time] = dateTime.split(" ");
+
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
 
-  const created = new Date(year, month - 1, day, hour, minute);
-
-  return (Date.now() - created.getTime()) / (1000 * 60 * 60);
+  return new Date(year, month - 1, day, hour, minute);
 }
+
+const categories: Category[] = [
+  {
+    code: "CAT-A",
+    label: "CRITICAL",
+    color: "bg-red-500",
+    slaTarget: "24 h",
+    accentColor: "oklch(63.7% 0.237 25.331)",
+    sla: 24,
+    unit: "hours",
+  },
+  {
+    code: "CAT-B",
+    label: "TECHNICAL",
+    color: "bg-blue-500",
+    slaTarget: "7 Working Days",
+    accentColor: "oklch(62.3% 0.214 259.815)",
+    sla: 7,
+    unit: "workingDays",
+  },
+  {
+    code: "CAT-B2",
+    label: "SFM FACILITY",
+    color: "bg-green-500",
+    slaTarget: "7 Days",
+    accentColor: "oklch(72.3% 0.219 149.579)",
+    sla: 7,
+    unit: "days",
+  },
+  {
+    code: "CAT-C",
+    label: "ADMIN/PAY",
+    color: "bg-slate-500",
+    slaTarget: "5 Working Days",
+    accentColor: "oklch(55.4% 0.046 257.417)",
+    sla: 5,
+    unit: "workingDays",
+  },
+  {
+    code: "CAT-D",
+    label: "LEGAL",
+    color: "bg-purple-500",
+    slaTarget: "10 Working Days",
+    accentColor: "oklch(62.7% 0.265 303.9)",
+    sla: 10,
+    unit: "workingDays",
+  },
+];
 
 export async function getAgingOverview() {
   const tickets = await getTickets();
 
-  const categories = [
-    {
-      code: "CAT-A",
-      label: "CRITICAL",
-      color: "bg-red-500",
-      slaTarget: "24 h",
-      accentColor: "oklch(63.7% 0.237 25.331)",
-    },
-    {
-      code: "CAT-B",
-      label: "TECHNICAL",
-      color: "bg-blue-500",
-      slaTarget: "7 Working Days",
-      accentColor: "oklch(62.3% 0.214 259.815)",
-    },
-    {
-      code: "CAT-B2",
-      label: "SFM FACILITY",
-      color: "bg-green-500",
-      slaTarget: "7 Days",
-      accentColor: "oklch(72.3% 0.219 149.579)",
-    },
-    {
-      code: "CAT-C",
-      label: "ADMIN/PAY",
-      color: "bg-slate-500",
-      slaTarget: "5 Working Days",
-      accentColor: "oklch(55.4% 0.046 257.417)",
-    },
-    {
-      code: "CAT-D",
-      label: "LEGAL",
-      color: "bg-purple-500",
-      slaTarget: "10 Working Days",
-      accentColor: "oklch(62.7% 0.265 303.9)",
-    },
-  ];
-
   return categories.map((category) => {
-    const rows = tickets.filter((t) => t.category === category.code);
+    const rows = tickets.filter((ticket) => ticket.category === category.code);
 
     if (!rows.length) {
       return {
@@ -170,32 +401,34 @@ export async function getAgingOverview() {
     }
 
     const totalAge = rows.reduce(
-      (sum, ticket) => sum + getAgeHours(ticket.createdAt),
+      (sum, ticket) => sum + getAge(ticket.createdAt, category.unit),
       0,
     );
 
-    const averageAge = totalAge / rows.length;
+    const avg = Math.round(totalAge / rows.length);
+
+    let averageAge = "";
+
+    switch (category.code) {
+      case "CAT-A":
+        averageAge = `${avg} h`;
+        break;
+
+      case "CAT-B2":
+        averageAge = `${avg} Days`;
+        break;
+
+      default:
+        averageAge = `${avg} Working Days`;
+    }
 
     const breached = rows.filter(
-      (ticket) => getAgeHours(ticket.createdAt) > Number(ticket.slaTarget),
+      (ticket) => getAge(ticket.createdAt, category.unit) > category.sla,
     ).length;
 
     const compliance = Math.round(
       ((rows.length - breached) / rows.length) * 100,
     );
-
-    let aging = "";
-
-    if (averageAge >= 24 * 5) aging = `${Math.round(averageAge / (24 * 5))} wd`;
-    else if (averageAge >= 24) aging = `${Math.round(averageAge / 24)} d`;
-    else aging = `${Math.round(averageAge)} h`;
-
-    // return {
-    //   ...category,
-    //   target: rows[0].slaTarget,
-    //   aging,
-    //   compliance,
-    // };
 
     return {
       ...category,
@@ -204,4 +437,101 @@ export async function getAgingOverview() {
       compliance,
     };
   });
+}
+
+export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
+  const tickets = await getTickets();
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const now = new Date();
+
+  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+  const result: TicketVolumeItem[] = [];
+
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+
+    result.push({
+      year: d.getFullYear(),
+      monthIndex: d.getMonth(),
+      month: monthNames[d.getMonth()],
+      open: 0,
+      inProgress: 0,
+      closed: 0,
+    });
+  }
+
+  tickets.forEach((ticket) => {
+    const created = parseDate(ticket.createdAt);
+
+    const index = result.findIndex(
+      (m) =>
+        m.year === created.getFullYear() && m.monthIndex === created.getMonth(),
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    switch (ticket.status) {
+      case "OPEN":
+        result[index].open++;
+        break;
+
+      case "IN_PROGRESS":
+      case "BEING_PROCESSED":
+        result[index].inProgress++;
+        break;
+
+      case "RESOLVED":
+      case "CLOSED":
+        result[index].closed++;
+        break;
+    }
+  });
+
+  return result;
+}
+
+export async function getActionOwnerWorkload() {
+  const tickets = await getTickets();
+
+  const owners: Record<string, number> = {};
+
+  tickets.forEach((ticket) => {
+    const owner = ticket.actionOwnerName || "Unassigned";
+
+    owners[owner] = (owners[owner] || 0) + 1;
+  });
+
+  return Object.entries(owners)
+    .map(([name, count]) => ({
+      name,
+      tickets: count,
+    }))
+    .sort((a, b) => b.tickets - a.tickets);
+}
+
+interface TicketVolumeItem {
+  year: number;
+  monthIndex: number;
+  month: string;
+  open: number;
+  inProgress: number;
+  closed: number;
 }

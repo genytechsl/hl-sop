@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
-
-const filePath = path.join(process.cwd(), "data", "employees.json");
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export type Employee = {
   id: string;
@@ -11,25 +9,21 @@ export type Employee = {
   active: boolean;
   role: string;
   username: string;
-  security: string;
-  department: string;
+  passwordHash: string;
+  department?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 /**
  * Get all employees
  */
 export async function getEmployees(): Promise<Employee[]> {
-  try {
-    const fileContents = fs.readFileSync(filePath, "utf8");
-
-    const employees = JSON.parse(fileContents);
-
-    return Array.isArray(employees) ? employees : [];
-  } catch (error) {
-    console.error("Error reading employees.json:", error);
-
-    return [];
-  }
+  return prisma.employee.findMany({
+    orderBy: {
+      name: "asc",
+    },
+  });
 }
 
 /**
@@ -38,9 +32,13 @@ export async function getEmployees(): Promise<Employee[]> {
 export async function getEmployeeById(
   id: string,
 ): Promise<Employee | undefined> {
-  const employees = await getEmployees();
+  const employee = await prisma.employee.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  return employees.find((employee) => employee.id === id);
+  return employee ?? undefined;
 }
 
 /**
@@ -50,9 +48,13 @@ export async function getEmployeeById(
 export async function getEmployeeByUsername(
   username: string,
 ): Promise<Employee | undefined> {
-  const employees = await getEmployees();
+  const employee = await prisma.employee.findUnique({
+    where: {
+      username,
+    },
+  });
 
-  return employees.find((employee) => employee.username === username);
+  return employee ?? undefined;
 }
 
 /**
@@ -61,80 +63,96 @@ export async function getEmployeeByUsername(
 export async function getEmployeeByEmail(
   email: string,
 ): Promise<Employee | undefined> {
-  const employees = await getEmployees();
+  const employee = await prisma.employee.findUnique({
+    where: {
+      email,
+    },
+  });
 
-  return employees.find((employee) => employee.email === email);
+  return employee ?? undefined;
 }
 
 /**
  * Get employees by role
- *
- * Example:
- * actionOwner
- * admin
- * cmuManager
- * dataEntry
  */
 export async function getEmployeesByRole(role: string): Promise<Employee[]> {
-  const employees = await getEmployees();
-
-  return employees.filter((employee) => employee.role === role);
+  return prisma.employee.findMany({
+    where: {
+      role,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 }
 
 /**
  * Get only active employees
  */
 export async function getActiveEmployees(): Promise<Employee[]> {
-  const employees = await getEmployees();
-
-  return employees.filter((employee) => employee.active === true);
+  return prisma.employee.findMany({
+    where: {
+      active: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 }
 
 /**
  * Get employees by designation
- *
- * Example:
- * MEP Engineer
- * Supervisor
  */
 export async function getEmployeesByDesignation(
   designation: string,
 ): Promise<Employee[]> {
-  const employees = await getEmployees();
-
-  return employees.filter((employee) => employee.designation === designation);
+  return prisma.employee.findMany({
+    where: {
+      designation,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 }
 
 /**
  * Create employee
  */
 export async function createEmployee(employee: Employee): Promise<Employee> {
-  try {
-    const employees = await getEmployees();
+  const existingEmployee = await prisma.employee.findUnique({
+    where: {
+      id: employee.id,
+    },
+  });
 
-    const exists_user = employees.some((item) => item.id === employee.id);
-
-    const exists_user_name = employees.some(
-      (item) => item.username === employee.username,
-    );
-
-    if (exists_user) {
-      throw new Error("Employee already exists");
-    }
-    if (exists_user_name) {
-      throw new Error("Username already exists");
-    }
-
-    employees.push(employee);
-
-    fs.writeFileSync(filePath, JSON.stringify(employees, null, 2), "utf8");
-
-    return employee;
-  } catch (error) {
-    console.error("Create employee error:", error);
-
-    throw error;
+  if (existingEmployee) {
+    throw new Error("Employee already exists");
   }
+
+  const existingUsername = await prisma.employee.findUnique({
+    where: {
+      username: employee.username,
+    },
+  });
+
+  if (existingUsername) {
+    throw new Error("Username already exists");
+  }
+
+  return prisma.employee.create({
+    data: {
+      id: employee.id,
+      name: employee.name,
+      designation: employee.designation,
+      email: employee.email,
+      active: employee.active,
+      role: employee.role,
+      username: employee.username,
+      passwordHash: employee.passwordHash,
+      department: employee.department,
+    },
+  });
 }
 
 /**
@@ -144,22 +162,22 @@ export async function updateEmployee(
   id: string,
   data: Partial<Employee>,
 ): Promise<Employee | null> {
-  const employees = await getEmployees();
+  const existingEmployee = await prisma.employee.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  const index = employees.findIndex((employee) => employee.id === id);
-
-  if (index === -1) {
+  if (!existingEmployee) {
     return null;
   }
 
-  employees[index] = {
-    ...employees[index],
-    ...data,
-  };
-
-  fs.writeFileSync(filePath, JSON.stringify(employees, null, 2), "utf8");
-
-  return employees[index];
+  return prisma.employee.update({
+    where: {
+      id,
+    },
+    data,
+  });
 }
 
 /**
@@ -172,50 +190,61 @@ export async function updateEmployeeStatus(id: string, active: boolean) {
 }
 
 /**
- * update Employee Role
+ * Update employee role
  */
 export async function updateEmployeeRole(id: string, role: string) {
-  const employees = await getEmployees();
+  const employee = await prisma.employee.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  const employeeIndex = employees.findIndex((employee) => employee.id === id);
-
-  if (employeeIndex === -1) {
+  if (!employee) {
     throw new Error("Employee not found");
   }
 
-  employees[employeeIndex] = {
-    ...employees[employeeIndex],
-    role,
-  };
-
-  fs.writeFileSync(filePath, JSON.stringify(employees, null, 2), "utf8");
-
-  return employees[employeeIndex];
+  return prisma.employee.update({
+    where: {
+      id,
+    },
+    data: {
+      role,
+    },
+  });
 }
 
 /**
  * Delete employee
  */
 export async function deleteEmployee(id: string): Promise<boolean> {
-  const employees = await getEmployees();
+  const employee = await prisma.employee.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  const filtered = employees.filter((employee) => employee.id !== id);
-
-  if (filtered.length === employees.length) {
+  if (!employee) {
     return false;
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2), "utf8");
+  await prisma.employee.delete({
+    where: {
+      id,
+    },
+  });
 
   return true;
 }
 
 /**
  * Login validation
+ *
+ * Compares the supplied password against
+ * the stored bcrypt password hash.
  */
 export async function validateEmployeeLogin(
   username: string,
-  security: string,
+  password: string,
 ): Promise<Employee | null> {
   const employee = await getEmployeeByUsername(username);
 
@@ -223,13 +252,28 @@ export async function validateEmployeeLogin(
     return null;
   }
 
-  if (employee.security !== security) {
-    return null;
-  }
-
   if (!employee.active) {
     return null;
   }
 
+  const passwordValid = await bcrypt.compare(password, employee.passwordHash);
+
+  if (!passwordValid) {
+    return null;
+  }
+
   return employee;
+}
+
+/**
+ * Check whether a username already exists
+ */
+export async function usernameExists(username: string): Promise<boolean> {
+  const employee = await prisma.employee.findUnique({
+    where: {
+      username,
+    },
+  });
+
+  return !!employee;
 }

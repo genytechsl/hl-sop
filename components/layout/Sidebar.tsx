@@ -99,12 +99,12 @@ export default function Sidebar({ open, setOpen, user }: Props) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-white/10">
+          <div className="p-4 border-b border-white/10">
             <div className="flex items-center justify-between md:justify-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex items-center justify-center">
+              <div className="w-full flex flex-col items-center gap-1">
+                <div className="w-full flex items-center justify-center">
                   <Image
-                    src="/hl_logo_white.png"
+                    src="/hl.png"
                     alt="Company Logo"
                     width={400}
                     height={150}
@@ -186,6 +186,13 @@ export default function Sidebar({ open, setOpen, user }: Props) {
                       className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
                     >
                       Customers
+                    </Link>
+
+                    <Link
+                      href="/settings/report-schedular/"
+                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                    >
+                      Report Schedules
                     </Link>
                   </div>
                 )}
