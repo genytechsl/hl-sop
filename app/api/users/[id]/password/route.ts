@@ -36,7 +36,7 @@ export async function PUT(
     await prisma.employee.update({
       where: { id },
       data: {
-        password: passwordHash,
+        passwordHash: passwordHash,
       },
     });
 
