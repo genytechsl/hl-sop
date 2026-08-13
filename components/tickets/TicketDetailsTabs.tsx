@@ -59,17 +59,11 @@ export default function TicketDetailsTabs({ ticket }: Props) {
 
   const createdAt = new Date(ticket.createdAt);
   const now = new Date();
-
   const elapsedHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-
   const targetHours = getHoursFromSla(ticket.slaTarget);
-
   const progressPercentage = Math.round((elapsedHours / targetHours) * 100);
-
   const remainingHours = targetHours - elapsedHours;
-
   const breached = remainingHours < 0;
-
   const timeline = [...remarks]
     .sort(
       (a, b) =>
@@ -140,15 +134,12 @@ export default function TicketDetailsTabs({ ticket }: Props) {
                 <h3 className="font-semibold">Customer Information</h3>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <InfoField label="Customer Name" value={ticket.customerName} />
 
-                <InfoField
-                  label="Property"
-                  value={ticket.property.propertyName}
-                />
+                <InfoField label="Property" value={ticket.property} />
 
-                <InfoField label="Mobile" value="+94 77 123 4567" />
+                <InfoField label="Mobile" value={ticket.customerMobile} />
 
                 <InfoField label="Email" value="customer@email.com" />
               </div>
@@ -166,7 +157,7 @@ export default function TicketDetailsTabs({ ticket }: Props) {
                 <InfoField label="Category" value={ticket.category} />
                 <InfoField label="Scope of the Issue" value={ticket.scope} />
                 <InfoField
-                  label="Scope of the Issue"
+                  label="Complaint Source"
                   value={ticket.complaintSource}
                 />
               </div>
@@ -198,13 +189,20 @@ export default function TicketDetailsTabs({ ticket }: Props) {
             {/* CC List */}
 
             <div className="flex flex-wrap gap-2">
-              {ticket.selectedEmails?.length ? (
-                ticket.selectedEmails.map((email: string) => (
-                  <EmailChip key={email} email={email} />
-                ))
-              ) : (
-                <span className="text-sm text-slate-500">No CC recipients</span>
-              )}
+              <InfoField
+                label="CC Receipients List"
+                value={
+                  ticket.cctoList?.length ? (
+                    ticket.cctoList.map((email: string) => (
+                      <EmailChip key={email} email={email} />
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-500">
+                      No CC recipients
+                    </span>
+                  )
+                }
+              />
             </div>
           </div>
         )}

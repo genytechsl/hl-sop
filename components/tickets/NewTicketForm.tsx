@@ -23,6 +23,17 @@ import { saveTicket } from "@/components/tickets/ticket-storage";
 import Link from "next/link";
 import Toast from "../BottomRIghtToast";
 
+interface Employee {
+  id: string;
+  name: string;
+  designation: string;
+  email: string;
+  active: boolean;
+  role: string;
+  username: string;
+  department: string;
+}
+
 const getSlaTarget = (category: string) => {
   switch (category) {
     case "CAT-A":
@@ -100,7 +111,7 @@ const categoryOptions = [
   },
 ];
 
-const emailSuggestions = employees.filter((employee) => employee.active);
+// const emailSuggestions = employees.filter((employee) => employee.active);
 
 export default function NewTicketForm() {
   const [search, setSearch] = useState("");
@@ -126,9 +137,10 @@ export default function NewTicketForm() {
   const [description, setDescription] = useState("");
   const [actionOwnerId, setActionOwnerId] = useState("");
   const [scope, setScope] = useState("");
-  const [complaintSource, setComplaintSource] = useState("");
+  const [complaintSource, setComplaintSource] = useState("Customer Call");
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setisSaving] = useState<boolean>(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -215,6 +227,34 @@ export default function NewTicketForm() {
     "CAT-C": ["CMU Manager"],
     "CAT-D": ["Operations Executive"],
   };
+
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        const response = await fetch("/api/users?active=true");
+
+        if (!response.ok) {
+          throw new Error("Failed to load employees");
+        }
+
+        const data = await response.json();
+
+        setEmployees(data);
+      } catch (error) {
+        console.error("Failed to load employees:", error);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load action owners.",
+        });
+      }
+    }
+
+    loadEmployees();
+  }, []);
+
   const availableEmployees = useMemo(() => {
     const allowedRoles = categoryRoleMap[category] || [];
 
@@ -222,7 +262,11 @@ export default function NewTicketForm() {
       (employee) =>
         employee.active && allowedRoles.includes(employee.designation),
     );
-  }, [category]);
+  }, [category, employees]);
+
+  const emailSuggestions = useMemo(() => {
+    return employees.filter((employee) => employee.active);
+  }, [employees]);
 
   const selectedActionOwner = useMemo(() => {
     return employees.find((employee) => employee.id === actionOwnerId);
@@ -350,7 +394,7 @@ export default function NewTicketForm() {
         status: "OPEN",
         priority: getPriority(category),
         assignedToId: selectedActionOwner?.id || "",
-        createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        // createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
         customerName: selectedCustomer?.name,
         slaTarget: getSlaTarget(category),
         complaintSource,
@@ -408,6 +452,7 @@ export default function NewTicketForm() {
         setSelectedEmails([]);
         setSearch("");
         setSelectedCustomer(null);
+        setComplaintSource("Customer Call");
       } else {
         setNewTicketToast({
           open: true,
@@ -419,6 +464,7 @@ export default function NewTicketForm() {
         setSelectedEmails([]);
         setSearch("");
         setSelectedCustomer(null);
+        setComplaintSource("Customer Call");
       }
     } catch (error) {
       setToast({

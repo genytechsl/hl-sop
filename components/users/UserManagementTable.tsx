@@ -11,6 +11,7 @@ import {
   Filter,
   Search,
 } from "lucide-react";
+import Link from "next/link";
 
 interface User {
   id: string;
@@ -37,6 +38,7 @@ export default function UserManagementTable() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
+  const [changedRoles, setChangedRoles] = useState<Record<string, boolean>>({});
 
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -135,12 +137,16 @@ export default function UserManagementTable() {
           : user,
       ),
     );
+
+    setChangedRoles((prev) => ({
+      ...prev,
+      [id]: true,
+    }));
   }
 
   async function saveRole(user: User) {
     try {
       setSavingId(user.id);
-
       setMessage(null);
 
       const response = await fetch("/api/users", {
@@ -157,6 +163,11 @@ export default function UserManagementTable() {
       if (!response.ok) {
         throw new Error();
       }
+
+      setChangedRoles((prev) => ({
+        ...prev,
+        [user.id]: false,
+      }));
 
       setMessage({
         type: "success",
@@ -370,7 +381,7 @@ export default function UserManagementTable() {
               <th className="px-4 py-4 text-left">Email</th>
               <th className="px-4 py-4 text-left">Status</th>
               <th className="px-4 py-4 text-left">Role</th>
-              <th className="px-4 py-4 text-left">Action</th>
+              <th className="py-4 text-left"></th>
             </tr>
           </thead>
 
@@ -389,15 +400,13 @@ export default function UserManagementTable() {
                   {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                 </td>
 
-                <td
-                  className="
-                px-4
-                py-4
-                font-medium
-                text-slate-700
-              "
-                >
-                  {user.id}
+                <td className="px-4 py-4">
+                  <Link
+                    href={`/settings/user/edit/${user.id}`}
+                    className="font-semibold text-emerald-600 transition hover:text-emerald-700 hover:underline"
+                  >
+                    {user.id}
+                  </Link>
                 </td>
 
                 <td className="px-4 py-4">
@@ -456,31 +465,38 @@ export default function UserManagementTable() {
                 </td>
 
                 <td className="px-4 py-4">
-                  <button
-                    onClick={() => saveRole(user)}
-                    disabled={savingId === user.id}
-                    className="
-                    inline-flex
-                    items-center
-                    gap-2
-                    rounded-xl
-                    bg-blue-600
-                    px-4
-                    py-2
-                    text-white
-                    font-medium
-                    hover:bg-blue-700
-                    disabled:opacity-50
-                    transition
-                  "
-                  >
-                    {savingId === user.id ? (
-                      <LoaderCircle size={16} className="animate-spin" />
-                    ) : (
-                      <Save size={16} />
-                    )}
-                    Save
-                  </button>
+                  {changedRoles[user.id] && (
+                    <button
+                      type="button"
+                      onClick={() => saveRole(user)}
+                      disabled={savingId === user.id}
+                      title="Save role change"
+                      aria-label={`Save role change for ${user.name}`}
+                      className="
+                              flex
+                              h-9
+                              w-9
+                              items-center
+                              justify-center
+                              rounded-full
+                              bg-emerald-100
+                              text-emerald-600
+                              transition-all
+                              duration-200
+                              hover:scale-105
+                              hover:bg-emerald-500
+                              hover:text-white
+                              disabled:cursor-not-allowed
+                              disabled:opacity-60
+                            "
+                    >
+                      {savingId === user.id ? (
+                        <LoaderCircle size={17} className="animate-spin" />
+                      ) : (
+                        <CheckCircle size={18} />
+                      )}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -442,7 +442,7 @@ export type TicketCreateInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutTicketsInput
   property: Prisma.CustomerPropertyCreateNestedOneWithoutTicketsInput
@@ -468,7 +468,7 @@ export type TicketUncheckedCreateInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   remarks?: Prisma.TicketRemarkUncheckedCreateNestedManyWithoutTicketInput
   slaNotification?: Prisma.TicketSlaNotificationUncheckedCreateNestedOneWithoutTicketInput
@@ -537,7 +537,7 @@ export type TicketCreateManyInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
 }
 
@@ -832,7 +832,7 @@ export type TicketCreateWithoutAssignedToInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutTicketsInput
   property: Prisma.CustomerPropertyCreateNestedOneWithoutTicketsInput
@@ -856,7 +856,7 @@ export type TicketUncheckedCreateWithoutAssignedToInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   remarks?: Prisma.TicketRemarkUncheckedCreateNestedManyWithoutTicketInput
   slaNotification?: Prisma.TicketSlaNotificationUncheckedCreateNestedOneWithoutTicketInput
@@ -926,7 +926,7 @@ export type TicketCreateWithoutCustomerInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   property: Prisma.CustomerPropertyCreateNestedOneWithoutTicketsInput
   assignedTo?: Prisma.EmployeeCreateNestedOneWithoutAssignedTicketsInput
@@ -950,7 +950,7 @@ export type TicketUncheckedCreateWithoutCustomerInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   remarks?: Prisma.TicketRemarkUncheckedCreateNestedManyWithoutTicketInput
   slaNotification?: Prisma.TicketSlaNotificationUncheckedCreateNestedOneWithoutTicketInput
@@ -996,7 +996,7 @@ export type TicketCreateWithoutPropertyInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutTicketsInput
   assignedTo?: Prisma.EmployeeCreateNestedOneWithoutAssignedTicketsInput
@@ -1020,7 +1020,7 @@ export type TicketUncheckedCreateWithoutPropertyInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   remarks?: Prisma.TicketRemarkUncheckedCreateNestedManyWithoutTicketInput
   slaNotification?: Prisma.TicketSlaNotificationUncheckedCreateNestedOneWithoutTicketInput
@@ -1066,7 +1066,7 @@ export type TicketCreateWithoutRemarksInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutTicketsInput
   property: Prisma.CustomerPropertyCreateNestedOneWithoutTicketsInput
@@ -1091,7 +1091,7 @@ export type TicketUncheckedCreateWithoutRemarksInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   slaNotification?: Prisma.TicketSlaNotificationUncheckedCreateNestedOneWithoutTicketInput
 }
@@ -1170,7 +1170,7 @@ export type TicketCreateWithoutSlaNotificationInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutTicketsInput
   property: Prisma.CustomerPropertyCreateNestedOneWithoutTicketsInput
@@ -1195,7 +1195,7 @@ export type TicketUncheckedCreateWithoutSlaNotificationInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
   remarks?: Prisma.TicketRemarkUncheckedCreateNestedManyWithoutTicketInput
 }
@@ -1276,7 +1276,7 @@ export type TicketCreateManyAssignedToInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
 }
 
@@ -1360,7 +1360,7 @@ export type TicketCreateManyCustomerInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
 }
 
@@ -1444,7 +1444,7 @@ export type TicketCreateManyPropertyInput = {
   scope: string
   cctoList?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   sendEmail?: boolean
-  createdAt: Date | string
+  createdAt?: Date | string
   updatedAt?: Date | string
 }
 

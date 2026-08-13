@@ -4,13 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
-
 import {
   LayoutDashboard,
   Ticket,
   BookOpen,
-  AlertTriangle,
-  BarChart3,
   FileText,
   Settings,
   ChevronDown,
@@ -18,6 +15,8 @@ import {
   AlertOctagon,
   X,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 interface User {
@@ -32,11 +31,18 @@ interface Props {
   open: boolean;
   setOpen: (value: boolean) => void;
   user: User;
+  collapsed: boolean;
+  setCollapsed: (value: boolean) => void;
 }
 
-export default function Sidebar({ open, setOpen, user }: Props) {
+export default function Sidebar({
+  open,
+  setOpen,
+  user,
+  collapsed,
+  setCollapsed,
+}: Props) {
   const pathname = usePathname();
-
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const allMenus = [
@@ -68,6 +74,11 @@ export default function Sidebar({ open, setOpen, user }: Props) {
 
   const menus = allMenus.filter((menu) => menu.roles.includes(user.role));
 
+  const settingsActive =
+    pathname.startsWith("/settings/user") ||
+    pathname.startsWith("/settings/customers") ||
+    pathname.startsWith("/settings/report-schedular");
+
   const logout = async () => {
     await fetch("/api/logout", {
       method: "POST",
@@ -76,283 +87,451 @@ export default function Sidebar({ open, setOpen, user }: Props) {
     window.location.href = "/";
   };
 
+  const toggleCollapse = () => {
+    setCollapsed(!collapsed);
+    setSettingsOpen(false);
+  };
+
   return (
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-black/70 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       <aside
         className={`
-          fixed top-0 left-0 z-50
-          h-screen w-72
-          bg-slate-900/95
-          backdrop-blur-xl
-          border-r border-white/10
-          transform transition-all duration-300
+          fixed left-0 top-0 z-50 h-screen
+          bg-white border-r border-slate-200
+          transition-all duration-300 ease-in-out
+          ${collapsed ? "w-20" : "w-72"}
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
         `}
       >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-4 border-b border-white/10">
-            <div className="flex items-center justify-between md:justify-center">
-              <div className="w-full flex flex-col items-center gap-1">
-                <div className="w-full flex items-center justify-center">
-                  <Image
-                    src="/hl.png"
-                    alt="Company Logo"
-                    width={400}
-                    height={150}
-                    className="w-full h-auto object-contain"
-                    priority
-                  />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-white">
-                    Customer Inquiry Management
-                  </h2>
-                </div>
-              </div>
-
-              <button className="lg:hidden" onClick={() => setOpen(false)}>
-                <X />
-              </button>
+        <div className="flex h-full flex-col">
+          {/* =====================================================
+              LOGO
+          ====================================================== */}
+          {/* =====================================================
+    SIDEBAR HEADER
+====================================================== */}
+          <div
+            className={`
+    relative flex h-20 shrink-0 items-center
+    justify-center
+    border-b border-slate-100
+    px-3
+  `}
+          >
+            {/* Centered Logo */}
+            <div
+              className={`
+                flex items-center justify-center
+                transition-all duration-300 pt-4
+                ${collapsed ? "w-0" : "w-36"}
+              `}
+            >
+              <Image
+                src="/solvy360.png"
+                alt="SolvY360"
+                width={400}
+                height={150}
+                className="h-auto w-full object-contain mt-4"
+                priority
+              />
             </div>
+
+            {/* Desktop Collapse Button */}
+            <button
+              onClick={toggleCollapse}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="
+                    absolute right-3 top-1/2
+                    hidden h-8 w-8
+                    -translate-y-1/2
+                    items-center justify-center
+                    rounded-lg
+                    text-slate-400
+                    transition-all
+                    hover:bg-slate-100
+                    hover:text-slate-700
+                    lg:flex
+                  "
+            >
+              {collapsed ? (
+                <PanelLeftOpen size={17} />
+              ) : (
+                <PanelLeftClose size={17} />
+              )}
+            </button>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close sidebar"
+              className="
+                          absolute right-3 top-1/2
+                          flex h-8 w-8
+                          -translate-y-1/2
+                          items-center justify-center
+                          rounded-lg
+                          text-slate-400
+                          transition
+                          hover:bg-slate-100
+                          hover:text-slate-700
+                          lg:hidden
+                        "
+            >
+              <X size={19} />
+            </button>
           </div>
-          {/* Menu */}
-          <div className="flex-1 overflow-auto p-4 space-y-2">
-            {menus.map((item) => {
-              const Icon = item.icon;
 
-              const active = pathname === item.href;
+          {/* =====================================================
+              NAVIGATION
+          ====================================================== */}
+          <nav className="flex-1 overflow-y-auto px-3 py-5">
+            {!collapsed && (
+              <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Main Menu
+              </p>
+            )}
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
+            <div className="space-y-1.5">
+              {menus.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    title={collapsed ? item.name : undefined}
+                    className={`
+                      group flex items-center rounded-xl
+                      transition-all duration-200
+                      ${
+                        collapsed
+                          ? "h-11 justify-center px-2"
+                          : "gap-3 px-3.5 py-3"
+                      }
+                      ${
+                        active
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }
+                    `}
+                  >
+                    <Icon
+                      size={19}
+                      strokeWidth={active ? 2.3 : 2}
+                      className="shrink-0 transition-transform group-hover:scale-105"
+                    />
+
+                    {!collapsed && (
+                      <span className="truncate text-sm font-medium">
+                        {item.name}
+                      </span>
+                    )}
+
+                    {!collapsed && active && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* =================================================
+                SETTINGS
+            ================================================== */}
+            {user.role === "admin" && (
+              <div className="mt-6">
+                {!collapsed && (
+                  <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Administration
+                  </p>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (collapsed) {
+                      setCollapsed(false);
+                      setSettingsOpen(true);
+                    } else {
+                      setSettingsOpen(!settingsOpen);
+                    }
+                  }}
+                  title={collapsed ? "Settings" : undefined}
                   className={`
-                    flex items-center gap-3
-                    rounded-2xl
-                    px-4 py-3
-
+                    group flex w-full items-center rounded-xl
                     transition-all duration-200
-
                     ${
-                      active
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      collapsed
+                        ? "h-11 justify-center px-2"
+                        : "justify-between px-3.5 py-3"
+                    }
+                    ${
+                      settingsActive
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                     }
                   `}
                 >
-                  <Icon size={18} />
-                  {item.name}
-                </Link>
-              );
-            })}
+                  <div
+                    className={`
+                      flex items-center
+                      ${collapsed ? "justify-center" : "gap-3"}
+                    `}
+                  >
+                    <Settings
+                      size={19}
+                      className="shrink-0 transition-transform duration-300 group-hover:rotate-45"
+                    />
 
-            {/* Settings */}
-            {user && user.role === "admin" && (
-              <>
-                <button
-                  onClick={() => setSettingsOpen(!settingsOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-slate-300 hover:bg-slate-800"
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings size={18} />
-                    Settings
+                    {!collapsed && (
+                      <span className="text-sm font-medium">Settings</span>
+                    )}
                   </div>
 
-                  <ChevronDown
-                    className={`transition ${settingsOpen ? "rotate-180" : ""}`}
-                    size={16}
-                  />
+                  {!collapsed && (
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform ${
+                        settingsOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  )}
                 </button>
-                {settingsOpen && (
-                  <div className="ml-6 space-y-2">
+
+                {!collapsed && settingsOpen && (
+                  <div className="mt-1.5 ml-5 space-y-1 border-l border-slate-200 pl-4">
                     <Link
-                      href="/settings/user/"
-                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                      href="/settings/user"
+                      onClick={() => setOpen(false)}
+                      className={`
+                        block rounded-lg px-3 py-2 text-sm transition
+                        ${
+                          pathname.startsWith("/settings/user")
+                            ? "bg-emerald-50 font-medium text-emerald-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                        }
+                      `}
                     >
                       Users
                     </Link>
 
                     <Link
-                      href="/settings/customers/"
-                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                      href="/settings/customers"
+                      onClick={() => setOpen(false)}
+                      className={`
+                        block rounded-lg px-3 py-2 text-sm transition
+                        ${
+                          pathname.startsWith("/settings/customers")
+                            ? "bg-emerald-50 font-medium text-emerald-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                        }
+                      `}
                     >
                       Customers
                     </Link>
 
                     <Link
-                      href="/settings/report-schedular/"
-                      className="block px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-sm"
+                      href="/settings/report-schedular"
+                      onClick={() => setOpen(false)}
+                      className={`
+                        block rounded-lg px-3 py-2 text-sm transition
+                        ${
+                          pathname.startsWith("/settings/report-schedular")
+                            ? "bg-emerald-50 font-medium text-emerald-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                        }
+                      `}
                     >
                       Report Schedules
                     </Link>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-          {/* Quick Actions */}
-          {user && (user.role === "admin" || user.role === "dataEntry") && (
-            <div className="px-4 pb-4">
-              <div className="rounded-2xl bg-slate-800/50 border border-white/10 p-4">
-                <p className="text-xs uppercase tracking-wider text-slate-500 mb-4 font-semibold">
-                  Quick Actions
-                </p>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <Link
-                    href="/tickets/new"
-                    className="
-                      group
-                      flex
-                      flex-col
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-xl
-                      bg-blue-500/10
-                      border
-                      border-blue-500/20
-                      p-3
-                      hover:bg-blue-500/20
-                      transition-all
-                    "
-                  >
-                    <PlusCircle
-                      size={20}
-                      className="text-blue-400 group-hover:scale-110 transition-transform"
-                    />
-
-                    <span className="text-[11px] text-slate-300 text-center">
-                      Ticket
-                    </span>
-                  </Link>
-
-                  <Link
-                    href="/reports"
-                    className="
-                      group
-                      flex
-                      flex-col
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-xl
-                      bg-amber-500/10
-                      border
-                      border-amber-500/20
-                      p-3
-                      hover:bg-amber-500/20
-                      transition-all
-                    "
-                  >
-                    <AlertOctagon
-                      size={20}
-                      className="text-amber-400 group-hover:scale-110 transition-transform"
-                    />
-
-                    <span className="text-[11px] text-slate-300 text-center">
-                      Escalations
-                    </span>
-                  </Link>
-                  {user.role === "admin" && (
-                    <Link
-                      href="/settings/user"
-                      className="
-                        group
-                        flex
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        bg-purple-500/10
-                        border
-                        border-purple-500/20
-                        p-3
-                        hover:bg-purple-500/20
-                        transition-all
-                      "
-                    >
-                      <Settings
-                        size={20}
-                        className="text-purple-400 group-hover:rotate-90 transition-transform duration-300"
-                      />
-
-                      <span className="text-[11px] text-slate-300">
-                        Settings
-                      </span>
-                    </Link>
-                  )}
-                </div>
               </div>
-            </div>
-          )}
-          ;{/* Logout function */}
-          <div className="px-4 pb-3">
-            <div className="rounded-2xl border border-white/10 bg-slate-800/40 p-4">
-              {/* Top Row */}
-              <div className="flex items-center justify-between mb-4">
-                {user.role === "admin" ? (
-                  <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300">
-                    System Administrator
-                  </span>
-                ) : user.role === "actionOwner" ? (
-                  <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-300">
-                    Case Owner
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300">
-                    Case Coordinator
-                  </span>
+            )}
+
+            {/* =================================================
+                QUICK ACTIONS
+            ================================================== */}
+            {(user.role === "admin" || user.role === "dataEntry") && (
+              <div className="mt-6">
+                {!collapsed && (
+                  <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Quick Actions
+                  </p>
                 )}
 
-                <button
-                  onClick={logout}
-                  title="Logout"
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    border
-                    border-red-500/20
-                    text-red-300
-                    transition-all
-                    hover:bg-red-500/20
-                    hover:text-white
-                    cursor-pointer
-                  "
-                >
-                  <LogOut size={18} />
-                </button>
-              </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                  <div
+                    className={`grid ${
+                      collapsed ? "grid-cols-1 gap-1.5" : "grid-cols-3 gap-2"
+                    }`}
+                  >
+                    <Link
+                      href="/tickets/new"
+                      onClick={() => setOpen(false)}
+                      title={collapsed ? "New Ticket" : undefined}
+                      className={`
+                        group flex items-center justify-center
+                        rounded-lg border border-emerald-100
+                        bg-white text-emerald-600
+                        transition-all hover:border-emerald-200 hover:bg-emerald-50
+                        ${collapsed ? "h-10" : "flex-col gap-1.5 px-2 py-3"}
+                      `}
+                    >
+                      <PlusCircle
+                        size={19}
+                        className="transition-transform group-hover:scale-110"
+                      />
 
-              {/* User Details */}
-              <div>
-                <p className="text-sm font-semibold text-white">{user.name}</p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {user.designation}
-                </p>
+                      {!collapsed && (
+                        <span className="text-[10px] font-medium text-slate-600">
+                          Ticket
+                        </span>
+                      )}
+                    </Link>
+
+                    <Link
+                      href="/reports"
+                      onClick={() => setOpen(false)}
+                      title={collapsed ? "Escalations" : undefined}
+                      className={`
+                        group flex items-center justify-center
+                        rounded-lg border border-amber-100
+                        bg-white text-amber-600
+                        transition-all hover:border-amber-200 hover:bg-amber-50
+                        ${collapsed ? "h-10" : "flex-col gap-1.5 px-2 py-3"}
+                      `}
+                    >
+                      <AlertOctagon
+                        size={19}
+                        className="transition-transform group-hover:scale-110"
+                      />
+
+                      {!collapsed && (
+                        <span className="text-[10px] font-medium text-slate-600">
+                          Escalations
+                        </span>
+                      )}
+                    </Link>
+
+                    {user.role === "admin" && (
+                      <Link
+                        href="/settings/user"
+                        onClick={() => setOpen(false)}
+                        title={collapsed ? "Settings" : undefined}
+                        className={`
+                          group flex items-center justify-center
+                          rounded-lg border border-slate-200
+                          bg-white text-slate-600
+                          transition-all hover:border-slate-300 hover:bg-slate-100
+                          ${collapsed ? "h-10" : "flex-col gap-1.5 px-2 py-3"}
+                        `}
+                      >
+                        <Settings
+                          size={19}
+                          className="transition-transform duration-300 group-hover:rotate-45"
+                        />
+
+                        {!collapsed && (
+                          <span className="text-[10px] font-medium text-slate-600">
+                            Settings
+                          </span>
+                        )}
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
+            )}
+          </nav>
+
+          {/* =====================================================
+              USER
+          ====================================================== */}
+          <div className="shrink-0 border-t border-slate-100 p-3">
+            <div
+              className={`
+                rounded-xl border border-slate-200 bg-slate-50
+                ${collapsed ? "p-2" : "p-3"}
+              `}
+            >
+              {collapsed ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+
+                  <button
+                    onClick={logout}
+                    title="Logout"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  >
+                    <LogOut size={17} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {user.name}
+                      </p>
+
+                      <p className="truncate text-xs text-slate-500">
+                        {user.designation}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    {user.role === "admin" ? (
+                      <span className="badge-danger">Administrator</span>
+                    ) : user.role === "actionOwner" ? (
+                      <span className="badge-info">Case Owner</span>
+                    ) : (
+                      <span className="badge-warning">Coordinator</span>
+                    )}
+
+                    <button
+                      onClick={logout}
+                      title="Logout"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <LogOut size={17} />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          {/* Footer */}
-          <div className="p-5 border-t border-white/10">
-            <p className="text-xs text-slate-500">
-              <span className="text-geny-green">SolvY360 </span>Powered by GenY
-              Tech © 2026
-            </p>
+
+          {/* =====================================================
+              FOOTER
+          ====================================================== */}
+          <div
+            className={`
+              flex shrink-0 items-center border-t border-slate-100
+              ${collapsed ? "justify-center p-3" : "justify-between px-4 py-3"}
+            `}
+          >
+            {!collapsed && (
+              <p className="justify-center text-[10px] text-slate-400">
+                SolvY360 · GenY Tech © 2026
+              </p>
+            )}
           </div>
         </div>
       </aside>

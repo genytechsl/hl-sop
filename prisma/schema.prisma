@@ -84,7 +84,7 @@ model Ticket {
   cctoList        Json     @default("[]") @map("ccto_list")
   sendEmail       Boolean  @default(false) @map("send_email")
 
-  createdAt       DateTime @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   customer   Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)

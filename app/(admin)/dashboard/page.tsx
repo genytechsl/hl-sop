@@ -39,19 +39,31 @@ export default function DashboardPage() {
         <DashboardCharts />
 
         <section>
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse"></span>
-              <p className="font-medium text-red-600">Live</p>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Status & Generated Date */}
+            <div className="flex flex-col items-start gap-2">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 animate-pulse rounded-full bg-red-500" />
+                <p className="font-medium text-red-600">Live</p>
+              </div>
+
+              <p className="text-sm text-slate-500">
+                Generated on{" "}
+                {new Date().toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
             </div>
 
-            <div className="mt-2 flex justify-end text-sm text-slate-500">
-              Generated on{" "}
-              {new Date().toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
+            {/* Customer Logo */}
+            <div className="flex h-14 w-full max-w-[240px] items-center rounded-xl border border-slate-200 bg-white px-4 py-2 sm:justify-end">
+              <img
+                src="/hl_logo.png"
+                alt="Hamelands Logo"
+                className="max-h-10 w-auto max-w-full object-contain object-right"
+              />
             </div>
           </div>
 

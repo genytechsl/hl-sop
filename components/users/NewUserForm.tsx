@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Save, LoaderCircle } from "lucide-react";
 import Toast from "../BottomRIghtToast";
 
 export default function NewUserForm() {
@@ -20,6 +20,7 @@ export default function NewUserForm() {
     null,
   );
   const [usernameEdited, setUsernameEdited] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -192,6 +193,7 @@ export default function NewUserForm() {
     }
 
     try {
+      setIsSaving(true);
       /*
        * Send the plain password only to the server.
        *
@@ -249,6 +251,8 @@ export default function NewUserForm() {
         title: "Failed!",
         message: "Failed to register employee.",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -359,14 +363,28 @@ export default function NewUserForm() {
             }
           />
 
-          <InputField
+          {/* <InputField
             label="Designation"
             placeholder="Enter designation"
             value={designation}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setDesignation(e.target.value)
             }
-          />
+          /> */}
+
+          <SelectField
+            label="Designation"
+            value={designation}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setDesignation(e.target.value)
+            }
+          >
+            <option value="MEP Engineer">MEP Engineer</option>
+            <option value="Contractor">Contractor</option>
+            <option value="CMU Manager">CMU Manager</option>
+            <option value="SFM Department">SFM</option>
+            <option value="Operations Executive">Operations Executive</option>
+          </SelectField>
 
           <SelectField
             label="Department"
@@ -494,10 +512,20 @@ export default function NewUserForm() {
         <button
           type="button"
           onClick={handleRegisterUser}
-          className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition"
+          disabled={isSaving}
+          className="button-heading-special flex items-center gap-2 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Save size={16} />
-          Save
+          {isSaving ? (
+            <>
+              <LoaderCircle size={16} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              Save
+            </>
+          )}
         </button>
 
         <button

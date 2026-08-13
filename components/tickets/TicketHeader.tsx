@@ -229,7 +229,8 @@ export default function TicketHeader({ ticket }: Props) {
 
               <div className="mt-3 flex items-center gap-2 text-slate-500">
                 <MapPin size={16} />
-                <span>{ticket.property.propertyName}</span>
+                {/* <span>{ticket.property.propertyName}</span> */}
+                <span>{ticket.property}</span>
               </div>
             </div>
 
@@ -264,7 +265,7 @@ export default function TicketHeader({ ticket }: Props) {
 
                 <div className="mt-1 flex items-center gap-2 text-red-600 font-semibold">
                   <Clock3 size={18} />
-                  19 Jul 2026 · 09:15 AM
+                  {ticket.createdAt}
                 </div>
               </div>
             </div>
@@ -306,10 +307,12 @@ export default function TicketHeader({ ticket }: Props) {
                 <User size={16} className="text-blue-500" />
                 <span className="text-sm">Assigned To</span>
               </div>
-
-              <span className="font-semibold 6 text-right">
-                {ticket.assignedTo}
-              </span>
+              <p className="font-semibold 6 text-right">
+                {ticket.actionOwnerName}{" "}
+                <span className="font-normal text-sm">
+                  ({ticket.assignedToId})
+                </span>
+              </p>
             </div>
 
             <div className="flex items-center justify-between my-2">

@@ -2,12 +2,12 @@
 
 import {
   Download,
-  Calendar,
   TagPlus,
   ArrowLeft,
   UserRoundPlus,
-  UserPlus,
   ClockPlus,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,8 +27,10 @@ export default function DashboardHeader({
   onExportCsv,
 }: Props) {
   const router = useRouter();
+
   const [showExportMenu, setShowExportMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -40,141 +42,87 @@ export default function DashboardHeader({
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const getDescription = () => {
+    switch (page) {
+      case 1:
+        return "Monitor ticket volumes, SLA performance and operational metrics";
+
+      case 41:
+        return "View & update system user information";
+
+      case 6:
+        return "Manage automated dashboard report deliveries";
+
+      case 61:
+        return "Configure automated dashboard report delivery";
+
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="page-header">
       <div>
-        <h1 className="text-3xl font-bold text-(--text-heading)">{header}</h1>
-        {page && page === 1 && (
-          <p className="mt-1 text-slate-400">
-            Monitor ticket volumes, SLA performance and operational metrics
-          </p>
-        )}
-        {page && page === 41 && (
-          <p className="mt-1 text-slate-400">
-            View & Update System User Information
-          </p>
-        )}
-        {page && page === 51 && (
-          <p className="mt-1 text-slate-400">
-            View & Update Customer Information
-          </p>
-        )}
-        {page && page === 6 && (
-          <p className="mt-1 text-slate-400">
-            Manage automated dashboard report deliveries
-          </p>
-        )}
-        {page && page === 61 && (
-          <p className="mt-1 text-slate-400">
-            Configure automated dashboard report delivery
-          </p>
+        <h1 className="page-title">{header}</h1>
+
+        {getDescription() && (
+          <p className="page-description">{getDescription()}</p>
         )}
       </div>
-      <div className="flex flex-wrap gap-3">
-        {page && page === 1 && (
-          <>
-            {/* <button className="button-heading flex items-center gap-2 transition">
-              <Calendar size={16} />
-              Last 30 Days
-            </button>
 
-            <select className="button-heading">
-              <option>All Categories</option>
-              <option>Critical</option>
-              <option>Technical</option>
-              <option>Facility</option>
-            </select> */}
-
-            <button
-              onClick={onExport}
-              className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition"
-            >
-              <Download size={16} />
-              Export
-            </button>
-          </>
+      <div className="page-actions">
+        {page === 1 && (
+          <button onClick={onExport} className="btn-primary">
+            <Download size={17} />
+            Export
+          </button>
         )}
 
-        {page && page === 2 && (
+        {page === 2 && (
           <>
-            <Link href="/tickets/new">
-              <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-                <TagPlus size={16} />
-                Open New Ticket
-              </button>
+            <Link href="/tickets/new" className="btn-primary">
+              <TagPlus size={17} />
+              Open New Ticket
             </Link>
+
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => setShowExportMenu((v) => !v)}
-                className="button-heading-special flex items-center gap-2"
+                type="button"
+                onClick={() => setShowExportMenu((value) => !value)}
+                className="btn-outline"
               >
-                <Download size={16} />
+                <Download size={17} />
                 Export
               </button>
 
               {showExportMenu && (
-                <div
-                  className="
-        absolute
-        right-0
-        top-full
-        mt-2
-        w-52
-        overflow-hidden
-        rounded-2xl
-        border
-        border-slate-200
-        bg-white
-        shadow-xl
-        ring-1
-        ring-black/5
-        z-50
-      "
-                >
+                <div className="dropdown absolute right-0 top-full z-50 mt-2 w-52">
                   <button
+                    type="button"
                     onClick={() => {
                       onExport?.();
                       setShowExportMenu(false);
                     }}
-                    className="
-          flex
-          w-full
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-sm
-          text-slate-700
-          transition
-          hover:bg-blue-50
-          hover:text-blue-700
-        "
+                    className="dropdown-item w-full"
                   >
-                    📄 Export as PDF
+                    <FileText size={17} className="text-red-500" />
+                    Export as PDF
                   </button>
 
-                  <div className="border-t border-slate-100" />
+                  <div className="divider" />
 
                   <button
+                    type="button"
                     onClick={() => {
                       onExportCsv?.();
                       setShowExportMenu(false);
                     }}
-                    className="
-          flex
-          w-full
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-sm
-          text-slate-700
-          transition
-          hover:bg-emerald-50
-          hover:text-emerald-700
-        "
+                    className="dropdown-item w-full"
                   >
-                    📊 Export as CSV
+                    <FileSpreadsheet size={17} className="text-emerald-600" />
+                    Export as CSV
                   </button>
                 </div>
               )}
@@ -182,36 +130,33 @@ export default function DashboardHeader({
           </>
         )}
 
-        {page && page === 41 && (
-          <Link href="../settings/user/new">
-            <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-              <UserRoundPlus size={16} />
-              Add New User
-            </button>
+        {page === 41 && (
+          <Link href="../settings/user/new" className="btn-primary">
+            <UserRoundPlus size={17} />
+            Add New User
           </Link>
         )}
-        {page && page === 51 && (
-          <Link href="../settings/customers/new">
-            <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-              <UserPlus size={16} />
-              Add New Customer
-            </button>
+
+        {page === 51 && (
+          <Link href="../settings/customers/new" className="btn-primary">
+            <UserRoundPlus size={17} />
+            Add New Customer
           </Link>
         )}
-        {page && page === 6 && (
-          <Link href="../settings/report-schedular/new">
-            <button className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition">
-              <ClockPlus size={16} />
-              New Schedular
-            </button>
+
+        {page === 6 && (
+          <Link href="../settings/report-schedular/new" className="btn-primary">
+            <ClockPlus size={17} />
+            New Scheduler
           </Link>
         )}
 
         <button
+          type="button"
           onClick={() => router.back()}
-          className="button-heading flex items-center gap-2 hover:scale-[1.02] transition"
+          className="btn-outline"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={17} />
           Back
         </button>
       </div>

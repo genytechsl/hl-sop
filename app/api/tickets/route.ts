@@ -8,6 +8,7 @@ import {
   getTicketById,
   getTicketVolume,
   getActionOwnerWorkload,
+  getCategoryVolume,
 } from "@/lib/ticket-service";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -59,6 +60,10 @@ export async function GET(request: NextRequest) {
 
     if (searchParams.get("ownerWorkload") === "true") {
       return NextResponse.json(await getActionOwnerWorkload());
+    }
+
+    if (searchParams.get("categoryVolume") === "true") {
+      return NextResponse.json(await getCategoryVolume());
     }
 
     const ticketId = searchParams.get("id");

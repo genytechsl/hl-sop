@@ -10,7 +10,11 @@ import {
   Building2,
   Phone,
   Mail,
-  CheckCircle,
+  Plus,
+  Trash2,
+  CalendarDays,
+  CreditCard,
+  CircleUserRound,
 } from "lucide-react";
 import Toast from "@/components/BottomRIghtToast";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -41,6 +45,13 @@ export default function CustomerViewPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [toast, setToast] = useState({
+    open: false,
+    type: "success" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+  });
+
   useEffect(() => {
     if (id) loadCustomer();
   }, [id]);
@@ -51,12 +62,7 @@ export default function CustomerViewPage() {
     setCustomer(data);
     setLoading(false);
   }
-  const [toast, setToast] = useState({
-    open: false,
-    type: "success" as "success" | "error" | "warning" | "info",
-    title: "",
-    message: "",
-  });
+
   useEffect(() => {
     if (!toast.open) return;
 
@@ -201,43 +207,76 @@ export default function CustomerViewPage() {
 
   if (loading || !customer) {
     return (
-      <div className="white-section flex justify-center py-20">
-        <LoaderCircle className="animate-spin text-blue-600" size={30} />
+      <div className="flex min-h-[400px] items-center justify-center">
+        <LoaderCircle className="animate-spin text-emerald-600" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <DashboardHeader header="Customer Management" page={6} />
-      <div className="space-y-6">
-        {/* <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-slate-600 hover:text-blue-600"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button> */}
+    <div className="page">
+      {/* <DashboardHeader header="Customer Management" page={6} /> */}
 
-        <div className="white-section">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
-              <User size={24} />
-            </div>
+      <div className="page-header">
+        <div>
+          <div className="mb-2 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="btn-ghost !px-3 !py-2"
+              title="Go back"
+            >
+              <ArrowLeft size={17} />
+            </button>
 
             <div>
-              <h2 className="text-2xl font-bold">{customer.name}</h2>
-
-              <p className="text-slate-500">{customer.id}</p>
+              <h1 className="page-title">Edit Customer</h1>
+              <p className="page-description">
+                Manage customer information, contact details and properties.
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-6">
+        <div className="flex items-center gap-2">
+          <span className={customer.active ? "badge-success" : "badge-danger"}>
+            <span
+              className={`mr-2 h-1.5 w-1.5 rounded-full ${
+                customer.active ? "bg-emerald-500" : "bg-red-500"
+              }`}
+            />
+            {customer.active ? "Active Customer" : "Inactive Customer"}
+          </span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-4">
+            <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+              <CircleUserRound size={24} />
+            </div>
+
             <div>
-              <label className="font-medium">Customer Name</label>
+              <h2 className="card-title">{customer.name}</h2>
+
+              <p className="card-description">
+                Customer ID:{" "}
+                <span className="font-medium text-slate-700">
+                  {customer.id}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card-body">
+          <div className="form-grid">
+            <div>
+              <label className="label">Customer Name</label>
 
               <input
-                className="mt-2 w-full rounded-xl border p-3"
+                className="input"
                 value={customer.name}
                 onChange={(e) =>
                   setCustomer({
@@ -249,17 +288,28 @@ export default function CustomerViewPage() {
             </div>
 
             <div>
-              <label className="font-medium">NIC</label>
+              <label className="label">NIC</label>
 
-              <input
-                readOnly
-                value={customer.NIC}
-                className="mt-2 w-full rounded-xl border bg-slate-100 p-3"
-              />
+              <div className="relative">
+                <CreditCard
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  readOnly
+                  value={customer.NIC}
+                  className="input bg-slate-50 pl-11 text-slate-500"
+                />
+              </div>
+
+              <p className="helper-text">
+                Customer identification number cannot be changed.
+              </p>
             </div>
 
             <div>
-              <label className="font-medium">Status</label>
+              <label className="label">Account Status</label>
 
               <select
                 value={customer.active ? "true" : "false"}
@@ -269,193 +319,281 @@ export default function CustomerViewPage() {
                     active: e.target.value === "true",
                   })
                 }
-                className="mt-2 w-full rounded-xl border p-3"
+                className="select"
               >
-                <option value="true">ACTIVE</option>
-                <option value="false">INACTIVE</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </select>
             </div>
 
             <div>
-              <label className="font-medium">Created Date</label>
+              <label className="label">Created Date</label>
 
-              <input
-                readOnly
-                value={customer.createdDate}
-                className="mt-2 w-full rounded-xl border bg-slate-100 p-3"
-              />
-            </div>
-          </div>
-        </div>
+              <div className="relative">
+                <CalendarDays
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
 
-        <div className="white-section">
-          <div className="flex items-center gap-2 mb-5">
-            <Mail size={20} />
-            <h3 className="text-lg font-semibold">Email Address</h3>
-          </div>
-
-          <input
-            className="w-full rounded-xl border p-3"
-            value={customer.email}
-            onChange={(e) =>
-              setCustomer({
-                ...customer,
-                email: e.target.value,
-              })
-            }
-          />
-        </div>
-
-        <div className="white-section">
-          <div className="flex items-center gap-2 mb-5">
-            <Phone size={20} />
-            <h3 className="text-lg font-semibold">Mobile Number</h3>
-          </div>
-
-          <input
-            className="w-full rounded-xl border p-3"
-            value={customer.mobile}
-            onChange={(e) =>
-              setCustomer({
-                ...customer,
-                mobile: e.target.value,
-              })
-            }
-          />
-        </div>
-
-        <div className="white-section">
-          <div className="flex items-center gap-2 mb-5">
-            <Building2 size={20} />
-            <h3 className="text-lg font-semibold">Properties</h3>
-          </div>
-
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                setCustomer({
-                  ...customer,
-                  properties: [
-                    ...customer.properties,
-                    {
-                      propertyName: "",
-                      address: "",
-                    },
-                  ],
-                })
-              }
-              className="
-      rounded-lg
-      px-4
-      py-2
-      text-sm
-      font-medium
-      text-blue-600
-      transition
-      hover:bg-blue-50
-    "
-            >
-              + Add Property
-            </button>
-          </div>
-
-          {customer.properties.map((property, index) => (
-            <div key={index} className="mb-6 rounded-xl border p-5">
-              <input
-                className="mb-3 w-full rounded-xl border p-3"
-                placeholder="Property Name"
-                value={property.propertyName}
-                onChange={(e) => {
-                  const properties = [...customer.properties];
-
-                  properties[index].propertyName = e.target.value;
-
-                  setCustomer({
-                    ...customer,
-                    properties,
-                  });
-                }}
-              />
-
-              <textarea
-                rows={3}
-                className="w-full rounded-xl border p-3"
-                placeholder="Address"
-                value={property.address}
-                onChange={(e) => {
-                  const properties = [...customer.properties];
-
-                  properties[index].address = e.target.value;
-
-                  setCustomer({
-                    ...customer,
-                    properties,
-                  });
-                }}
-              />
-
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  disabled={customer.properties.length === 1}
-                  onClick={() => {
-                    setCustomer({
-                      ...customer,
-                      properties: customer.properties.filter(
-                        (_, i) => i !== index,
-                      ),
-                    });
-                  }}
-                  className="
-      rounded-lg
-      px-4
-      py-2
-      text-sm
-      font-medium
-      text-red-600
-      transition
-      hover:bg-red-50
-      disabled:cursor-not-allowed
-      disabled:text-slate-400
-      disabled:hover:bg-transparent
-    "
-                >
-                  Remove Property
-                </button>
+                <input
+                  readOnly
+                  value={customer.createdDate}
+                  className="input bg-slate-50 pl-11 text-slate-500"
+                />
               </div>
             </div>
-          ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Email Address</h2>
+
+              <p className="card-description">
+                Primary email address used for customer communication.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-sky-100 p-3 text-sky-600">
+              <Mail size={20} />
+            </div>
+          </div>
+
+          <div className="card-body">
+            <label className="label">Email</label>
+
+            <div className="relative">
+              <Mail
+                size={17}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="email"
+                className="input pl-11"
+                value={customer.email}
+                onChange={(e) =>
+                  setCustomer({
+                    ...customer,
+                    email: e.target.value,
+                  })
+                }
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Mobile Number</h2>
+
+              <p className="card-description">
+                Primary contact number for customer communication.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600">
+              <Phone size={20} />
+            </div>
+          </div>
+
+          <div className="card-body">
+            <label className="label">Mobile</label>
+
+            <div className="relative">
+              <Phone
+                size={17}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="tel"
+                className="input pl-11"
+                value={customer.mobile}
+                onChange={(e) =>
+                  setCustomer({
+                    ...customer,
+                    mobile: e.target.value,
+                  })
+                }
+              />
+
+              <p className="helper-text">
+                Enter a valid Sri Lankan mobile number.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600">
+              <Building2 size={20} />
+            </div>
+
+            <div>
+              <h2 className="card-title">Customer Properties</h2>
+
+              <p className="card-description">
+                Manage the properties associated with this customer.
+              </p>
+            </div>
+          </div>
+
           <button
-            onClick={saveCustomer}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+            type="button"
+            onClick={() =>
+              setCustomer({
+                ...customer,
+                properties: [
+                  ...customer.properties,
+                  {
+                    propertyName: "",
+                    address: "",
+                  },
+                ],
+              })
+            }
+            className="btn-outline !px-4 !py-2"
           >
-            {saving ? (
-              <LoaderCircle className="animate-spin" size={18} />
-            ) : (
-              <Save size={18} />
-            )}
-            Save Customer
+            <Plus size={17} />
+            Add Property
           </button>
         </div>
 
-        <Toast
-          open={toast.open}
-          type={toast.type}
-          title={toast.title}
-          message={toast.message}
-          onClose={() =>
-            setToast((prev) => ({
-              ...prev,
-              open: false,
-            }))
-          }
-        />
+        <div className="card-body">
+          <div className="space-y-5">
+            {customer.properties.map((property, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+              >
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      Property {index + 1}
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      Property information and address
+                    </p>
+                  </div>
+
+                  {customer.properties.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomer({
+                          ...customer,
+                          properties: customer.properties.filter(
+                            (_, i) => i !== index,
+                          ),
+                        });
+                      }}
+                      className="btn-ghost !px-3 !py-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <Trash2 size={16} />
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="label">Property Name</label>
+
+                    <input
+                      className="input"
+                      placeholder="Enter property name"
+                      value={property.propertyName}
+                      onChange={(e) => {
+                        const properties = [...customer.properties];
+
+                        properties[index].propertyName = e.target.value;
+
+                        setCustomer({
+                          ...customer,
+                          properties,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Property Address</label>
+
+                    <textarea
+                      rows={3}
+                      className="textarea"
+                      placeholder="Enter complete property address"
+                      value={property.address}
+                      onChange={(e) => {
+                        const properties = [...customer.properties];
+
+                        properties[index].address = e.target.value;
+
+                        setCustomer({
+                          ...customer,
+                          properties,
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <div className="card">
+        <div className="card-footer flex items-center justify-between">
+          <div className="hidden sm:block">
+            <p className="text-sm font-medium text-slate-700">
+              Ready to save changes?
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Make sure all customer information is correct.
+            </p>
+          </div>
+
+          <div className="flex w-full justify-end sm:w-auto">
+            <button
+              onClick={saveCustomer}
+              disabled={saving}
+              className="btn-primary min-w-[170px]"
+            >
+              {saving ? (
+                <LoaderCircle className="animate-spin" size={18} />
+              ) : (
+                <Save size={18} />
+              )}
+
+              {saving ? "Saving..." : "Save Customer"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Toast
+        open={toast.open}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() =>
+          setToast((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+      />
     </div>
   );
 }

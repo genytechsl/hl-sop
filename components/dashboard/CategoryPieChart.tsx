@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
-interface Ticket {
+interface CategoryVolume {
   category: string;
+  value: number;
 }
 
 const COLORS: Record<string, string> = {
@@ -16,36 +17,42 @@ const COLORS: Record<string, string> = {
 };
 
 export default function CategoryPieChart() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [categoryData, setCategoryData] = useState<CategoryVolume[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/tickets")
-      .then((res) => res.json())
-      .then(setTickets)
-      .catch(console.error);
+    async function loadCategoryVolume() {
+      try {
+        setLoading(true);
+
+        const response = await fetch("/api/tickets?categoryVolume=true");
+        console.log(response);
+
+        if (!response.ok) {
+          throw new Error("Failed to load category volume");
+        }
+
+        const data = await response.json();
+
+        setCategoryData(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load category volume:", error);
+        setCategoryData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCategoryVolume();
   }, []);
 
   const chartData = useMemo(() => {
-    const counts: Record<string, number> = {
-      "CAT-A": 0,
-      "CAT-B": 0,
-      "CAT-B2": 0,
-      "CAT-C": 0,
-      "CAT-D": 0,
-    };
-
-    tickets.forEach((ticket) => {
-      if (counts[ticket.category] !== undefined) {
-        counts[ticket.category]++;
-      }
-    });
-
-    return Object.entries(counts).map(([category, value]) => ({
-      category,
-      value,
-      fill: COLORS[category],
+    return categoryData.map((item) => ({
+      category: item.category,
+      value: item.value,
+      fill: COLORS[item.category] ?? "#94a3b8",
     }));
-  }, [tickets]);
+  }, [categoryData]);
 
   const totalTickets = chartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -57,7 +64,7 @@ export default function CategoryPieChart() {
     percent,
     category,
   }: any) => {
-    if (percent === 0) return null;
+    if (!percent || percent === 0) return null;
 
     const RADIAN = Math.PI / 180;
     const radius = outerRadius + 22;
@@ -81,6 +88,14 @@ export default function CategoryPieChart() {
       </text>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-[360px] w-full items-center justify-center">
+        <div className="text-sm text-slate-500">Loading ticket volume...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -134,7 +149,6 @@ export default function CategoryPieChart() {
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         {chartData.map((item) => (
           <div
@@ -145,7 +159,8 @@ export default function CategoryPieChart() {
               className="h-3 w-3 rounded-full"
               style={{ backgroundColor: item.fill }}
             />
-            <span className="text-xs font-medium">
+
+            <span className="text-xs font-medium text-slate-700">
               {item.category} ({item.value})
             </span>
           </div>

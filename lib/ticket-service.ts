@@ -27,6 +27,7 @@ export type Ticket = {
   createdAt: string;
   customerName: string;
   customerEmail?: string;
+  customerMobile?: number;
   actionOwnerEmail?: string;
   actionOwnerName?: string;
   slaTarget: string;
@@ -76,6 +77,7 @@ function formatTicket(ticket: any): Ticket {
     createdAt: formatDateTime(ticket.createdAt),
     customerName: ticket.customer?.name ?? "",
     customerEmail: ticket.customer?.email ?? "",
+    customerMobile: ticket.customer?.mobile ?? "",
     actionOwnerEmail: ticket.assignedTo?.email ?? "",
     actionOwnerName: ticket.assignedTo?.name ?? "",
     slaTarget: ticket.slaTarget,
@@ -103,6 +105,11 @@ const ticketInclude = {
   customer: true,
   property: true,
   assignedTo: true,
+  remarks: {
+    include: {
+      updatedBy: true,
+    },
+  },
   slaNotification: true,
 } as const;
 
@@ -175,7 +182,7 @@ export async function createTicket(ticket: CreateTicketInput): Promise<Ticket> {
       scope: ticket.scope,
       cctoList: ticket.cctoList ?? [],
       sendEmail: ticket.sendEmail ?? false,
-      createdAt: new Date(ticket.createdAt),
+      // createdAt: new Date(ticket.createdAt),
       slaNotification: {
         create: {
           warning80Sent: false,
@@ -385,8 +392,68 @@ const categories: Category[] = [
   },
 ];
 
+// export async function getAgingOverview() {
+//   const tickets = await getTickets();
+
+//   return categories.map((category) => {
+//     const rows = tickets.filter((ticket) => ticket.category === category.code);
+
+//     if (!rows.length) {
+//       return {
+//         ...category,
+//         target: "-",
+//         aging: "-",
+//         compliance: 100,
+//       };
+//     }
+
+//     const totalAge = rows.reduce(
+//       (sum, ticket) => sum + getAge(ticket.createdAt, category.unit),
+//       0,
+//     );
+
+//     const avg = Math.round(totalAge / rows.length);
+
+//     let averageAge = "";
+
+//     switch (category.code) {
+//       case "CAT-A":
+//         averageAge = `${avg} h`;
+//         break;
+
+//       case "CAT-B2":
+//         averageAge = `${avg} Days`;
+//         break;
+
+//       default:
+//         averageAge = `${avg} Working Days`;
+//     }
+
+//     const breached = rows.filter(
+//       (ticket) => getAge(ticket.createdAt, category.unit) > category.sla,
+//     ).length;
+
+//     const compliance = Math.round(
+//       ((rows.length - breached) / rows.length) * 100,
+//     );
+
+//     return {
+//       ...category,
+//       target: rows[0].slaTarget,
+//       averageAge,
+//       compliance,
+//     };
+//   });
+// }
+
 export async function getAgingOverview() {
-  const tickets = await getTickets();
+  const tickets = await prisma.ticket.findMany({
+    select: {
+      category: true,
+      createdAt: true,
+      slaTarget: true,
+    },
+  });
 
   return categories.map((category) => {
     const rows = tickets.filter((ticket) => ticket.category === category.code);
@@ -394,14 +461,15 @@ export async function getAgingOverview() {
     if (!rows.length) {
       return {
         ...category,
-        target: "-",
-        aging: "-",
+        slaTarget: "-",
+        averageAge: "-",
         compliance: 100,
       };
     }
 
     const totalAge = rows.reduce(
-      (sum, ticket) => sum + getAge(ticket.createdAt, category.unit),
+      (sum, ticket) =>
+        sum + getAge(formatDateTime(ticket.createdAt), category.unit),
       0,
     );
 
@@ -423,7 +491,8 @@ export async function getAgingOverview() {
     }
 
     const breached = rows.filter(
-      (ticket) => getAge(ticket.createdAt, category.unit) > category.sla,
+      (ticket) =>
+        getAge(formatDateTime(ticket.createdAt), category.unit) > category.sla,
     ).length;
 
     const compliance = Math.round(
@@ -432,15 +501,89 @@ export async function getAgingOverview() {
 
     return {
       ...category,
-      target: rows[0].slaTarget,
+      slaTarget: rows[0].slaTarget,
       averageAge,
       compliance,
     };
   });
 }
 
+// export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
+//   const tickets = await getTickets();
+
+//   const monthNames = [
+//     "Jan",
+//     "Feb",
+//     "Mar",
+//     "Apr",
+//     "May",
+//     "Jun",
+//     "Jul",
+//     "Aug",
+//     "Sep",
+//     "Oct",
+//     "Nov",
+//     "Dec",
+//   ];
+
+//   const now = new Date();
+
+//   const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+//   const result: TicketVolumeItem[] = [];
+
+//   for (let i = 0; i < 12; i++) {
+//     const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+
+//     result.push({
+//       year: d.getFullYear(),
+//       monthIndex: d.getMonth(),
+//       month: monthNames[d.getMonth()],
+//       open: 0,
+//       inProgress: 0,
+//       closed: 0,
+//     });
+//   }
+
+//   tickets.forEach((ticket) => {
+//     const created = parseDate(ticket.createdAt);
+
+//     const index = result.findIndex(
+//       (m) =>
+//         m.year === created.getFullYear() && m.monthIndex === created.getMonth(),
+//     );
+
+//     if (index === -1) {
+//       return;
+//     }
+
+//     switch (ticket.status) {
+//       case "OPEN":
+//         result[index].open++;
+//         break;
+
+//       case "IN_PROGRESS":
+//       case "BEING_PROCESSED":
+//         result[index].inProgress++;
+//         break;
+
+//       case "RESOLVED":
+//       case "CLOSED":
+//         result[index].closed++;
+//         break;
+//     }
+//   });
+
+//   return result;
+// }
+
 export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
-  const tickets = await getTickets();
+  const tickets = await prisma.ticket.findMany({
+    select: {
+      createdAt: true,
+      status: true,
+    },
+  });
 
   const monthNames = [
     "Jan",
@@ -477,11 +620,12 @@ export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
   }
 
   tickets.forEach((ticket) => {
-    const created = parseDate(ticket.createdAt);
+    const created = new Date(ticket.createdAt);
 
     const index = result.findIndex(
-      (m) =>
-        m.year === created.getFullYear() && m.monthIndex === created.getMonth(),
+      (month) =>
+        month.year === created.getFullYear() &&
+        month.monthIndex === created.getMonth(),
     );
 
     if (index === -1) {
@@ -508,21 +652,70 @@ export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
   return result;
 }
 
-export async function getActionOwnerWorkload() {
+export async function getCategoryVolume() {
   const tickets = await getTickets();
+
+  const counts: Record<string, number> = {
+    "CAT-A": 0,
+    "CAT-B": 0,
+    "CAT-B2": 0,
+    "CAT-C": 0,
+    "CAT-D": 0,
+  };
+
+  tickets.forEach((ticket) => {
+    if (counts[ticket.category] !== undefined) {
+      counts[ticket.category]++;
+    }
+  });
+
+  return Object.entries(counts).map(([category, value]) => ({
+    category,
+    value,
+  }));
+}
+
+// export async function getActionOwnerWorkload() {
+//   const tickets = await getTickets();
+
+//   const owners: Record<string, number> = {};
+
+//   tickets.forEach((ticket) => {
+//     const owner = ticket.actionOwnerName || "Unassigned";
+
+//     owners[owner] = (owners[owner] || 0) + 1;
+//   });
+
+//   return Object.entries(owners)
+//     .map(([name, count]) => ({
+//       name,
+//       tickets: count,
+//     }))
+//     .sort((a, b) => b.tickets - a.tickets);
+// }
+
+export async function getActionOwnerWorkload() {
+  const tickets = await prisma.ticket.findMany({
+    select: {
+      assignedTo: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
 
   const owners: Record<string, number> = {};
 
   tickets.forEach((ticket) => {
-    const owner = ticket.actionOwnerName || "Unassigned";
-
+    const owner = ticket.assignedTo?.name || "Unassigned";
     owners[owner] = (owners[owner] || 0) + 1;
   });
 
   return Object.entries(owners)
-    .map(([name, count]) => ({
+    .map(([name, tickets]) => ({
       name,
-      tickets: count,
+      tickets,
     }))
     .sort((a, b) => b.tickets - a.tickets);
 }

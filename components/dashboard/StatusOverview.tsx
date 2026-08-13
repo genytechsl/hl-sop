@@ -35,7 +35,9 @@ export default function StatusOverview() {
         <StatusCard
           title="Open"
           value={overview.open}
-          percentage={Math.round((overview.open / total) * 100)}
+          percentage={
+            total > 0 ? Math.round(((overview.open ?? 0) / total) * 100) : 0
+          }
           icon={<FolderOpen className="text-red-400" />}
           accentColor="#ff6467"
         />
@@ -43,7 +45,11 @@ export default function StatusOverview() {
         <StatusCard
           title="In Progress"
           value={overview.inProgress}
-          percentage={Math.round((overview.inProgress / total) * 100)}
+          percentage={
+            total > 0
+              ? Math.round(((overview.inProgress ?? 0) / total) * 100)
+              : 0
+          }
           icon={<Clock3 className="text-amber-400" />}
           accentColor="#ffb900"
         />
@@ -51,7 +57,9 @@ export default function StatusOverview() {
         <StatusCard
           title="Closed"
           value={overview.closed}
-          percentage={Math.round((overview.closed / total) * 100)}
+          percentage={
+            total > 0 ? Math.round(((overview.closed ?? 0) / total) * 100) : 0
+          }
           icon={<CheckCircle2 className="text-green-400" />}
           accentColor="#06df72"
         />
