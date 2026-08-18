@@ -16,11 +16,19 @@ import TicketDetailsTabs from "./TicketDetailsTabs";
 import { useEffect, useState } from "react";
 import Toast from "../BottomRIghtToast";
 
+interface User {
+  id: string;
+  name: string;
+  role: string;
+  designation: string;
+  email: string;
+}
 interface Props {
   ticket: any;
+  user: User;
 }
 
-export default function TicketHeader({ ticket }: Props) {
+export default function TicketHeader({ ticket, user }: Props) {
   const [dialog, setDialog] = useState<{
     open: boolean;
     type: "success" | "error" | "warning";
@@ -115,6 +123,95 @@ export default function TicketHeader({ ticket }: Props) {
   const [remark, setRemark] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
+  const [reassigning, setReassigning] = useState(false);
+
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        const response = await fetch("/api/users?active=true");
+
+        if (!response.ok) {
+          throw new Error("Failed to load employees");
+        }
+
+        const data = await response.json();
+
+        setEmployees(data);
+      } catch (error) {
+        console.error("Failed to load employees:", error);
+      }
+    }
+
+    loadEmployees();
+  }, []);
+
+  const handleReassign = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newAssignedToId = e.target.value;
+
+    if (!newAssignedToId || newAssignedToId === ticket.assignedToId) {
+      return;
+    }
+
+    try {
+      setReassigning(true);
+
+      const response = await fetch("/api/tickets/reassign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketId: ticket.id,
+          assignedToId: newAssignedToId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setToast({
+          open: true,
+          type: "error",
+          title: "Reassignment Failed",
+          message: result.message || "Unable to reassign ticket.",
+        });
+
+        // Restore original selection
+        setAssignedToId(ticket.assignedToId || "");
+
+        return;
+      }
+
+      setToast({
+        open: true,
+        type: "success",
+        title: "Ticket Reassigned",
+        message: "The ticket has been successfully reassigned.",
+      });
+
+      setAssignedToId(newAssignedToId);
+
+      // Reload to get the latest ticket information
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } catch (error) {
+      console.error(error);
+
+      setToast({
+        open: true,
+        type: "error",
+        title: "Reassignment Failed",
+        message: "Something went wrong while reassigning the ticket.",
+      });
+
+      setAssignedToId(ticket.assignedToId || "");
+    } finally {
+      setReassigning(false);
+    }
+  };
   const handleUpdateStatus = async () => {
     if (!remark.trim()) {
       setToast({
@@ -302,17 +399,73 @@ export default function TicketHeader({ ticket }: Props) {
               </span>
             </div>
 
-            <div className="flex items-center justify-between my-2">
-              <div className="flex items-center gap-3 text-slate-500">
+            <div className="flex items-center justify-between my-2 gap-4">
+              <div className="flex items-center gap-3 text-slate-500 shrink-0">
                 <User size={16} className="text-blue-500" />
                 <span className="text-sm">Assigned To</span>
               </div>
-              <p className="font-semibold 6 text-right">
-                {ticket.actionOwnerName}{" "}
-                <span className="font-normal text-sm">
-                  ({ticket.assignedToId})
-                </span>
-              </p>
+
+              {status === "RETURN" && user.role !== "actionOwner" ? (
+                <div className="relative min-w-[190px]">
+                  <select
+                    value={assignedToId}
+                    onChange={handleReassign}
+                    disabled={reassigning}
+                    className="
+          w-full
+          appearance-none
+          rounded-lg
+          border
+          border-slate-200
+          bg-white
+          px-3
+          py-2
+          pr-9
+          text-sm
+          font-semibold
+          text-slate-700
+          shadow-sm
+          outline-none
+          transition
+          hover:border-slate-300
+          focus:border-blue-500
+          focus:ring-2
+          focus:ring-blue-100
+          disabled:cursor-not-allowed
+          disabled:opacity-60
+        "
+                  >
+                    <option value="" disabled>
+                      Select employee
+                    </option>
+
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name} ({employee.id})
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown
+                    size={16}
+                    className="
+          pointer-events-none
+          absolute
+          right-3
+          top-1/2
+          -translate-y-1/2
+          text-slate-400
+        "
+                  />
+                </div>
+              ) : (
+                <p className="font-semibold text-right text-slate-700">
+                  {ticket.actionOwnerName}{" "}
+                  <span className="font-normal text-sm text-slate-500">
+                    ({ticket.assignedToId})
+                  </span>
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between my-2">
@@ -357,60 +510,63 @@ export default function TicketHeader({ ticket }: Props) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className={`
-                            w-full
-                            rounded-xl
-                            border
-                            p-4
-                            font-semibold
-                            shadow-sm
-                            transition-all
-                            duration-200
+    w-full
+    rounded-xl
+    border
+    p-4
+    font-semibold
+    shadow-sm
+    transition-all
+    duration-200
+    bg-gradient-to-b
+    from-white
+    to-slate-50
+    border-slate-200
+    hover:border-slate-300
+    hover:shadow-md
+    focus:outline-none
+    focus:ring-4
+    focus:ring-blue-100
+    focus:border-blue-500
+    appearance-none
 
-                            bg-gradient-to-b
-                            from-white
-                            to-slate-50
-
-                            border-slate-200
-
-                            hover:border-slate-300
-                            hover:shadow-md
-
-                            focus:outline-none
-                            focus:ring-4
-                            focus:ring-blue-100
-                            focus:border-blue-500
-                            appearance-none
-
-                            ${
-                              status === "OPEN"
-                                ? "text-red-600"
-                                : status === "IN_PROGRESS"
-                                  ? "text-amber-600"
-                                  : status === "BEING_PROCESSED"
-                                    ? "text-fuchsia-600"
-                                    : status === "RESOLVED"
-                                      ? "text-blue-600"
-                                      : status === "RETURN"
-                                        ? "text-slate-600"
-                                        : "text-green-600"
-                            }
-                          `}
+    ${
+      status === "OPEN"
+        ? "text-red-600"
+        : status === "IN_PROGRESS"
+          ? "text-amber-600"
+          : status === "BEING_PROCESSED"
+            ? "text-fuchsia-600"
+            : status === "RESOLVED"
+              ? "text-blue-600"
+              : status === "RETURN"
+                ? "text-slate-600"
+                : "text-green-600"
+    }
+  `}
               >
                 <option value="OPEN" className="text-red-600">
                   Open
                 </option>
+
                 <option value="IN_PROGRESS" className="text-amber-600">
                   In Progress
                 </option>
+
                 <option value="BEING_PROCESSED" className="text-fuchsia-600">
                   Being Attended
                 </option>
+
                 <option value="RESOLVED" className="text-blue-600">
                   Resolved
                 </option>
-                <option value="CLOSED" className="text-green-600">
-                  Closed
-                </option>
+
+                {user && (user.role === "admin" || status === "CLOSED") && (
+                  <option value="CLOSED" className="text-green-600">
+                    Closed
+                  </option>
+                )}
+
                 <option value="RETURN" className="text-gray-600">
                   Return
                 </option>

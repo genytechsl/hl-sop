@@ -1,6 +1,7 @@
 import DashboardHeader from "@/components/DashboardHeader";
 import TicketHeader from "@/components/tickets/TicketHeader";
 import { getTicketById } from "@/lib/ticket-service";
+import { cookies } from "next/headers";
 
 interface PageProps {
   searchParams: Promise<{
@@ -9,6 +10,21 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
+  const cookieStore = await cookies();
+  const userCookie = cookieStore.get("user")?.value;
+
+  let user = null;
+
+  if (userCookie) {
+    try {
+      user = JSON.parse(userCookie);
+    } catch {
+      user = null;
+    }
+  }
+
+  const userRole = user?.role || "";
+
   const { id } = await searchParams;
 
   if (!id) {
@@ -37,7 +53,7 @@ export default async function Page({ searchParams }: PageProps) {
     <div className="space-y-6">
       <DashboardHeader header="Ticket Details" page={22} />
 
-      <TicketHeader ticket={ticket} />
+      <TicketHeader ticket={ticket} user={user} />
     </div>
   );
 }

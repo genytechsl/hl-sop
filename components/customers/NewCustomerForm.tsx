@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save } from "lucide-react";
+import { Save, LoaderCircle } from "lucide-react";
 import Toast from "../BottomRIghtToast";
 
 export default function NewCustomerForm() {
@@ -20,6 +20,7 @@ export default function NewCustomerForm() {
     useState(true);
 
   const [receiveSmsNotifications, setReceiveSmsNotifications] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -140,74 +141,88 @@ export default function NewCustomerForm() {
 
   const handleRegisterCustomer = async () => {
     if (
-      !isEmpty() &&
-      isNICValid() &&
-      isEmail() &&
-      isMobileValid() &&
-      isProperty()
+      isEmpty() ||
+      !isNICValid() ||
+      !isEmail() ||
+      !isMobileValid() ||
+      !isProperty()
     ) {
-      try {
-        const payload = {
-          name,
-          email: email.trim(),
-          mobile: mobile.trim(),
-          NIC,
-          active,
-          receiveEmailNotifications,
-          receiveSmsNotifications,
-          properties: properties.filter(
-            (property) =>
-              property.propertyName.trim() !== "" &&
-              property.address.trim() !== "",
-          ),
-        };
+      return;
+    }
 
-        const response = await fetch("/api/customers", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
+    try {
+      setIsSaving(true);
 
-        const result = await response.json();
+      const payload = {
+        name,
+        email: email.trim(),
+        mobile: mobile.trim(),
+        NIC,
+        active,
+        receiveEmailNotifications,
+        receiveSmsNotifications,
+        properties: properties.filter(
+          (property) =>
+            property.propertyName.trim() !== "" &&
+            property.address.trim() !== "",
+        ),
+      };
 
-        if (!response.ok) {
-          setToast({
-            open: true,
-            type: "error",
-            title: "Failed!",
-            message: `Failed to register customer. ${result.message}.`,
-          });
-        } else if (response.ok) {
-          setToast({
-            open: true,
-            type: "success",
-            title: "Success!",
-            message: `New customer: ${result.id} has been created successfully.`,
-          });
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-          // optional reset
-          setName("");
-          setNIC("");
-          setEmail("");
-          setMobile("");
-          setProperties([
-            {
-              propertyName: "",
-              address: "",
-            },
-          ]);
-          setActive(true);
-        }
-      } catch (error) {
+      const result = await response.json();
+
+      if (!response.ok) {
         setToast({
           open: true,
           type: "error",
           title: "Failed!",
-          message: `Failed to register employee.`,
+          message: `Failed to register customer. ${
+            result.message || "Please try again."
+          }`,
         });
+
+        return;
       }
+
+      setToast({
+        open: true,
+        type: "success",
+        title: "Success!",
+        message: `New customer: ${result.id} has been created successfully.`,
+      });
+
+      // Reset form
+      setName("");
+      setNIC("");
+      setEmail("");
+      setMobile("");
+      setProperties([
+        {
+          propertyName: "",
+          address: "",
+        },
+      ]);
+      setActive(true);
+      setReceiveEmailNotifications(true);
+      setReceiveSmsNotifications(true);
+    } catch (error) {
+      console.error("Customer registration error:", error);
+
+      setToast({
+        open: true,
+        type: "error",
+        title: "Failed!",
+        message: "Failed to register customer. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -467,17 +482,47 @@ export default function NewCustomerForm() {
         <button
           type="button"
           onClick={handleRegisterCustomer}
-          className="button-heading-special flex items-center gap-2 hover:scale-[1.02] transition"
+          disabled={isSaving}
+          className="
+    button-heading-special
+    flex
+    items-center
+    gap-2
+    hover:scale-[1.02]
+    transition
+    disabled:opacity-60
+    disabled:cursor-not-allowed
+    disabled:hover:scale-100
+  "
         >
-          <Save size={16} />
-          Save
+          {isSaving ? (
+            <>
+              <LoaderCircle size={16} className="animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              Save
+            </>
+          )}
         </button>
         <button
           type="button"
           onClick={() => {}}
-          className="button-heading flex items-center gap-2 hover:scale-[1.02] transition"
+          disabled={isSaving}
+          className="
+    button-heading
+    flex
+    items-center
+    gap-2
+    hover:scale-[1.02]
+    transition
+    disabled:opacity-60
+    disabled:cursor-not-allowed
+    disabled:hover:scale-100
+  "
         >
-          {/* <Save size={16} /> */}
           Cancel
         </button>
       </div>

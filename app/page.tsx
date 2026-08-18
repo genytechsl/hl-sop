@@ -66,7 +66,7 @@ export default function LoginPage() {
         <div className="hidden flex-col justify-center lg:flex">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-5 py-2 text-sm font-medium text-[#2563eb]">
             <ShieldCheck size={24} />
-            Customer Inquiry Management
+            Case Intelligence Platform
           </div>
 
           {/* <h1 className="mt-8 text-5xl font-bold leading-tight text-slate-900">
