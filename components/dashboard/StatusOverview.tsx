@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FolderOpen, Clock3, CheckCircle2, Layers3, Info } from "lucide-react";
+
+import {
+  FolderOpen,
+  Clock3,
+  CheckCircle2,
+  Layers3,
+  Info,
+  CircleCheck,
+  ListCheck,
+} from "lucide-react";
 
 import StatusCard from "../StatusCard";
 
@@ -13,6 +22,10 @@ interface TicketOverview {
   inProgress: number;
   inProgressComplaints: number;
   inProgressInquiries: number;
+
+  resolved: number;
+  resolvedComplaints: number;
+  resolvedInquiries: number;
 
   closed: number;
   closedComplaints: number;
@@ -31,6 +44,10 @@ const initialOverview: TicketOverview = {
   inProgress: 0,
   inProgressComplaints: 0,
   inProgressInquiries: 0,
+
+  resolved: 0,
+  resolvedComplaints: 0,
+  resolvedInquiries: 0,
 
   closed: 0,
   closedComplaints: 0,
@@ -70,6 +87,10 @@ export default function StatusOverview() {
           inProgressComplaints: Number(data.inProgressComplaints) || 0,
           inProgressInquiries: Number(data.inProgressInquiries) || 0,
 
+          resolved: Number(data.resolved) || 0,
+          resolvedComplaints: Number(data.resolvedComplaints) || 0,
+          resolvedInquiries: Number(data.resolvedInquiries) || 0,
+
           closed: Number(data.closed) || 0,
           closedComplaints: Number(data.closedComplaints) || 0,
           closedInquiries: Number(data.closedInquiries) || 0,
@@ -93,9 +114,13 @@ export default function StatusOverview() {
 
   const total = overview.total;
 
+  const getPercentage = (value: number) => {
+    return total > 0 ? Math.round((value / total) * 100) : 0;
+  };
+
   return (
     <section className="space-y-4">
-      {/* Section heading */}
+      {/* Section Heading */}
       <div className="flex items-center gap-2">
         <h2 className="section-heading">Ticket Status Overview</h2>
 
@@ -123,14 +148,12 @@ export default function StatusOverview() {
         </div>
       ) : (
         /* Cards */
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {/* OPEN */}
           <StatusCard
             title="Open"
             value={overview.open}
-            percentage={
-              total > 0 ? Math.round((overview.open / total) * 100) : 0
-            }
+            percentage={getPercentage(overview.open)}
             complaints={overview.openComplaints}
             inquiries={overview.openInquiries}
             icon={<FolderOpen className="text-red-400" />}
@@ -141,26 +164,33 @@ export default function StatusOverview() {
           <StatusCard
             title="In Progress"
             value={overview.inProgress}
-            percentage={
-              total > 0 ? Math.round((overview.inProgress / total) * 100) : 0
-            }
+            percentage={getPercentage(overview.inProgress)}
             complaints={overview.inProgressComplaints}
             inquiries={overview.inProgressInquiries}
             icon={<Clock3 className="text-amber-400" />}
             accentColor="#ffb900"
           />
 
+          {/* RESOLVED */}
+          <StatusCard
+            title="Resolved"
+            value={overview.resolved}
+            percentage={getPercentage(overview.resolved)}
+            complaints={overview.resolvedComplaints}
+            inquiries={overview.resolvedInquiries}
+            icon={<CircleCheck className="text-emerald-400" />}
+            accentColor="#10b981"
+          />
+
           {/* CLOSED */}
           <StatusCard
             title="Closed"
             value={overview.closed}
-            percentage={
-              total > 0 ? Math.round((overview.closed / total) * 100) : 0
-            }
+            percentage={getPercentage(overview.closed)}
             complaints={overview.closedComplaints}
             inquiries={overview.closedInquiries}
-            icon={<CheckCircle2 className="text-green-400" />}
-            accentColor="#06df72"
+            icon={<ListCheck className="text-purple-500" />}
+            accentColor="#9B4DCA"
           />
 
           {/* TOTAL */}

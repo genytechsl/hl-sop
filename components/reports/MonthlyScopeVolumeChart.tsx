@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -8,33 +8,26 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Cell,
   LabelList,
+  CartesianGrid,
 } from "recharts";
+import { Calendar, Info } from "lucide-react";
 
-import { Download, Calendar, AlertTriangle, Clock3 } from "lucide-react";
-import jsPDF from "jspdf";
-import { toPng } from "html-to-image";
 interface Ticket {
   id: string;
   scope: string;
   createdAt: string;
+  ticketType: string;
 }
 
 interface ChartData {
   scope: string;
+  complaints: number;
+  inquiries: number;
   total: number;
-  percentage: number;
+  complaintPercentage: number;
+  inquiryPercentage: number;
 }
-
-const COLORS = [
-  "#004737",
-  "#0f9983",
-  "#19e334",
-  "#4fb67c",
-  "#7ccf98",
-  "#b8efd0",
-];
 
 export default function ScopeDistributionChart() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -46,168 +39,611 @@ export default function ScopeDistributionChart() {
   }, []);
 
   async function loadTickets() {
-    const res = await fetch("/api/tickets");
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/tickets");
 
-    setTickets(data);
+      if (!res.ok) {
+        throw new Error("Failed to load tickets");
+      }
 
-    if (data.length > 0) {
-      const latest = data[0].createdAt.substring(0, 7);
-      setSelectedMonth(latest);
+      const data = await res.json();
+
+      setTickets(data);
+
+      if (data.length > 0) {
+        const latest = data
+          .map((ticket: Ticket) => ticket.createdAt.substring(0, 7))
+          .sort()
+          .reverse()[0];
+
+        setSelectedMonth(latest);
+      }
+    } catch (error) {
+      console.error("Failed to load tickets:", error);
     }
   }
 
+  // =========================================================
+  // AVAILABLE MONTHS
+  // =========================================================
+
   const months = useMemo(() => {
-    return [...new Set(tickets.map((t) => t.createdAt.substring(0, 7)))];
+    return [
+      ...new Set(tickets.map((ticket) => ticket.createdAt.substring(0, 7))),
+    ].sort((a, b) => b.localeCompare(a));
   }, [tickets]);
 
-  const chartData = useMemo(() => {
+  // =========================================================
+  // SCOPE + TICKET TYPE BREAKDOWN
+  // =========================================================
+
+  const chartData = useMemo<ChartData[]>(() => {
     const filtered = tickets.filter((ticket) =>
       ticket.createdAt.startsWith(selectedMonth),
     );
 
-    const total = filtered.length;
-
-    const grouped: Record<string, number> = {};
+    const grouped: Record<
+      string,
+      {
+        complaints: number;
+        inquiries: number;
+      }
+    > = {};
 
     filtered.forEach((ticket) => {
-      grouped[ticket.scope] = (grouped[ticket.scope] || 0) + 1;
+      const scope = ticket.scope?.trim() || "Unspecified";
+      const type = ticket.ticketType?.trim().toUpperCase();
+
+      if (!grouped[scope]) {
+        grouped[scope] = {
+          complaints: 0,
+          inquiries: 0,
+        };
+      }
+
+      if (type === "COM") {
+        grouped[scope].complaints++;
+      }
+
+      if (type === "INQ") {
+        grouped[scope].inquiries++;
+      }
     });
 
     return Object.entries(grouped)
-      .map(([scope, value]) => ({
-        scope,
-        total: value,
-        percentage: Number(((value / total) * 100).toFixed(1)),
-      }))
-      .sort((a, b) => b.percentage - a.percentage);
+      .map(([scope, values]) => {
+        const total = values.complaints + values.inquiries;
+
+        return {
+          scope,
+          complaints: values.complaints,
+          inquiries: values.inquiries,
+          total,
+
+          complaintPercentage:
+            total === 0
+              ? 0
+              : Number(((values.complaints / total) * 100).toFixed(1)),
+
+          inquiryPercentage:
+            total === 0
+              ? 0
+              : Number(((values.inquiries / total) * 100).toFixed(1)),
+        };
+      })
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.total - a.total);
   }, [tickets, selectedMonth]);
 
-  const totalTickets = chartData.reduce((sum, item) => sum + item.total, 0);
+  // =========================================================
+  // OVERALL TOTALS
+  // =========================================================
 
-  async function downloadPdf() {
-    if (!cardRef.current) return;
+  const totals = useMemo(() => {
+    const complaints = chartData.reduce(
+      (sum, item) => sum + item.complaints,
+      0,
+    );
 
-    const dataUrl = await toPng(cardRef.current, {
-      pixelRatio: 2,
-      backgroundColor: "#fff",
-    });
+    const inquiries = chartData.reduce((sum, item) => sum + item.inquiries, 0);
 
-    const pdf = new jsPDF();
+    return {
+      complaints,
+      inquiries,
+      total: complaints + inquiries,
+    };
+  }, [chartData]);
 
-    const width = pdf.internal.pageSize.getWidth();
-    const height =
-      (cardRef.current.offsetHeight * width) / cardRef.current.offsetWidth;
+  // =========================================================
+  // CUSTOM TOOLTIP
+  // =========================================================
 
-    pdf.addImage(dataUrl, "PNG", 0, 10, width, height);
-    pdf.save("sla-breach-rate-report.pdf");
-  }
+  function CustomTooltip({
+    active,
+    label,
+  }: {
+    active?: boolean;
+    label?: string;
+  }) {
+    if (!active) return null;
 
-  return (
-    <div ref={cardRef} className="white-card-graph">
-      {/* Header */}
+    const row = chartData.find((item) => item.scope === label);
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800">
-            Monthly Volume & Data Profile
-          </h2>
+    if (!row) return null;
 
-          <p className="mt-1 text-sm text-slate-500">
-            Resource deployment based on historical ticket distribution.
+    return (
+      <div className="min-w-[210px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="mb-2 border-b border-slate-100 pb-2">
+          <p className="text-sm font-semibold text-slate-800">{row.scope}</p>
+
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {row.total} total tickets
           </p>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative">
-            <Calendar className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-2 text-sm font-medium text-slate-700 transition-all hover:border-[#004737] hover:bg-[#004737] hover:text-white"
-            >
-              {months.map((month) => (
-                <option key={month} value={month}>
-                  {month}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-red-500" />
+            <span className="text-xs font-medium text-slate-600">
+              Complaints
+            </span>
           </div>
 
-          <button
-            onClick={downloadPdf}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:border-[#004737] hover:bg-[#004737] hover:text-white"
+          <div>
+            <span className="text-sm font-bold text-slate-800">
+              {row.complaints}
+            </span>
+
+            <span className="ml-1 text-[11px] text-slate-400">
+              ({row.complaintPercentage}%)
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+
+            <span className="text-xs font-medium text-slate-600">
+              Inquiries
+            </span>
+          </div>
+
+          <div>
+            <span className="text-sm font-bold text-slate-800">
+              {row.inquiries}
+            </span>
+
+            <span className="ml-1 text-[11px] text-slate-400">
+              ({row.inquiryPercentage}%)
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // COMPLAINT LABEL
+  // =========================================================
+
+  function ComplaintLabel(props: any) {
+    const { x, y, width, height, value } = props;
+
+    if (!value || value === 0 || width < 45 || height < 18) {
+      return null;
+    }
+
+    return (
+      <text
+        x={x + width / 2}
+        y={y + height / 2}
+        fill="#ffffff"
+        fontSize={10}
+        fontWeight={700}
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
+        COM {value}
+      </text>
+    );
+  }
+
+  // =========================================================
+  // INQUIRY LABEL
+  // =========================================================
+
+  function InquiryLabel(props: any) {
+    const { x, y, width, height, value } = props;
+
+    if (!value || value === 0 || width < 45 || height < 18) {
+      return null;
+    }
+
+    return (
+      <text
+        x={x + width / 2}
+        y={y + height / 2}
+        fill="#ffffff"
+        fontSize={10}
+        fontWeight={700}
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
+        INQ {value}
+      </text>
+    );
+  }
+
+  // =========================================================
+  // TOTAL LABEL
+  // =========================================================
+
+  function TotalLabel(props: any) {
+    const { x, y, width, height, value } = props;
+
+    if (!value) return null;
+
+    return (
+      <text
+        x={x + width + 10}
+        y={y + height / 2}
+        fill="#475569"
+        fontSize={11}
+        fontWeight={700}
+        dominantBaseline="middle"
+      >
+        {value}
+      </text>
+    );
+  }
+
+  // =========================================================
+  // RENDER
+  // =========================================================
+
+  return (
+    <div ref={cardRef} className="w-full px-3 py-3">
+      <div className="mb-4 flex items-center gap-2">
+        <h2 className="section-heading">Monthly Volume & Data Profile</h2>
+        <Info size={16} className="text-slate-500" />
+      </div>
+      {/* =====================================================
+          TOP SECTION
+      ====================================================== */}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        {/* LEFT - COMPACT SUMMARY */}
+
+        <div className="flex items-center gap-2">
+          {/* TOTAL */}
+
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+              Total
+            </p>
+
+            <div className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-lg font-bold leading-none text-[#004737]">
+                {totals.total}
+              </span>
+
+              <span className="text-[9px] text-slate-400">tickets</span>
+            </div>
+          </div>
+
+          {/* COMPLAINTS */}
+
+          <div className="rounded-xl border border-red-100 bg-red-50/50 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                COM
+              </p>
+            </div>
+
+            <div className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-lg font-bold leading-none text-slate-800">
+                {totals.complaints}
+              </span>
+
+              <span className="text-[9px] text-slate-400">
+                {totals.total === 0
+                  ? 0
+                  : ((totals.complaints / totals.total) * 100).toFixed(0)}
+                %
+              </span>
+            </div>
+          </div>
+
+          {/* INQUIRIES */}
+
+          <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                INQ
+              </p>
+            </div>
+
+            <div className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-lg font-bold leading-none text-slate-800">
+                {totals.inquiries}
+              </span>
+
+              <span className="text-[9px] text-slate-400">
+                {totals.total === 0
+                  ? 0
+                  : ((totals.inquiries / totals.total) * 100).toFixed(0)}
+                %
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT - MONTH SELECTOR */}
+
+        <div className="relative shrink-0">
+          <Calendar className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="
+              h-9
+              rounded-xl
+              border
+              border-slate-200
+              bg-white
+              pl-8
+              pr-3
+              text-xs
+              font-medium
+              text-slate-700
+              transition-all
+              hover:border-[#004737]
+              focus:border-[#004737]
+              focus:outline-none
+              focus:ring-2
+              focus:ring-[#004737]/10
+            "
           >
-            <Download size={16} />
-            Download PDF
-          </button>
+            {months.map((month) => (
+              <option key={month} value={month}>
+                {month}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Chart */}
+      {/* =====================================================
+          TITLE / LEGEND
+      ====================================================== */}
 
-      <div className="mt-8 h-[450px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{
-              left: 40,
-              right: 30,
-            }}
-          >
-            <XAxis type="number" hide />
+      <div className="mt-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-slate-800">
+            Scope Distribution
+          </h2>
 
-            <YAxis
-              type="category"
-              dataKey="scope"
-              width={120}
-              tick={{
-                fill: "#334155",
-                fontSize: 13,
-              }}
-            />
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            Complaints vs inquiries across operational scopes
+          </p>
+        </div>
 
-            <Tooltip cursor={false} formatter={(value: any) => `${value}%`} />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-red-500" />
 
-            <Bar
-              dataKey="percentage"
-              radius={[0, 12, 12, 0]}
-              animationDuration={1200}
-            >
-              {chartData.map((_, index) => (
-                <Cell key={index} fill={COLORS[index % COLORS.length]} />
-              ))}
+            <span className="text-[10px] font-medium text-slate-500">COM</span>
+          </div>
 
-              <LabelList
-                dataKey="percentage"
-                position="right"
-                // format={(value: number) => `${value}%`}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+
+            <span className="text-[10px] font-medium text-slate-500">INQ</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-between border-t pt-5">
+      {/* =====================================================
+          CHART
+      ====================================================== */}
+
+      <div
+        className="mt-2"
+        style={{
+          height: Math.max(260, chartData.length * 58),
+        }}
+      >
+        {chartData.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm font-medium text-slate-500">
+                No ticket data available
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                There are no tickets for the selected month.
+              </p>
+            </div>
+          </div>
+        ) : (
+          // <ResponsiveContainer width="100%" height="100%">
+          //   <BarChart
+          //     data={chartData}
+          //     layout="vertical"
+          //     // isAnimationActive={true}
+          //     margin={{
+          //       top: 5,
+          //       right: 30,
+          //       left: 5,
+          //       bottom: 5,
+          //     }}
+          //     barCategoryGap="28%"
+          //   >
+          //     <CartesianGrid
+          //       horizontal={false}
+          //       strokeDasharray="3 3"
+          //       stroke="#e2e8f0"
+          //     />
+
+          //     <XAxis type="number" hide domain={[0, "dataMax"]} />
+
+          //     <YAxis
+          //       type="category"
+          //       dataKey="scope"
+          //       width={105}
+          //       axisLine={false}
+          //       tickLine={false}
+          //       tick={{
+          //         fill: "#334155",
+          //         fontSize: 11,
+          //         fontWeight: 500,
+          //       }}
+          //     />
+
+          //     <Tooltip
+          //       cursor={{
+          //         fill: "rgba(15, 23, 42, 0.025)",
+          //       }}
+          //       content={<CustomTooltip />}
+          //     />
+
+          //     {/* COMPLAINTS */}
+
+          //     <Bar
+          //       dataKey="complaints"
+          //       name="Complaints"
+          //       stackId="tickets"
+          //       fill="#ef4444"
+          //       radius={[8, 0, 0, 8]}
+          //       animationBegin={0}
+          //       animationDuration={1400}
+          //       animationEasing="ease-out"
+          //     >
+          //       <LabelList dataKey="complaints" content={<ComplaintLabel />} />
+          //     </Bar>
+
+          //     {/* INQUIRIES */}
+
+          //     <Bar
+          //       dataKey="inquiries"
+          //       name="Inquiries"
+          //       stackId="tickets"
+          //       fill="#3b82f6"
+          //       radius={[0, 8, 8, 0]}
+          //       animationBegin={150}
+          //       animationDuration={1600}
+          //       animationEasing="ease-out"
+          //     >
+          //       <LabelList dataKey="inquiries" content={<InquiryLabel />} />
+
+          //       <LabelList dataKey="total" content={<TotalLabel />} />
+          //     </Bar>
+          //   </BarChart>
+          // </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{
+                top: 5,
+                right: 30,
+                left: 5,
+                bottom: 5,
+              }}
+              barCategoryGap="28%"
+            >
+              <CartesianGrid
+                horizontal={false}
+                strokeDasharray="3 3"
+                stroke="#e2e8f0"
+              />
+
+              <XAxis type="number" hide domain={[0, "dataMax"]} />
+
+              <YAxis
+                type="category"
+                dataKey="scope"
+                width={105}
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fill: "#334155",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}
+              />
+
+              <Tooltip
+                cursor={{
+                  fill: "rgba(15, 23, 42, 0.025)",
+                }}
+                content={<CustomTooltip />}
+              />
+
+              {/* COMPLAINTS */}
+              <Bar
+                dataKey="complaints"
+                name="Complaints"
+                stackId="tickets"
+                fill="#ef4444"
+                radius={[8, 0, 0, 8]}
+                isAnimationActive={true}
+                animationBegin={100}
+                animationDuration={1800}
+                animationEasing="ease-out"
+              >
+                <LabelList dataKey="complaints" content={<ComplaintLabel />} />
+              </Bar>
+
+              {/* INQUIRIES */}
+              <Bar
+                dataKey="inquiries"
+                name="Inquiries"
+                stackId="tickets"
+                fill="#3b82f6"
+                radius={[0, 8, 8, 0]}
+                isAnimationActive={true}
+                animationBegin={100}
+                animationDuration={1800}
+                animationEasing="ease-out"
+              >
+                <LabelList dataKey="inquiries" content={<InquiryLabel />} />
+
+                <LabelList dataKey="total" content={<TotalLabel />} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* =====================================================
+          FOOTER
+      ====================================================== */}
+
+      <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">
-            Total Tickets
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+            Reporting Period
           </p>
 
-          <h3 className="mt-1 text-3xl font-bold text-[#004737]">
-            {totalTickets}
-          </h3>
+          <p className="mt-0.5 text-xs font-medium text-slate-600">
+            {selectedMonth || "—"}
+          </p>
         </div>
 
         <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-slate-500">
-            Resource Distribution
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+            Active Scopes
           </p>
 
-          <p className="mt-1 text-sm text-slate-600">
-            Historical scope allocation
+          <p className="mt-0.5 text-xs font-semibold text-slate-700">
+            {chartData.length}
           </p>
         </div>
       </div>

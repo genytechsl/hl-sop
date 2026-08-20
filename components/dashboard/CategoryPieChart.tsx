@@ -1,5 +1,6 @@
 "use client";
 
+import { Info } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
@@ -62,18 +63,11 @@ export default function CategoryPieChart() {
 
   const totalTickets = chartData.reduce((sum, item) => sum + item.value, 0);
 
-  const renderLabel = ({
-    cx,
-    cy,
-    midAngle,
-    outerRadius,
-    percent,
-    category,
-  }: any) => {
+  const renderLabel = ({ cx, cy, midAngle, outerRadius, percent }: any) => {
     if (!percent || percent === 0) return null;
 
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 22;
+    const radius = outerRadius + 10;
 
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -86,33 +80,33 @@ export default function CategoryPieChart() {
         textAnchor={x > cx ? "start" : "end"}
         dominantBaseline="central"
         style={{
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: 600,
         }}
       >
-        {category} {(percent * 100).toFixed(0)}%
+        {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
   if (loading) {
     return (
-      <div className="flex h-[360px] w-full items-center justify-center">
-        <div className="text-sm text-slate-500">Loading ticket volume...</div>
+      <div className="flex h-full min-h-0 w-full items-center justify-center">
+        <div className="text-xs text-slate-500">Loading ticket volume...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-[360px] w-full items-center justify-center px-6 text-center">
+      <div className="flex h-full min-h-0 w-full items-center justify-center px-3 text-center">
         <div>
-          <p className="text-base font-medium text-slate-700">
+          <p className="text-sm font-medium text-slate-700">
             Data unavailable at the moment
           </p>
 
-          <p className="mt-1 text-sm text-slate-500">
-            We couldn't load the ticket volume data. Please try again later.
+          <p className="mt-1 text-xs text-slate-500">
+            We couldn't load the ticket volume data.
           </p>
         </div>
       </div>
@@ -120,9 +114,14 @@ export default function CategoryPieChart() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex-1">
-        <ResponsiveContainer width="100%" height={300}>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div className="mb-4 flex items-center gap-2">
+        <h2 className="section-heading">Volume by Category</h2>
+        <Info size={16} className="text-slate-500" />
+      </div>
+      {/* Chart */}
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
@@ -130,36 +129,41 @@ export default function CategoryPieChart() {
               nameKey="category"
               cx="50%"
               cy="50%"
-              innerRadius={75}
-              outerRadius={115}
+              innerRadius="42%"
+              outerRadius="68%"
               paddingAngle={3}
-              cornerRadius={10}
+              cornerRadius={8}
               stroke="white"
               strokeWidth={2}
               label={renderLabel}
-              labelLine
+              labelLine={false}
+              isAnimationActive={true}
+              animationBegin={0}
+              animationDuration={1800}
+              animationEasing="ease-out"
             >
               {chartData.map((entry) => (
                 <Cell key={entry.category} fill={entry.fill} />
               ))}
             </Pie>
 
+            {/* Center total */}
             <text
               x="50%"
-              y="48%"
+              y="47%"
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-900 text-3xl font-bold"
+              className="fill-slate-900 text-2xl font-bold"
             >
               {totalTickets}
             </text>
 
             <text
               x="50%"
-              y="58%"
+              y="56%"
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-500 text-sm"
+              className="fill-slate-500 text-xs"
             >
               Tickets
             </text>
@@ -171,18 +175,19 @@ export default function CategoryPieChart() {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+      {/* Legend */}
+      <div className="flex shrink-0 flex-wrap justify-center gap-1.5 pt-2">
         {chartData.map((item) => (
           <div
             key={item.category}
-            className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
+            className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1"
           >
             <div
-              className="h-3 w-3 rounded-full"
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: item.fill }}
             />
 
-            <span className="text-xs font-medium text-slate-700">
+            <span className="text-[10px] font-medium text-slate-700">
               {item.category} ({item.value})
             </span>
           </div>

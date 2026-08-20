@@ -64,12 +64,12 @@ export default function Sidebar({
       icon: BookOpen,
       roles: ["actionOwner"],
     },
-    {
-      name: "Reports",
-      href: "/reports",
-      icon: FileText,
-      roles: ["admin"],
-    },
+    // {
+    //   name: "Reports",
+    //   href: "/reports",
+    //   icon: FileText,
+    //   roles: ["admin"],
+    // },
   ];
 
   const menus = allMenus.filter((menu) => menu.roles.includes(user.role));

@@ -190,11 +190,54 @@ export default function DashboardHeader({
           </Link>
         )}
 
+        {/* Customer creation and export buttons */}
         {page === 51 && (
-          <Link href="../settings/customers/new" className="btn-primary">
-            <UserRoundPlus size={17} />
-            Add New Customer
-          </Link>
+          <>
+            <Link href="../settings/customers/new" className="btn-primary">
+              <UserRoundPlus size={17} />
+              Add New Customer
+            </Link>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setShowExportMenu((value) => !value)}
+                className="btn-outline"
+              >
+                <Download size={17} />
+                Export
+              </button>
+
+              {showExportMenu && (
+                <div className="dropdown absolute right-0 top-full z-50 mt-2 w-52">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onExport?.();
+                      setShowExportMenu(false);
+                    }}
+                    className="dropdown-item w-full"
+                  >
+                    <FileText size={17} className="text-red-500" />
+                    Export as PDF
+                  </button>
+
+                  <div className="divider" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onExportCsv?.();
+                      setShowExportMenu(false);
+                    }}
+                    className="dropdown-item w-full"
+                  >
+                    <FileSpreadsheet size={17} className="text-emerald-600" />
+                    Export as CSV
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {/* {page === 51 && (

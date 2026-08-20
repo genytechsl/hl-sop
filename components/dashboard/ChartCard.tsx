@@ -8,15 +8,18 @@ interface Props {
 
 export default function ChartCard({ title, children, info }: Props) {
   return (
-    <div className="white-card">
-      <div className="flex items-center justify-between mb-5">
+    <div className="white-card relative overflow-hidden">
+      {/* Premium gradient top border */}
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
+
+      <div className="mb-5 flex items-center">
         <h3 className="section-heading">{title}</h3>
 
         {info && (
-          <div className="relative group">
+          <div className="group relative ml-4">
             <Info
               size={18}
-              className="text-slate-400 cursor-help hover:text-blue-600 transition"
+              className="cursor-help text-slate-400 transition hover:text-emerald-600"
             />
 
             <div
@@ -43,7 +46,7 @@ export default function ChartCard({ title, children, info }: Props) {
         )}
       </div>
 
-      <div className="flex-1 min-h-[280px]">{children}</div>
+      <div className="min-h-[280px] flex-1">{children}</div>
     </div>
   );
 }

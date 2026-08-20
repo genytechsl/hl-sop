@@ -373,6 +373,122 @@ export async function updateTicket(
   return formatTicket(ticket);
 }
 
+// export async function getTicketOverview() {
+//   const [
+//     open,
+//     openComplaints,
+//     openInquiries,
+
+//     inProgress,
+//     inProgressComplaints,
+//     inProgressInquiries,
+
+//     closed,
+//     closedComplaints,
+//     closedInquiries,
+
+//     total,
+//     totalComplaints,
+//     totalInquiries,
+//   ] = await Promise.all([
+//     // OPEN
+//     prisma.ticket.count({
+//       where: {
+//         status: "OPEN",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "OPEN",
+//         ticketType: "COM",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "OPEN",
+//         ticketType: "INQ",
+//       },
+//     }),
+
+//     // IN PROGRESS
+//     prisma.ticket.count({
+//       where: {
+//         status: "IN_PROGRESS",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "IN_PROGRESS",
+//         ticketType: "COM",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "IN_PROGRESS",
+//         ticketType: "INQ",
+//       },
+//     }),
+
+//     // CLOSED
+//     prisma.ticket.count({
+//       where: {
+//         status: "CLOSED",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "CLOSED",
+//         ticketType: "COM",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         status: "CLOSED",
+//         ticketType: "INQ",
+//       },
+//     }),
+
+//     // TOTAL
+//     prisma.ticket.count(),
+
+//     prisma.ticket.count({
+//       where: {
+//         ticketType: "COM",
+//       },
+//     }),
+
+//     prisma.ticket.count({
+//       where: {
+//         ticketType: "INQ",
+//       },
+//     }),
+//   ]);
+
+//   return {
+//     open,
+//     openComplaints,
+//     openInquiries,
+
+//     inProgress,
+//     inProgressComplaints,
+//     inProgressInquiries,
+
+//     closed,
+//     closedComplaints,
+//     closedInquiries,
+
+//     total,
+//     totalComplaints,
+//     totalInquiries,
+//   };
+// }
+
 export async function getTicketOverview() {
   const [
     open,
@@ -382,6 +498,10 @@ export async function getTicketOverview() {
     inProgress,
     inProgressComplaints,
     inProgressInquiries,
+
+    resolved,
+    resolvedComplaints,
+    resolvedInquiries,
 
     closed,
     closedComplaints,
@@ -433,6 +553,27 @@ export async function getTicketOverview() {
       },
     }),
 
+    // RESOLVED
+    prisma.ticket.count({
+      where: {
+        status: "RESOLVED",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        status: "RESOLVED",
+        ticketType: "COM",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        status: "RESOLVED",
+        ticketType: "INQ",
+      },
+    }),
+
     // CLOSED
     prisma.ticket.count({
       where: {
@@ -478,6 +619,10 @@ export async function getTicketOverview() {
     inProgress,
     inProgressComplaints,
     inProgressInquiries,
+
+    resolved,
+    resolvedComplaints,
+    resolvedInquiries,
 
     closed,
     closedComplaints,

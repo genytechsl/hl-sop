@@ -6,6 +6,8 @@ import AgingTable from "@/components/dashboard/AgingTable";
 import DashboardCharts from "@/components/dashboard/DashboardCharts";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
+import SlaBreachRateCard from "@/components/reports/TargetComplianceChart";
+import ScopeDistributionChart from "@/components/reports/MonthlyScopeVolumeChart";
 
 export default function DashboardPage() {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -30,13 +32,21 @@ export default function DashboardPage() {
 
   return (
     <>
-      <DashboardHeader header="CIM Dashboard" page={1} onExport={downloadPdf} />{" "}
+      <DashboardHeader
+        header="Case Intelligence Platform Dashboard"
+        page={1}
+        onExport={downloadPdf}
+      />{" "}
       <div ref={cardRef} className="mt-6 space-y-8">
         <StatusOverview />
 
         <AgingTable />
 
         <DashboardCharts />
+
+        <SlaBreachRateCard />
+
+        {/* <ScopeDistributionChart /> */}
 
         <section>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

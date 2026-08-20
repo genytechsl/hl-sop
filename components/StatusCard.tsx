@@ -29,7 +29,7 @@ export default function StatusCard({
         border
         border-slate-200
         bg-white
-        p-5
+        px-5 py-4
         shadow-sm
         transition-all
         hover:-translate-y-1
@@ -53,27 +53,28 @@ export default function StatusCard({
         </span>
       </div>
 
-      {/* Main value */}
-      <div className="mt-5">
-        <h3 className="text-2xl font-semibold text-black/75">{title}</h3>
+      {/* Main content */}
+      <div className="mt-2 flex items-center justify-between gap-3">
+        {/* Left: Title + Main Value */}
+        <div>
+          <h3 className="text-xl font-semibold text-black/75">{title}</h3>
 
-        <p className="mt-1 text-4xl font-bold text-(--surface)">{value}</p>
-      </div>
-
-      {/* Complaint / Inquiry breakdown */}
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        {/* Complaints */}
-        <div className="rounded-2xl border border-red-100 bg-red-50 px-3 py-3">
-          <p className="text-xs font-medium text-red-500">Complaints</p>
-
-          <p className="mt-1 text-xl font-bold text-red-700">{complaints}</p>
+          <p className="mt-1 text-4xl font-bold text-(--surface)">{value}</p>
         </div>
 
-        {/* Inquiries */}
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3">
-          <p className="text-xs font-medium text-blue-500">Inquiries</p>
+        {/* Right: Complaint / Inquiry */}
+        <div className="flex min-w-[120px] flex-col gap-2">
+          {/* Complaints */}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50 px-2">
+            <p className="text-xs font-medium text-red-500">Complaints</p>
+            <p className="text-normal font-bold text-red-700">{complaints}</p>
+          </div>
 
-          <p className="mt-1 text-xl font-bold text-blue-700">{inquiries}</p>
+          {/* Inquiries */}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-2">
+            <p className="text-xs font-medium text-blue-500">Inquiries</p>
+            <p className="text-normal font-bold text-blue-700">{inquiries}</p>
+          </div>
         </div>
       </div>
     </div>

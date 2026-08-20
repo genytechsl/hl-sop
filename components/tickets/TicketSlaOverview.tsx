@@ -23,13 +23,13 @@ export default function TicketSlaOverview({
 }: Props) {
   const total = tickets.length;
 
-  const breached = tickets.filter((ticket) => {
+  const breachedTickets = tickets.filter((ticket) => {
     const metrics = getTicketMetrics(ticket);
 
     return metrics.breached && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-  }).length;
+  });
 
-  const dueSoon = tickets.filter((ticket) => {
+  const dueSoonTickets = tickets.filter((ticket) => {
     const metrics = getTicketMetrics(ticket);
 
     return (
@@ -37,59 +37,106 @@ export default function TicketSlaOverview({
       metrics.percent < 100 &&
       ["OPEN", "IN_PROGRESS"].includes(ticket.status)
     );
-  }).length;
+  });
 
-  const inProgress = tickets.filter(
+  const inProgressTickets = tickets.filter(
     (ticket) => ticket.status === "IN_PROGRESS",
-  ).length;
+  );
 
-  const closed = tickets.filter((ticket) => ticket.status === "CLOSED").length;
+  const resolvedTickets = tickets.filter(
+    (ticket) => ticket.status === "RESOLVED",
+  );
+
+  const closedTickets = tickets.filter((ticket) => ticket.status === "CLOSED");
+
+  const getComplaints = (ticketList: any[]) =>
+    ticketList.filter((ticket) => ticket.ticketType === "COM").length;
+
+  const getInquiries = (ticketList: any[]) =>
+    ticketList.filter((ticket) => ticket.ticketType === "INQ").length;
+
+  const getPercentage = (value: number) => {
+    return total > 0 ? Math.round((value / total) * 100) : 0;
+  };
+
+  const breached = breachedTickets.length;
+  const dueSoon = dueSoonTickets.length;
+  const inProgress = inProgressTickets.length;
+  const resolved = resolvedTickets.length;
+  const closed = closedTickets.length;
 
   return (
-    <section className="space-y-4 mb-6">
+    <section className="mb-6 space-y-4">
+      {/* Section Heading */}
       <div className="flex items-center gap-2">
         <h2 className="section-heading">SLA Overview</h2>
-
         <Info size={16} className="text-slate-500" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      {/* SLA Cards */}
+      <div className="grid grid-cols-6 gap-4 xl:grid-cols-6">
+        {/* BREACHED */}
         <StatusCard
           title="Breached"
           value={breached}
-          percentage={Math.round((breached / total) * 100)}
+          percentage={getPercentage(breached)}
+          complaints={getComplaints(breachedTickets)}
+          inquiries={getInquiries(breachedTickets)}
           icon={<AlertTriangle className="text-red-400" />}
           accentColor="#ef4444"
         />
 
+        {/* DUE SOON */}
         <StatusCard
-          title="Due Soon"
+          title="Due"
           value={dueSoon}
-          percentage={Math.round((dueSoon / total) * 100)}
+          percentage={getPercentage(dueSoon)}
+          complaints={getComplaints(dueSoonTickets)}
+          inquiries={getInquiries(dueSoonTickets)}
           icon={<Timer className="text-orange-400" />}
           accentColor="#f97316"
         />
 
+        {/* IN PROGRESS */}
         <StatusCard
-          title="In Progress"
+          title="In Pro"
           value={inProgress}
-          percentage={Math.round((inProgress / total) * 100)}
+          percentage={getPercentage(inProgress)}
+          complaints={getComplaints(inProgressTickets)}
+          inquiries={getInquiries(inProgressTickets)}
           icon={<Clock3 className="text-amber-400" />}
           accentColor="#f59e0b"
         />
 
+        {/* RESOLVED */}
+        <StatusCard
+          title="Resolved"
+          value={resolved}
+          percentage={getPercentage(resolved)}
+          complaints={getComplaints(resolvedTickets)}
+          inquiries={getInquiries(resolvedTickets)}
+          icon={<CheckCircle2 className="text-purple-400" />}
+          accentColor="#9B4DCA"
+        />
+
+        {/* CLOSED */}
         <StatusCard
           title="Closed"
           value={closed}
-          percentage={Math.round((closed / total) * 100)}
+          percentage={getPercentage(closed)}
+          complaints={getComplaints(closedTickets)}
+          inquiries={getInquiries(closedTickets)}
           icon={<CheckCircle2 className="text-green-400" />}
           accentColor="#22c55e"
         />
 
+        {/* TOTAL */}
         <StatusCard
-          title="Total Tickets"
+          title="Total"
           value={total}
           percentage={100}
+          complaints={getComplaints(tickets)}
+          inquiries={getInquiries(tickets)}
           icon={<Layers3 className="text-blue-400" />}
           accentColor="#3b82f6"
         />
