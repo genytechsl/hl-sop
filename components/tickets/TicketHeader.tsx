@@ -362,7 +362,16 @@ export default function TicketHeader({ ticket, user }: Props) {
 
                 <div className="mt-1 flex items-center gap-2 text-red-600 font-semibold">
                   <Clock3 size={18} />
-                  {ticket.createdAt}
+
+                  {new Date(ticket.createdAt).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: true,
+                  })}
                 </div>
               </div>
             </div>
@@ -377,7 +386,7 @@ export default function TicketHeader({ ticket, user }: Props) {
           </h3>
 
           <div className="divide-y divide-slate-100">
-            <div className="flex items-center justify-between my-2">
+            {/* <div className="flex items-center justify-between my-2">
               <div className="flex items-center gap-3 text-slate-500">
                 <Flag size={16} className="text-red-500" />
                 <span className="text-sm">Priority</span>
@@ -386,7 +395,7 @@ export default function TicketHeader({ ticket, user }: Props) {
               <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-800">
                 {ticket.priority}
               </span>
-            </div>
+            </div> */}
 
             <div className="flex items-center justify-between my-2">
               <div className="flex items-center gap-3 text-slate-500">
@@ -471,10 +480,20 @@ export default function TicketHeader({ ticket, user }: Props) {
             <div className="flex items-center justify-between my-2">
               <div className="flex items-center gap-3 text-slate-500">
                 <Calendar size={16} className="text-green-500" />
-                <span className="text-sm">Created Date</span>
+                <span className="text-sm">Created Date & Time</span>
               </div>
 
-              <span className="font-semibold 6">{ticket.createdAt}</span>
+              <span className="font-semibold 6">
+                {new Date(ticket.createdAt).toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}
+              </span>
             </div>
           </div>
         </div>

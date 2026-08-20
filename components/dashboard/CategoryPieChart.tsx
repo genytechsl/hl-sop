@@ -11,7 +11,7 @@ interface CategoryVolume {
 const COLORS: Record<string, string> = {
   "CAT-A": "#ef4444",
   "CAT-B": "#3b82f6",
-  "CAT-B2": "#22c55e",
+  "CAT-B2": "#1685A5",
   "CAT-C": "#64748b",
   "CAT-D": "#a855f7",
 };
@@ -19,25 +19,31 @@ const COLORS: Record<string, string> = {
 export default function CategoryPieChart() {
   const [categoryData, setCategoryData] = useState<CategoryVolume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function loadCategoryVolume() {
       try {
         setLoading(true);
+        setError(false);
 
         const response = await fetch("/api/tickets?categoryVolume=true");
-        console.log(response);
 
         if (!response.ok) {
-          throw new Error("Failed to load category volume");
+          throw new Error(`Failed to load category volume: ${response.status}`);
         }
 
         const data = await response.json();
 
-        setCategoryData(Array.isArray(data) ? data : []);
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid category volume data");
+        }
+
+        setCategoryData(data);
       } catch (error) {
         console.error("Failed to load category volume:", error);
         setCategoryData([]);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -93,6 +99,22 @@ export default function CategoryPieChart() {
     return (
       <div className="flex h-[360px] w-full items-center justify-center">
         <div className="text-sm text-slate-500">Loading ticket volume...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[360px] w-full items-center justify-center px-6 text-center">
+        <div>
+          <p className="text-base font-medium text-slate-700">
+            Data unavailable at the moment
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            We couldn't load the ticket volume data. Please try again later.
+          </p>
+        </div>
       </div>
     );
   }

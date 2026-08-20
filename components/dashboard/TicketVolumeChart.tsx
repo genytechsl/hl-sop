@@ -21,11 +21,64 @@ interface TicketVolume {
 
 export default function TicketVolumeChart() {
   const [ticketVolumeData, setTicketVolumeData] = useState<TicketVolume[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   useEffect(() => {
-    fetch("/api/tickets?volume=true")
-      .then((res) => res.json())
-      .then(setTicketVolumeData);
+    const loadTicketVolume = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+
+        const res = await fetch("/api/tickets?volume=true");
+
+        if (!res.ok) {
+          throw new Error(`Failed to load ticket volume: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid ticket volume data");
+        }
+
+        setTicketVolumeData(data);
+      } catch (err) {
+        console.error("Failed to load ticket volume:", err);
+        setTicketVolumeData([]);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTicketVolume();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[260px] w-full items-center justify-center">
+        <div className="text-sm text-slate-500">Loading ticket volume...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[260px] w-full items-center justify-center px-6 text-center">
+        <div>
+          <p className="text-base font-medium text-slate-700">
+            Data unavailable at the moment
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            We couldn't load the ticket volume data. Please try again later.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={260}>
       <LineChart data={ticketVolumeData}>
@@ -34,7 +87,7 @@ export default function TicketVolumeChart() {
           dataKey="month"
           tick={({ x, y, payload }) => {
             const item = ticketVolumeData.find(
-              (m: any) => m.month === payload.value,
+              (m) => m.month === payload.value,
             );
 
             return (
@@ -43,6 +96,7 @@ export default function TicketVolumeChart() {
                   <tspan x="0" dy="0">
                     {item?.month}
                   </tspan>
+
                   <tspan x="0" dy="14">
                     {item?.year}
                   </tspan>
@@ -51,7 +105,9 @@ export default function TicketVolumeChart() {
             );
           }}
         />
+
         <YAxis />
+
         <Tooltip />
 
         <Line type="monotone" dataKey="open" stroke="#3b82f6" strokeWidth={3} />

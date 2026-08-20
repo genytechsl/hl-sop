@@ -4,13 +4,55 @@ import { Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import CategoryPieChart from "./CategoryPieChart";
 
+interface AgingRow {
+  code: string;
+  label: string;
+  slaTarget: string;
+  averageAge: string;
+  accentColor: string;
+}
+
+const SLA_TARGETS: Record<string, string> = {
+  "CAT-A": "24 h",
+  "CAT-B": "7 Working Days",
+  "CAT-B2": "7 Days",
+  "CAT-C": "5 Working Days",
+  "CAT-D": "10 Working Days",
+};
+
+function getSlaTarget(code: string): string {
+  return SLA_TARGETS[code] ?? "—";
+}
 export default function AgingTable() {
-  const [agingData, setAgingData] = useState([]);
+  const [agingData, setAgingData] = useState<AgingRow[]>([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/tickets?aging=true")
-      .then((res) => res.json())
-      .then(setAgingData);
+    const loadAgingData = async () => {
+      try {
+        setError(false);
+
+        const res = await fetch("/api/tickets?aging=true");
+
+        if (!res.ok) {
+          throw new Error(`Failed to load aging data: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid aging data");
+        }
+
+        setAgingData(data);
+      } catch (err) {
+        console.error("Failed to load aging data:", err);
+        setError(true);
+        setAgingData([]);
+      }
+    };
+
+    loadAgingData();
   }, []);
 
   return (
@@ -30,41 +72,59 @@ export default function AgingTable() {
             }}
           />
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px]">
-              <thead>
-                <tr>
-                  <th className="px-5 py-4 text-left">Category</th>
-                  <th className="px-5 py-4 text-left">Target SLA</th>
-                  <th className="px-5 py-4 text-left">Average Aging</th>
-                  <th className="px-5 py-4"></th>
-                </tr>
-              </thead>
+          {error ? (
+            <div className="flex min-h-[250px] items-center justify-center px-6 text-center">
+              <div>
+                <p className="text-base font-medium text-slate-700">
+                  Data unavailable at the moment
+                </p>
 
-              <tbody>
-                {agingData.map((row: any) => (
-                  <tr key={row.code}>
-                    <td className="px-5 py-4">
-                      <span
-                        className="inline-flex items-center rounded-l-md px-5 py-2 text-base text-[var(--text-primary)]"
-                        style={{
-                          borderLeft: `5px solid ${row.accentColor}`,
-                        }}
-                      >
-                        {row.code} ({row.label})
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">{row.slaTarget}</td>
-
-                    <td className="px-5 py-4">{row.averageAge}</td>
-
-                    <td className="px-5 py-4"></td>
+                <p className="mt-1 text-sm text-slate-500">
+                  We couldn't load the aging data. Please try again later.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr>
+                    <th className="px-5 py-4 text-center">Category</th>
+                    <th className="px-5 py-4 text-center">Target SLA</th>
+                    <th className="px-5 py-4 text-center">Average Aging</th>
+                    <th className="px-5 py-4"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody>
+                  {agingData.map((row) => (
+                    <tr key={row.code}>
+                      <td className="px-5 py-4">
+                        <span
+                          className="inline-flex items-center rounded-l-md px-5 py-2 text-base text-[var(--text-primary)]"
+                          style={{
+                            borderLeft: `5px solid ${row.accentColor}`,
+                          }}
+                        >
+                          {row.code} ({row.label})
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-center">
+                        {getSlaTarget(row.code)}
+                      </td>
+
+                      <td className="px-5 py-4 text-center">
+                        {row.averageAge}
+                      </td>
+
+                      <td className="px-5 py-4"></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

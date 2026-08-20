@@ -8,7 +8,7 @@ export default function DashboardPage() {
 
       <CustomerManagementTable />
 
-      <section className=".white-card">
+      <section className=".white-card mt-4">
         <h4 className="font-semibold text-gray-500">Last Updated</h4>
 
         <p className="mt-2 text-grey-500">19 July 2026 • 02:45 PM</p>

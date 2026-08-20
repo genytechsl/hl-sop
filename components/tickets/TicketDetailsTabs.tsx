@@ -451,7 +451,17 @@ function TimelineActivityItem({
           </span>
 
           <span className="text-xs text-slate-500">
-            {new Date(remark.createdDate).toLocaleString()}
+            <td className="px-4 py-3 text-center whitespace-nowrap">
+              {new Date(remark.createdDate).toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+              })}
+            </td>
           </span>
         </div>
       </div>
@@ -497,7 +507,17 @@ function TimelineItem({
 
         <p className="text-sm text-slate-500">{user}</p>
 
-        <p className="text-xs text-slate-400">{date}</p>
+        <p className="text-xs text-slate-400">
+          {new Date(date).toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })}
+        </p>
       </div>
     </div>
   );

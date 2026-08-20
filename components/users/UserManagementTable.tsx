@@ -35,7 +35,9 @@ export default function UserManagementTable() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // const [statusFilter, setStatusFilter] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
+
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [changedRoles, setChangedRoles] = useState<Record<string, boolean>>({});
@@ -66,12 +68,14 @@ export default function UserManagementTable() {
         user.email.toLowerCase().includes(keyword) ||
         user.id.toLowerCase().includes(keyword);
 
-      const matchesStatus =
-        statusFilter === "all"
-          ? true
-          : statusFilter === "active"
-            ? user.active
-            : !user.active;
+      // const matchesStatus =
+      //   statusFilter === "all"
+      //     ? true
+      //     : statusFilter === "active"
+      //       ? user.active
+      //       : !user.active;
+
+      const matchesStatus = showInactive ? true : user.active;
 
       const matchesRole =
         roleFilter === "all" ? true : user.role === roleFilter;
@@ -101,9 +105,13 @@ export default function UserManagementTable() {
     currentPage * ITEMS_PER_PAGE,
   );
 
+  // useEffect(() => {
+  //   setCurrentPage(1);
+  // }, [search, statusFilter, roleFilter, sortBy]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, roleFilter, sortBy]);
+  }, [search, showInactive, roleFilter, sortBy]);
 
   async function loadUsers() {
     try {
@@ -265,39 +273,7 @@ export default function UserManagementTable() {
 
             {/* Right */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* Status */}
-
-              <div className="relative">
-                <Filter
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="
-          h-11
-          rounded-xl
-          border
-          border-slate-200
-          bg-white
-          pl-9
-          pr-8
-          text-sm
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500/20
-        "
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-
               {/* Role */}
-
               <div className="relative">
                 <Filter
                   size={16}
@@ -308,18 +284,18 @@ export default function UserManagementTable() {
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
                   className="
-          h-11
-          rounded-xl
-          border
-          border-slate-200
-          bg-white
-          pl-9
-          pr-8
-          text-sm
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500/20
-        "
+                            h-11
+                            rounded-xl
+                            border
+                            border-slate-200
+                            bg-white
+                            pl-9
+                            pr-8
+                            text-sm
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500/20
+                          "
                 >
                   <option value="all">All Roles</option>
 
@@ -362,6 +338,27 @@ export default function UserManagementTable() {
                   <option value="status">Status</option>
                 </select>
               </div>
+
+              {/* Status */}
+
+              <div className="flex flex-col">
+                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={showInactive}
+                    onChange={(e) => setShowInactive(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+
+                  <span>Show inactive customers</span>
+                </label>
+
+                {/* {!showInactive && (
+                  <p className="mt-1.5 pl-1 text-xs text-slate-400">
+                    Only active customers are shown.
+                  </p>
+                )} */}
+              </div>
             </div>
           </div>
         </div>
@@ -396,11 +393,11 @@ export default function UserManagementTable() {
                 transition
               "
               >
-                <td className="px-4 py-4">
+                <td className="px-4 py-2">
                   {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                 </td>
 
-                <td className="px-4 py-4">
+                <td className="px-4 py-2">
                   <Link
                     href={`/settings/user/edit/${user.id}`}
                     className="font-semibold text-emerald-600 transition hover:text-emerald-700 hover:underline"
@@ -409,17 +406,17 @@ export default function UserManagementTable() {
                   </Link>
                 </td>
 
-                <td className="px-4 py-4">
+                <td className="px-4 py-2">
                   <div className="font-medium">{user.name}</div>
 
                   <div className="text-xs text-slate-400">@{user.username}</div>
                 </td>
 
-                <td className="px-4 py-4">{user.designation}</td>
+                <td className="px-4 py-2">{user.designation}</td>
 
-                <td className="px-4 py-4">{user.email}</td>
+                <td className="px-4 py-2">{user.email}</td>
 
-                <td className="px-4 py-4">
+                <td className="px-4 py-2">
                   <span
                     className={`
                     rounded-full
@@ -439,7 +436,7 @@ export default function UserManagementTable() {
                   </span>
                 </td>
 
-                <td className="px-4 py-4">
+                <td className="px-4 py-2">
                   <select
                     value={user.role}
                     onChange={(e) => updateRole(user.id, e.target.value)}

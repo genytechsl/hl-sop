@@ -41,6 +41,7 @@ export default function CustomerManagementTable() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
+  const [showInactive, setShowInactive] = useState(false);
 
   // const totalPages = Math.ceil(customers.length / ITEMS_PER_PAGE);
   // const paginatedCustomers = customers.slice(
@@ -58,6 +59,9 @@ export default function CustomerManagementTable() {
         customer.email.toLowerCase().includes(keyword) ||
         customer.mobile.toLowerCase().includes(keyword);
 
+      // Hide inactive customers by default
+      const matchesInactive = showInactive || customer.active;
+
       const matchesStatus =
         statusFilter === "all"
           ? true
@@ -65,7 +69,7 @@ export default function CustomerManagementTable() {
             ? customer.active
             : !customer.active;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesInactive;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -156,76 +160,149 @@ export default function CustomerManagementTable() {
             {message.text}
           </div>
         )}
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full lg:max-w-md">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Search */}
+            <div className="relative w-full md:w-96">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search by name, mobile or NIC..."
-              className="
-        w-full
-        rounded-xl
-        border
-        border-slate-200
-        bg-white
-        py-2.5
-        pl-10
-        pr-4
-        outline-none
-        focus:border-blue-500
-      "
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-slate-500" />
-
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value as "all" | "active" | "inactive",
-                  )
-                }
-                className="rounded-xl border border-slate-200 px-3 py-2"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search by name, mobile or NIC..."
+                className="
+          h-11
+          w-full
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          pl-11
+          pr-4
+          text-sm
+          placeholder:text-slate-400
+          focus:border-blue-500
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500/20
+        "
+              />
             </div>
 
-            <div className="flex items-center gap-2">
-              <ArrowUpDown size={16} className="text-slate-500" />
+            {/* Right-side filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Sort */}
+              <div className="relative">
+                <ArrowUpDown
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
 
-              <select
-                value={sortBy}
-                onChange={(e) =>
-                  setSortBy(e.target.value as "name" | "createdDate")
-                }
-                className="rounded-xl border border-slate-200 px-3 py-2"
-              >
-                <option value="name">Name</option>
-                <option value="createdDate">Created Date</option>
-              </select>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value as "name" | "createdDate");
+                    setCurrentPage(1);
+                  }}
+                  className="
+            h-11
+            rounded-xl
+            border
+            border-slate-200
+            bg-white
+            pl-9
+            pr-8
+            text-sm
+            focus:border-blue-500
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500/20
+          "
+                >
+                  <option value="name">Sort by Name</option>
+                  <option value="createdDate">Created Date</option>
+                </select>
+              </div>
 
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
-                className="rounded-xl border border-slate-200 px-3 py-2"
+              {/* Sort Order */}
+              <div className="relative">
+                <ArrowUpDown
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <select
+                  value={sortOrder}
+                  onChange={(e) => {
+                    setSortOrder(e.target.value as "asc" | "desc");
+                    setCurrentPage(1);
+                  }}
+                  className="
+            h-11
+            rounded-xl
+            border
+            border-slate-200
+            bg-white
+            pl-9
+            pr-8
+            text-sm
+            focus:border-blue-500
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500/20
+          "
+                >
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
+                </select>
+              </div>
+
+              {/* Show inactive */}
+              <label
+                className="
+          flex
+          h-11
+          cursor-pointer
+          items-center
+          gap-2.5
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          px-3.5
+          text-sm
+          font-medium
+          text-slate-600
+          transition
+          hover:border-slate-300
+          hover:bg-slate-50
+        "
               >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => {
+                    setShowInactive(e.target.checked);
+                    setCurrentPage(1);
+                  }}
+                  className="
+            h-4
+            w-4
+            rounded
+            border-slate-300
+            text-blue-600
+            focus:ring-blue-500
+          "
+                />
+
+                <span>Show inactive customers</span>
+              </label>
             </div>
           </div>
         </div>
@@ -273,7 +350,7 @@ export default function CustomerManagementTable() {
 
             ${
               customer.active
-                ? "text-blue-600 hover:text-blue-700"
+                ? "text-emerald-600 transition hover:text-emerald-700"
                 : "text-slate-500"
             }
           `}
@@ -335,7 +412,14 @@ export default function CustomerManagementTable() {
                   </td>
 
                   <td className="px-4 py-2 whitespace-nowrap text-slate-500">
-                    {customer.createdDate}
+                    {new Date(customer.createdDate).toLocaleDateString(
+                      "en-GB",
+                      {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
                   </td>
 
                   <td className="px-4 py-2">

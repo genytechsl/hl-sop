@@ -16,10 +16,7 @@ import {
   LoaderCircle,
   Save,
 } from "lucide-react";
-// import { customers, Customer } from "./customer-data";
 import { Customer } from "@/types/customer";
-import employees from "@/data/employees.json";
-import { saveTicket } from "@/components/tickets/ticket-storage";
 import Link from "next/link";
 import Toast from "../BottomRIghtToast";
 
@@ -40,16 +37,16 @@ const getSlaTarget = (category: string) => {
       return "24";
 
     case "CAT-B":
-      return "168";
+      return "7 Working Days";
 
     case "CAT-B2":
-      return "168";
+      return "7 Days";
 
     case "CAT-C":
-      return "120";
+      return "5 Working Days";
 
     case "CAT-D":
-      return "240";
+      return "10 Working Days";
 
     default:
       return "24";
@@ -131,7 +128,7 @@ export default function NewTicketForm() {
   const [dragActive, setDragActive] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [ticketType, setTicketType] = useState<"COM" | "INQ">("COM");
+  const [ticketType, setTicketType] = useState<"COM" | "INQ">("INQ");
   const [category, setCategory] = useState(categoryOptions[0].code);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -392,7 +389,8 @@ export default function NewTicketForm() {
         categoryLabel: selectedCategory?.label.toUpperCase() || "",
         property: selectedProperty,
         status: "OPEN",
-        priority: getPriority(category),
+        // priority: getPriority(category),
+        priority: "",
         assignedToId: selectedActionOwner?.id || "",
         // createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
         customerName: selectedCustomer?.name,
@@ -542,45 +540,6 @@ export default function NewTicketForm() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setTicketType("COM")}
-                      className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
-                        ticketType === "COM"
-                          ? "border-red-500 bg-red-50 shadow-sm ring-2 ring-red-100"
-                          : "border-gray-200 bg-white hover:border-red-300 hover:bg-red-50/40"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p
-                            className={`font-semibold ${
-                              ticketType === "COM"
-                                ? "text-red-700"
-                                : "text-gray-800"
-                            }`}
-                          >
-                            Complaint
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Report an issue requiring action
-                          </p>
-                        </div>
-
-                        <div
-                          className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                            ticketType === "COM"
-                              ? "border-red-500"
-                              : "border-gray-300 group-hover:border-red-400"
-                          }`}
-                        >
-                          {ticketType === "COM" && (
-                            <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => setTicketType("INQ")}
                       className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
                         ticketType === "INQ"
@@ -613,6 +572,45 @@ export default function NewTicketForm() {
                         >
                           {ticketType === "INQ" && (
                             <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTicketType("COM")}
+                      className={`group rounded-xl border px-4 py-1 text-left transition-all duration-200 ${
+                        ticketType === "COM"
+                          ? "border-red-500 bg-red-50 shadow-sm ring-2 ring-red-100"
+                          : "border-gray-200 bg-white hover:border-red-300 hover:bg-red-50/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p
+                            className={`font-semibold ${
+                              ticketType === "COM"
+                                ? "text-red-700"
+                                : "text-gray-800"
+                            }`}
+                          >
+                            Complaint
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Report an issue requiring action
+                          </p>
+                        </div>
+
+                        <div
+                          className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            ticketType === "COM"
+                              ? "border-red-500"
+                              : "border-gray-300 group-hover:border-red-400"
+                          }`}
+                        >
+                          {ticketType === "COM" && (
+                            <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
                           )}
                         </div>
                       </div>
@@ -698,11 +696,11 @@ export default function NewTicketForm() {
                   <option value="Whatsapp">Whatsapp</option>
                 </SelectField>
 
-                <InputField
+                {/* <InputField
                   label="Priority"
                   value={selectedCategory?.priority ?? ""}
                   readOnly
-                />
+                /> */}
               </div>
 
               {/* Subject */}

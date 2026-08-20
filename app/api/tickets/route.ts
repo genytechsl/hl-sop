@@ -9,6 +9,7 @@ import {
   getTicketVolume,
   getActionOwnerWorkload,
   getCategoryVolume,
+  getTicketsByCustomerId,
 } from "@/lib/ticket-service";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -67,18 +68,20 @@ export async function GET(request: NextRequest) {
     }
 
     const ticketId = searchParams.get("id");
-
     if (ticketId) {
       const ticket = await getTicketById(ticketId);
-
       if (!ticket) {
         return NextResponse.json(
           { message: "Ticket not found" },
           { status: 404 },
         );
       }
-
       return NextResponse.json(ticket);
+    }
+
+    const customerId = searchParams.get("customerId");
+    if (customerId) {
+      return NextResponse.json(await getTicketsByCustomerId(customerId));
     }
 
     const cookieStore = await cookies();
@@ -91,7 +94,6 @@ export async function GET(request: NextRequest) {
     }
 
     const user = JSON.parse(userCookie.value);
-
     if (user.role !== "actionOwner") {
       return NextResponse.json(await getTickets());
     }
@@ -99,7 +101,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(await getTicketsByAssignedTo(user.id));
   } catch (error) {
     console.error("GET /api/tickets error:", error);
-
     return NextResponse.json(
       {
         message: "Failed to load tickets",

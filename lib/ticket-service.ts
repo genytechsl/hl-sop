@@ -28,6 +28,7 @@ export type Ticket = {
   customerName: string;
   customerEmail?: string;
   customerMobile?: number;
+  customerNic?: string;
   actionOwnerEmail?: string;
   actionOwnerName?: string;
   slaTarget: string;
@@ -75,9 +76,12 @@ function formatTicket(ticket: any): Ticket {
     priority: ticket.priority,
     assignedToId: ticket.assignedToId ?? "",
     createdAt: formatDateTime(ticket.createdAt),
+
     customerName: ticket.customer?.name ?? "",
     customerEmail: ticket.customer?.email ?? "",
     customerMobile: ticket.customer?.mobile ?? "",
+    customerNic: ticket.customer?.nic ?? "",
+
     actionOwnerEmail: ticket.assignedTo?.email ?? "",
     actionOwnerName: ticket.assignedTo?.name ?? "",
     slaTarget: ticket.slaTarget,
@@ -153,6 +157,113 @@ export async function getTicketsByAssignedTo(
   });
 
   return tickets.map(formatTicket);
+}
+
+// export async function getTicketsByCustomerId(customerId: string) {
+//   return prisma.ticket.findMany({
+//     where: {
+//       customerId,
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//     include: {
+//       customer: true,
+//       property: true,
+//       assignedTo: true,
+//     },
+//   });
+// }
+
+// export async function getTicketsByCustomerId(customerId: string) {
+//   return prisma.ticket.findMany({
+//     where: {
+//       customerId,
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//   });
+// }
+
+// export async function getTicketsByCustomerId(customerId: string) {
+//   const tickets = await prisma.ticket.findMany({
+//     where: {
+//       customerId,
+//     },
+//     include: {
+//       remarks: {
+//         where: {
+//           statusChangedTo: "RESOLVED",
+//         },
+//         orderBy: {
+//           createdAt: "desc",
+//         },
+//         take: 1,
+//       },
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//   });
+
+//   return tickets.map((ticket) => ({
+//     ...ticket,
+//     resolvedAt: ticket.remarks[0]?.createdAt ?? null,
+//     remarks: undefined,
+//   }));
+// }
+
+export async function getTicketsByCustomerId(customerId: string) {
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      customerId,
+    },
+
+    select: {
+      id: true,
+      title: true,
+      ticketType: true,
+      category: true,
+      categoryLabel: true,
+      scope: true,
+      status: true,
+      priority: true,
+      propertyId: true,
+      createdAt: true,
+
+      remarks: {
+        where: {
+          statusChangedTo: "RESOLVED",
+        },
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+      },
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return tickets.map((ticket) => ({
+    id: ticket.id,
+    title: ticket.title,
+    ticketType: ticket.ticketType,
+    category: ticket.category,
+    categoryLabel: ticket.categoryLabel,
+    scope: ticket.scope,
+    status: ticket.status,
+    priority: ticket.priority,
+    propertyId: ticket.propertyId,
+    createdAt: ticket.createdAt,
+    resolvedAt: ticket.remarks[0]?.createdAt ?? null,
+  }));
 }
 
 export async function createTicket(ticket: CreateTicketInput): Promise<Ticket> {
@@ -263,30 +374,118 @@ export async function updateTicket(
 }
 
 export async function getTicketOverview() {
-  const [open, inProgress, closed, total] = await Promise.all([
+  const [
+    open,
+    openComplaints,
+    openInquiries,
+
+    inProgress,
+    inProgressComplaints,
+    inProgressInquiries,
+
+    closed,
+    closedComplaints,
+    closedInquiries,
+
+    total,
+    totalComplaints,
+    totalInquiries,
+  ] = await Promise.all([
+    // OPEN
     prisma.ticket.count({
       where: {
         status: "OPEN",
       },
     }),
+
+    prisma.ticket.count({
+      where: {
+        status: "OPEN",
+        ticketType: "COM",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        status: "OPEN",
+        ticketType: "INQ",
+      },
+    }),
+
+    // IN PROGRESS
     prisma.ticket.count({
       where: {
         status: "IN_PROGRESS",
       },
     }),
+
+    prisma.ticket.count({
+      where: {
+        status: "IN_PROGRESS",
+        ticketType: "COM",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        status: "IN_PROGRESS",
+        ticketType: "INQ",
+      },
+    }),
+
+    // CLOSED
     prisma.ticket.count({
       where: {
         status: "CLOSED",
       },
     }),
+
+    prisma.ticket.count({
+      where: {
+        status: "CLOSED",
+        ticketType: "COM",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        status: "CLOSED",
+        ticketType: "INQ",
+      },
+    }),
+
+    // TOTAL
     prisma.ticket.count(),
+
+    prisma.ticket.count({
+      where: {
+        ticketType: "COM",
+      },
+    }),
+
+    prisma.ticket.count({
+      where: {
+        ticketType: "INQ",
+      },
+    }),
   ]);
 
   return {
     open,
+    openComplaints,
+    openInquiries,
+
     inProgress,
+    inProgressComplaints,
+    inProgressInquiries,
+
     closed,
+    closedComplaints,
+    closedInquiries,
+
     total,
+    totalComplaints,
+    totalInquiries,
   };
 }
 
@@ -366,9 +565,9 @@ const categories: Category[] = [
   {
     code: "CAT-B2",
     label: "SFM FACILITY",
-    color: "bg-green-500",
+    color: "bg-cyan-600",
     slaTarget: "7 Days",
-    accentColor: "oklch(72.3% 0.219 149.579)",
+    accentColor: "oklch(60.9% 0.126 221.723)",
     sla: 7,
     unit: "days",
   },

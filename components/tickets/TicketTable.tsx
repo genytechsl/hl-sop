@@ -26,6 +26,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [ticketTypeFilter, setTicketTypeFilter] = useState("ALL");
 
   const [fromDate, setFromDate] = useState("");
 
@@ -96,7 +97,9 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
     if (
       search &&
       !ticket.customerName?.toLowerCase().includes(search) &&
-      !ticket.title?.toLowerCase().includes(search)
+      !ticket.title?.toLowerCase().includes(search) &&
+      !ticket.customerEmail?.toLowerCase().includes(search) &&
+      !ticket.customerNic?.toLowerCase().includes(search)
     ) {
       return false;
     }
@@ -108,6 +111,11 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
 
     // Category
     if (categoryFilter !== "ALL" && ticket.category !== categoryFilter) {
+      return false;
+    }
+
+    // Ticket Type
+    if (ticketTypeFilter !== "ALL" && ticket.ticketType !== ticketTypeFilter) {
       return false;
     }
 
@@ -234,26 +242,6 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
     exportCsv,
   }));
 
-  // async function exportPdf() {
-  //   if (!tableRef.current) return;
-
-  //   const dataUrl = await toPng(tableRef.current, {
-  //     cacheBust: true,
-  //     pixelRatio: 2,
-  //   });
-
-  //   const pdf = new jsPDF("l", "mm", "a4");
-
-  //   const imgProps = pdf.getImageProperties(dataUrl);
-
-  //   const pdfWidth = pdf.internal.pageSize.getWidth();
-
-  //   const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-  //   pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
-
-  //   pdf.save("tickets.pdf");
-  // }
   async function exportPdf() {
     const pdf = new jsPDF("l", "mm", "a4");
 
@@ -335,20 +323,13 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
     const blob = new Blob([csv], {
       type: "text/csv;charset=utf-8;",
     });
-
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
-
     link.href = url;
     link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
-
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
-
     URL.revokeObjectURL(url);
   }
   return (
@@ -360,16 +341,8 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
       {/* Header */}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end mb-6">
-        {/* <div>
-          <h2 className="text-2xl font-bold text-slate-800">Tickets</h2>
-
-          <p className="text-slate-500">
-            View and manage all customer tickets.
-          </p>
-        </div> */}
-
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
+          <div className="relative w-full sm:w-80 lg:w-96">
             <Search
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -387,6 +360,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                 h-11
                 pl-10
                 pr-4
+                w-full
                 rounded-xl
                 border
                 border-slate-200
@@ -398,6 +372,28 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
               "
             />
           </div>
+
+          {/* Ticket Type */}
+          <select
+            value={ticketTypeFilter}
+            onChange={(e) => {
+              setTicketTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="
+    h-11
+    rounded-xl
+    border
+    border-slate-200
+    px-4
+    bg-white
+    text-sm
+  "
+          >
+            <option value="ALL">All Types</option>
+            <option value="INQ">Inquiries</option>
+            <option value="COM">Complaints</option>
+          </select>
 
           <div
             className="
@@ -498,6 +494,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
               onClick={() => {
                 setSearchTerm("");
                 setStatusFilter("ALL");
+                setTicketTypeFilter("ALL");
                 setCategoryFilter("ALL");
                 setFromDate("");
                 setToDate("");
@@ -611,15 +608,15 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
         <table className="w-full min-w-[1200px]">
           <thead>
             <tr className="border-b border-slate-200">
-              <th className="px-4 py-4">#</th>
-              <th className="px-4 py-4">SLA Breach %</th>
+              <th className="px-2 py-4">#</th>
+              <th className="px-2 py-4">SLA Breach %</th>
               <th className="px-4 py-4">Ticket ID</th>
-              <th className="px-4 py-4">Category</th>
+              <th className="px-2 py-4">Category</th>
               <th className="px-4 py-4">Subject</th>
               <th className="px-4 py-4">Customer</th>
-              <th className="px-4 py-4">Status</th>
+              <th className="px-2 py-4">Status</th>
               <th className="px-4 py-4">Target SLA</th>
-              <th className="px-4 py-4">Age</th>
+              <th className="px-1 py-4">Age</th>
               <th className="px-4 py-4">SLA Due Date</th>
               <th className="px-4 py-4">Created At</th>
             </tr>
@@ -657,10 +654,10 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                     "
                     >
                       {/* Rank */}
-                      <td className="px-4 py-3 font-semibold">{index + 1}</td>
+                      <td className="px-2 py-3 font-semibold">{index + 1}</td>
 
                       {/* SLA Breach % */}
-                      <td className="px-4 py-3 min-w-[220px]">
+                      <td className="px-2 py-3 max-w-[175px]">
                         <div className="flex items-center gap-3">
                           <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
                             <div
@@ -688,7 +685,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       </td>
 
                       {/* Ticket ID */}
-                      <td className="px-4 py-3">
+                      <td className="px-1 py-3">
                         <Link
                           href={`/tickets/view?id=${ticket.id}`}
                           className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -698,7 +695,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       </td>
 
                       {/* Category */}
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-3">
                         <span
                           className={`
                         inline-block
@@ -715,9 +712,11 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                             ? "bg-red-500"
                             : ticket.category === "CAT-B"
                               ? "bg-blue-500"
-                              : ticket.category === "CAT-C"
-                                ? "bg-slate-500"
-                                : "bg-green-500"
+                              : ticket.category === "CAT-B2"
+                                ? "bg-cyan-600"
+                                : ticket.category === "CAT-C"
+                                  ? "bg-slate-500"
+                                  : "bg-purple-600"
                         }
                       `}
                         >
@@ -726,13 +725,15 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       </td>
 
                       {/* Subject */}
-                      <td className="px-4 py-3">{ticket.title}</td>
+                      <td className="px-4 py-3 text-sm">{ticket.title}</td>
 
                       {/* Customer */}
-                      <td className="px-4 py-3">{ticket.customerName}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {ticket.customerName}
+                      </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-3 text-center">
                         <span
                           className={`
                         inline-block
@@ -757,13 +758,13 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       </td>
 
                       {/* Target SLA */}
-                      <td className="px-4 py-3 font-medium">
+                      <td className="px-4 py-3 font-normal text-center text-sm">
                         {ticket.slaTarget}
                       </td>
 
                       {/* Age */}
                       <td
-                        className={`px-4 py-3 font-semibold ${
+                        className={`px-1 py-3 font-semibold ${
                           metrics.breached || ticket.status === "CLOSED"
                             ? "text-red-600"
                             : "text-green-600"
@@ -773,13 +774,24 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       </td>
 
                       {/* SLA Due Date */}
-                      <td className="px-4 py-3">
-                        {metrics.dueDate.toLocaleDateString()}
+                      <td className="px-4 py-3 text-center text-sm">
+                        {metrics.dueDate.toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </td>
 
                       {/* Created At */}
-                      <td className="px-4 py-3">
-                        {new Date(ticket.createdAt).toLocaleDateString()}
+                      <td className="px-4 py-3 text-center text-sm">
+                        {new Date(ticket.createdAt).toLocaleDateString(
+                          "en-GB",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )}
                       </td>
                     </tr>
                   );

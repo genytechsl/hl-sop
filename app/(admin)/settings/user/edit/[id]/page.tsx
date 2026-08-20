@@ -210,8 +210,8 @@ export default function EditUserPage() {
     }
 
     /*
-     * The user's existing username belongs to this user,
-     * therefore it is available for this update.
+     The user's existing username belongs to this user,
+     therefore it is available for this update.
      */
     if (trimmedValue.toLowerCase() === originalUsername.toLowerCase()) {
       setUsernameAvailable(true);
@@ -305,10 +305,10 @@ export default function EditUserPage() {
 
       setUser(data);
 
-      setMessage({
-        type: "success",
-        text: "User information updated successfully",
-      });
+      // setMessage({
+      //   type: "success",
+      //   text: "User information updated successfully",
+      // });
     } catch (error) {
       setToast({
         open: true,
@@ -316,10 +316,10 @@ export default function EditUserPage() {
         title: "Error",
         message: "Unable to update user. Try again later",
       });
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to update user",
-      });
+      // setMessage({
+      //   type: "error",
+      //   text: error instanceof Error ? error.message : "Failed to update user",
+      // });
     } finally {
       setSaving(false);
     }
@@ -452,16 +452,51 @@ export default function EditUserPage() {
         {/* User Information */}
         <form onSubmit={handleSave} className="card lg:col-span-2">
           <div className="card-header">
-            <div>
+            <div className="min-w-0">
               <h2 className="card-title">User Information</h2>
+
               <p className="card-description">
                 Update the employee's account information.
               </p>
             </div>
 
-            <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600">
-              <UserCog size={20} />
-            </div>
+            {/* Account Status */}
+            <button
+              type="button"
+              onClick={() => updateField("active", !user.active)}
+              aria-pressed={user.active}
+              className={`group flex shrink-0 items-center gap-3 rounded-2xl border px-3 py-2 transition-all duration-200 ${
+                user.active
+                  ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100"
+                  : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              <div
+                className={`relative h-6 w-11 rounded-full p-0.5 transition-colors duration-200 ${
+                  user.active ? "bg-emerald-500" : "bg-slate-300"
+                }`}
+              >
+                <div
+                  className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    user.active ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </div>
+
+              <div className="hidden text-left sm:block">
+                <p
+                  className={`text-xs font-semibold ${
+                    user.active ? "text-emerald-700" : "text-slate-600"
+                  }`}
+                >
+                  {user.active ? "Active" : "Inactive"}
+                </p>
+
+                <p className="text-[10px] text-slate-400">
+                  {user.active ? "Access enabled" : "Access disabled"}
+                </p>
+              </div>
+            </button>
           </div>
 
           <div className="card-body">
@@ -585,35 +620,68 @@ export default function EditUserPage() {
               </div>
 
               <div>
-                <label className="label">Role</label>
+                <label className="label">Access Role</label>
 
-                <select
-                  value={user.role}
-                  onChange={(e) => updateField("role", e.target.value)}
-                  className="select"
-                >
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {roleLabels[role]}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={user.role}
+                    onChange={(e) => updateField("role", e.target.value)}
+                    className="select pr-10 font-medium"
+                  >
+                    {roles.map((role) => (
+                      <option key={role} value={role}>
+                        {roleLabels[role]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <p className="helper-text">
+                  Determines what this user can access and manage.
+                </p>
               </div>
 
-              <div>
+              {/* <div>
                 <label className="label">Account Status</label>
 
-                <select
-                  value={user.active ? "active" : "inactive"}
-                  onChange={(e) =>
-                    updateField("active", e.target.value === "active")
-                  }
-                  className="select"
+                <button
+                  type="button"
+                  onClick={() => updateField("active", !user.active)}
+                  className={`relative mt-1 flex h-11 w-full items-center rounded-xl border px-3 transition-all duration-200 ${
+                    user.active
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+                  <div
+                    className={`relative h-6 w-11 rounded-full transition-colors duration-200 ${
+                      user.active ? "bg-emerald-500" : "bg-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        user.active ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="ml-3 flex flex-col items-start">
+                    <span
+                      className={`text-sm font-semibold ${
+                        user.active ? "text-emerald-700" : "text-slate-600"
+                      }`}
+                    >
+                      {user.active ? "Active" : "Inactive"}
+                    </span>
+
+                    <span className="text-[11px] text-slate-400">
+                      {user.active
+                        ? "User can access the system"
+                        : "User access is disabled"}
+                    </span>
+                  </div>
+                </button>
+              </div> */}
             </div>
           </div>
 
