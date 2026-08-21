@@ -15,6 +15,7 @@ const ALLOWED_TYPES = new Set([
 
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-outlook",
 ]);
 
 export async function POST(
