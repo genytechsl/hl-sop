@@ -379,6 +379,7 @@ export default function NewUserForm() {
               setDesignation(e.target.value)
             }
           >
+            <option value="">-Select-</option>
             <option value="MEP Engineer">MEP Engineer</option>
             <option value="Contractor">Contractor</option>
             <option value="CMU Manager">CMU Manager</option>

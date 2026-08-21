@@ -177,7 +177,12 @@ export default function NewTicketForm() {
         );
 
         if (!response.ok) {
-          throw new Error("Failed to load scopes");
+          setToast({
+            open: true,
+            type: "error",
+            title: "Failed",
+            message: "Unable to load ticket scopes.",
+          });
         }
 
         const data = await response.json();
@@ -221,7 +226,12 @@ export default function NewTicketForm() {
         const response = await fetch("/api/settings/ticket-type-categories");
 
         if (!response.ok) {
-          throw new Error("Failed to load categories.");
+          setToast({
+            open: true,
+            type: "error",
+            title: "Failed",
+            message: "Unable to load ticket categories.",
+          });
         }
 
         const data = await response.json();
@@ -537,6 +547,39 @@ export default function NewTicketForm() {
           title: "Failed!",
           message: `Failed to open a new ticket. ${result_newTicketCreated.message}.`,
         });
+
+        return;
+      }
+
+      // Upload attachments after ticket creation
+      if (attachments.length > 0) {
+        const formData = new FormData();
+
+        attachments.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        const attachmentResponse = await fetch(
+          `/api/tickets/${result_newTicketCreated.ticketId}/attachments`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        const attachmentResult = await attachmentResponse.json();
+
+        if (!attachmentResponse.ok) {
+          console.error("Attachment upload failed:", attachmentResult);
+
+          setToast({
+            open: true,
+            type: "warning",
+            title: "Ticket Created",
+            message:
+              "The ticket was created, but one or more attachments could not be uploaded.",
+          });
+        }
       }
 
       const response_remark = await fetch("/api/remarks", {

@@ -12,16 +12,59 @@ import {
   LoaderCircle,
   FileText,
   History,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 
 interface Props {
   ticket: any;
+}
+interface Attachment {
+  id: string;
+  ticketId: string;
+  originalName: string;
+  storedName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt?: string;
 }
 
 export default function TicketDetailsTabs({ ticket }: Props) {
   const [activeTab, setActiveTab] = useState("details");
   const [remarks, setRemarks] = useState<any[]>([]);
   const [loadingRemarks, setLoadingRemarks] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
+
+  useEffect(() => {
+    if (!ticket?.id) return;
+
+    const loadAttachments = async () => {
+      setLoadingAttachments(true);
+
+      try {
+        const response = await fetch(
+          `/api/tickets/${encodeURIComponent(ticket.id)}/attachments`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load attachments");
+        }
+
+        const data = await response.json();
+
+        setAttachments(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load attachments:", error);
+        setAttachments([]);
+      } finally {
+        setLoadingAttachments(false);
+      }
+    };
+
+    loadAttachments();
+  }, [ticket?.id]);
 
   useEffect(() => {
     if (!ticket?.id) return;
@@ -74,6 +117,17 @@ export default function TicketDetailsTabs({ ticket }: Props) {
         index ===
         array.findIndex((r) => r.statusChangedTo === remark.statusChangedTo),
     );
+
+  function formatFileSize(bytes: number): string {
+    if (bytes === 0) return "0 Bytes";
+
+    const units = ["Bytes", "KB", "MB", "GB"];
+    const index = Math.floor(Math.log(bytes) / Math.log(1024));
+
+    return `${parseFloat((bytes / Math.pow(1024, index)).toFixed(2))} ${
+      units[index]
+    }`;
+  }
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -174,16 +228,90 @@ export default function TicketDetailsTabs({ ticket }: Props) {
             {/* Attachments */}
 
             <section className="rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-2 mb-4 section-title">
-                <Paperclip size={18} />
-                <h3 className="font-semibold">Attachments</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 section-title">
+                  <Paperclip size={18} />
+                  <h3 className="font-semibold">Attachments</h3>
+                </div>
+
+                {!loadingAttachments && attachments.length > 0 && (
+                  <span className="text-xs font-medium text-slate-500">
+                    {attachments.length}{" "}
+                    {attachments.length === 1 ? "file" : "files"}
+                  </span>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <AttachmentItem name="water-leak-photo-01.jpg" />
+              {loadingAttachments ? (
+                <div className="flex items-center justify-center py-8 text-slate-500">
+                  <LoaderCircle size={20} className="animate-spin mr-2" />
+                  <span className="text-sm">Loading attachments...</span>
+                </div>
+              ) : attachments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                  <Paperclip size={28} className="mb-2" />
+                  <p className="text-sm">No attachments available</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {attachments.map((attachment) => {
+                    const attachmentUrl =
+                      `/api/tickets/${encodeURIComponent(ticket.id)}/attachments/` +
+                      encodeURIComponent(attachment.id);
 
-                <AttachmentItem name="inspection-report.pdf" />
-              </div>
+                    return (
+                      <div
+                        key={attachment.id}
+                        className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 hover:bg-slate-100 transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200">
+                            {attachment.mimeType.startsWith("image/") ? (
+                              <Paperclip size={18} className="text-blue-600" />
+                            ) : (
+                              <FileText size={18} className="text-blue-600" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p
+                              className="text-sm font-medium text-slate-700 truncate"
+                              title={attachment.originalName}
+                            >
+                              {attachment.originalName}
+                            </p>
+
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {formatFileSize(attachment.fileSize)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-200 transition"
+                            title="Open attachment"
+                          >
+                            <ExternalLink size={16} />
+                          </a>
+
+                          <a
+                            href={attachmentUrl}
+                            download={attachment.originalName}
+                            className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                            title="Download attachment"
+                          >
+                            <Download size={16} />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
 
             {/* CC List */}
