@@ -62,6 +62,21 @@ export type CustomerProperty = Prisma.CustomerPropertyModel
  */
 export type Ticket = Prisma.TicketModel
 /**
+ * Model TicketTypeScope
+ * 
+ */
+export type TicketTypeScope = Prisma.TicketTypeScopeModel
+/**
+ * Model TicketCategory
+ * 
+ */
+export type TicketCategory = Prisma.TicketCategoryModel
+/**
+ * Model TicketAttachment
+ * 
+ */
+export type TicketAttachment = Prisma.TicketAttachmentModel
+/**
  * Model TicketRemark
  * 
  */

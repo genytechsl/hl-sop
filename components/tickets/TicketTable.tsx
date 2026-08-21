@@ -39,7 +39,7 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
         const response = await fetch("/api/tickets");
 
         const data = await response.json();
-
+        console.log("All tickets: ", data);
         setTickets(data);
         setisLoading(false);
       } catch (error) {
@@ -54,29 +54,224 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
 
   const [currentPage, setCurrentPage] = useState(1);
 
+  // const getHoursFromSla = (sla?: string) => {
+  //   if (!sla) return 24;
+
+  //   const value = parseInt(sla);
+
+  //   if (sla.includes("wd")) return value * 24 * 5;
+  //   if (sla.includes("d")) return value * 24;
+  //   if (sla.includes("h")) return value;
+
+  //   return 24;
+  // };
+
   const getHoursFromSla = (sla?: string) => {
     if (!sla) return 24;
 
-    const value = parseInt(sla);
+    const normalized = sla.trim().toLowerCase();
 
-    if (sla.includes("wd")) return value * 24 * 5;
-    if (sla.includes("d")) return value * 24;
-    if (sla.includes("h")) return value;
+    const match = normalized.match(
+      /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
+    );
+
+    if (!match) {
+      return 24;
+    }
+
+    const value = Number(match[1]);
+    const unit = match[2];
+
+    if (unit.startsWith("minute")) {
+      return value / 60;
+    }
+
+    if (unit.startsWith("hour")) {
+      return value;
+    }
+
+    if (unit.startsWith("working")) {
+      return value * 24;
+    }
+
+    if (unit.startsWith("day")) {
+      return value * 24;
+    }
 
     return 24;
+  };
+
+  const calculateSlaDueDate = (
+    createdAt: string | Date,
+    sla?: string,
+  ): Date => {
+    const start = new Date(createdAt);
+
+    if (Number.isNaN(start.getTime())) {
+      return new Date();
+    }
+
+    if (!sla) {
+      return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    const normalized = sla.trim().toLowerCase();
+
+    const match = normalized.match(
+      /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
+    );
+
+    if (!match) {
+      return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    const value = Number(match[1]);
+    const unit = match[2];
+
+    // -----------------------------------------
+    // MINUTES
+    // -----------------------------------------
+
+    if (unit.startsWith("minute")) {
+      return new Date(start.getTime() + value * 60 * 1000);
+    }
+
+    // -----------------------------------------
+    // HOURS
+    // -----------------------------------------
+
+    if (unit.startsWith("hour")) {
+      return new Date(start.getTime() + value * 60 * 60 * 1000);
+    }
+
+    // -----------------------------------------
+    // CALENDAR DAYS
+    // -----------------------------------------
+
+    if (unit.startsWith("day")) {
+      const dueDate = new Date(start);
+
+      dueDate.setDate(dueDate.getDate() + value);
+
+      return dueDate;
+    }
+
+    // -----------------------------------------
+    // WORKING DAYS
+    // Monday - Friday
+    // -----------------------------------------
+
+    if (unit.startsWith("working")) {
+      const dueDate = new Date(start);
+
+      let remainingDays = Math.floor(value);
+
+      while (remainingDays > 0) {
+        dueDate.setDate(dueDate.getDate() + 1);
+
+        const day = dueDate.getDay();
+
+        // Sunday = 0
+        // Saturday = 6
+
+        if (day !== 0 && day !== 6) {
+          remainingDays--;
+        }
+      }
+
+      // Handle fractional working days if ever needed
+      const fraction = value % 1;
+
+      if (fraction > 0) {
+        dueDate.setHours(dueDate.getHours() + fraction * 24);
+      }
+
+      return dueDate;
+    }
+
+    // -----------------------------------------
+    // DEFAULT
+    // -----------------------------------------
+
+    return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  };
+
+  // const getTicketMetrics = (ticket: any) => {
+  //   const createdAt = new Date(ticket.createdAt);
+  //   const now = new Date();
+  //   const ageHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+  //   const targetHours = getHoursFromSla(ticket.slaTarget);
+  //   const percent = Math.round((ageHours / targetHours) * 100);
+  //   const breached =
+  //     ageHours > targetHours && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
+  //   const dueDate = new Date(
+  //     createdAt.getTime() + targetHours * 60 * 60 * 1000,
+  //   );
+  //   return {
+  //     ageHours,
+  //     targetHours,
+  //     percent,
+  //     breached,
+  //     dueDate,
+  //   };
+  // };
+
+  const getWorkingHoursBetween = (startDate: Date, endDate: Date) => {
+    if (endDate <= startDate) {
+      return 0;
+    }
+
+    let current = new Date(startDate);
+    let totalHours = 0;
+
+    while (current < endDate) {
+      const day = current.getDay();
+
+      // Skip Saturday and Sunday
+      if (day !== 0 && day !== 6) {
+        const nextDay = new Date(current);
+
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        // Don't go beyond the requested end date
+        const segmentEnd = nextDay < endDate ? nextDay : endDate;
+
+        const hours =
+          (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
+
+        totalHours += hours;
+      }
+
+      current.setDate(current.getDate() + 1);
+      current.setHours(0, 0, 0, 0);
+    }
+
+    return totalHours;
+  };
+
+  const isWorkingDaySla = (sla?: string) => {
+    return sla?.toLowerCase().includes("working day") ?? false;
   };
 
   const getTicketMetrics = (ticket: any) => {
     const createdAt = new Date(ticket.createdAt);
     const now = new Date();
-    const ageHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
     const targetHours = getHoursFromSla(ticket.slaTarget);
+
+    const workingDaySla = isWorkingDaySla(ticket.slaTarget);
+
+    const ageHours = workingDaySla
+      ? getWorkingHoursBetween(createdAt, now)
+      : (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
     const percent = Math.round((ageHours / targetHours) * 100);
+
     const breached =
       ageHours > targetHours && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-    const dueDate = new Date(
-      createdAt.getTime() + targetHours * 60 * 60 * 1000,
-    );
+
+    const dueDate = calculateSlaDueDate(ticket.createdAt, ticket.slaTarget);
+
     return {
       ageHours,
       targetHours,

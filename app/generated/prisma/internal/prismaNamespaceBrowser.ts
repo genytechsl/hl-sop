@@ -55,6 +55,9 @@ export const ModelName = {
   Customer: 'Customer',
   CustomerProperty: 'CustomerProperty',
   Ticket: 'Ticket',
+  TicketTypeScope: 'TicketTypeScope',
+  TicketCategory: 'TicketCategory',
+  TicketAttachment: 'TicketAttachment',
   TicketRemark: 'TicketRemark',
   TicketSlaNotification: 'TicketSlaNotification',
   ReportScheduler: 'ReportScheduler'
@@ -141,6 +144,40 @@ export const TicketScalarFieldEnum = {
 } as const
 
 export type TicketScalarFieldEnum = (typeof TicketScalarFieldEnum)[keyof typeof TicketScalarFieldEnum]
+
+
+export const TicketTypeScopeScalarFieldEnum = {
+  id: 'id',
+  ticketType: 'ticketType',
+  scope: 'scope'
+} as const
+
+export type TicketTypeScopeScalarFieldEnum = (typeof TicketTypeScopeScalarFieldEnum)[keyof typeof TicketTypeScopeScalarFieldEnum]
+
+
+export const TicketCategoryScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  label: 'label',
+  sla: 'sla',
+  priority: 'priority'
+} as const
+
+export type TicketCategoryScalarFieldEnum = (typeof TicketCategoryScalarFieldEnum)[keyof typeof TicketCategoryScalarFieldEnum]
+
+
+export const TicketAttachmentScalarFieldEnum = {
+  id: 'id',
+  ticketId: 'ticketId',
+  originalName: 'originalName',
+  storedName: 'storedName',
+  filePath: 'filePath',
+  mimeType: 'mimeType',
+  fileSize: 'fileSize',
+  createdAt: 'createdAt'
+} as const
+
+export type TicketAttachmentScalarFieldEnum = (typeof TicketAttachmentScalarFieldEnum)[keyof typeof TicketAttachmentScalarFieldEnum]
 
 
 export const TicketRemarkScalarFieldEnum = {

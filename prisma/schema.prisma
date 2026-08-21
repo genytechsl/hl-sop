@@ -85,7 +85,7 @@ model Ticket {
   sendEmail       Boolean  @default(false) @map("send_email")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   customer   Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
   property   CustomerProperty @relation(fields: [propertyId], references: [id], onDelete: Restrict)
@@ -93,6 +93,7 @@ model Ticket {
 
   remarks         TicketRemark[]
   slaNotification TicketSlaNotification?
+  attachments     TicketAttachment[]
 
   @@index([customerId])
   @@index([propertyId])
@@ -102,6 +103,43 @@ model Ticket {
   @@index([priority])
   @@index([createdAt])
   @@map("tickets")
+}
+
+model TicketTypeScope {
+  id         Int    @id @default(autoincrement())
+  ticketType String @map("ticket_type")
+  scope      String
+
+  @@unique([ticketType, scope])
+  @@index([ticketType])
+  @@map("ticket_type_scopes")
+}
+
+model TicketCategory {
+  id       Int    @id @default(autoincrement())
+  code     String @unique
+  label    String
+  sla      String
+  priority String
+
+  @@index([label])
+  @@map("ticket_categories")
+}
+
+model TicketAttachment {
+  id           String   @id @default(cuid())
+  ticketId     String   @map("ticket_id")
+  originalName String   @map("original_name")
+  storedName   String   @map("stored_name")
+  filePath     String   @map("file_path")
+  mimeType     String   @map("mime_type")
+  fileSize     Int      @map("file_size")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_attachments")
 }
 
 model TicketRemark {

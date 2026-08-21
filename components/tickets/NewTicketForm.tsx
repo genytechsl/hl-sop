@@ -20,6 +20,20 @@ import { Customer } from "@/types/customer";
 import Link from "next/link";
 import Toast from "../BottomRIghtToast";
 
+interface TicketCategory {
+  id: number;
+  code: string;
+  label: string;
+  sla: string;
+  priority: string;
+}
+
+interface TicketTypeScope {
+  id: number;
+  ticketType: string;
+  scope: string;
+}
+
 interface Employee {
   id: string;
   name: string;
@@ -31,82 +45,82 @@ interface Employee {
   department: string;
 }
 
-const getSlaTarget = (category: string) => {
-  switch (category) {
-    case "CAT-A":
-      return "24";
+// const getSlaTarget = (category: string) => {
+//   switch (category) {
+//     case "CAT-A":
+//       return "24";
 
-    case "CAT-B":
-      return "7 Working Days";
+//     case "CAT-B":
+//       return "7 Working Days";
 
-    case "CAT-B2":
-      return "7 Days";
+//     case "CAT-B2":
+//       return "7 Days";
 
-    case "CAT-C":
-      return "5 Working Days";
+//     case "CAT-C":
+//       return "5 Working Days";
 
-    case "CAT-D":
-      return "10 Working Days";
+//     case "CAT-D":
+//       return "10 Working Days";
 
-    default:
-      return "24";
-  }
-};
+//     default:
+//       return "24";
+//   }
+// };
 
-const getPriority = (category: string) => {
-  switch (category) {
-    case "CAT-A":
-      return "VERY HIGH";
+// const getPriority = (category: string) => {
+//   switch (category) {
+//     case "CAT-A":
+//       return "VERY HIGH";
 
-    case "CAT-B":
-      return "HIGH";
+//     case "CAT-B":
+//       return "HIGH";
 
-    case "CAT-B2":
-      return "MEDIUM";
+//     case "CAT-B2":
+//       return "MEDIUM";
 
-    case "CAT-C":
-      return "LOW";
+//     case "CAT-C":
+//       return "LOW";
 
-    case "CAT-D":
-      return "VERY LOW";
+//     case "CAT-D":
+//       return "VERY LOW";
 
-    default:
-      return "MEDIUM";
-  }
-};
+//     default:
+//       return "MEDIUM";
+//   }
+// };
 
-const categoryOptions = [
-  {
-    code: "CAT-A",
-    label: "Critical",
-    sla: "24 h",
-    priority: "Very High",
-  },
-  {
-    code: "CAT-B",
-    label: "Technical",
-    sla: "7 wd",
-    priority: "High",
-  },
-  {
-    code: "CAT-B2",
-    label: "SFM Facility",
-    sla: "7 d",
-    priority: "Medium",
-  },
-  {
-    code: "CAT-C",
-    label: "Admin / Pay",
-    sla: "5 wd",
-    priority: "Low",
-  },
-  {
-    code: "CAT-D",
-    label: "Legal",
-    sla: "10 wd",
-    priority: "Very Low",
-  },
-];
+// const categoryOptions = [
+//   {
+//     code: "CAT-A",
+//     label: "Critical",
+//     sla: "24 h",
+//     priority: "Very High",
+//   },
+//   {
+//     code: "CAT-B",
+//     label: "Technical",
+//     sla: "7 wd",
+//     priority: "High",
+//   },
+//   {
+//     code: "CAT-B2",
+//     label: "SFM Facility",
+//     sla: "7 d",
+//     priority: "Medium",
+//   },
+//   {
+//     code: "CAT-C",
+//     label: "Admin / Pay",
+//     sla: "5 wd",
+//     priority: "Low",
+//   },
+//   {
+//     code: "CAT-D",
+//     label: "Legal",
+//     sla: "10 wd",
+//     priority: "Very Low",
+//   },
+// ];
 
 // const emailSuggestions = employees.filter((employee) => employee.active);
 
@@ -129,7 +143,7 @@ export default function NewTicketForm() {
   const [emailInput, setEmailInput] = useState("");
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [ticketType, setTicketType] = useState<"COM" | "INQ">("INQ");
-  const [category, setCategory] = useState(categoryOptions[0].code);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [actionOwnerId, setActionOwnerId] = useState("");
@@ -138,6 +152,103 @@ export default function NewTicketForm() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setisSaving] = useState<boolean>(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
+
+  const [scopes, setScopes] = useState<TicketTypeScope[]>([]);
+  const [loadingScopes, setLoadingScopes] = useState(false);
+
+  const [categoryOptions, setCategoryOptions] = useState<TicketCategory[]>([]);
+
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [category, setCategory] = useState("categoryOptions[0].code");
+
+  useEffect(() => {
+    async function loadScopes() {
+      if (!ticketType) {
+        setScopes([]);
+        setScope("");
+        return;
+      }
+
+      try {
+        setLoadingScopes(true);
+
+        const response = await fetch(
+          `/api/settings/ticket-type-scopes?ticketType=${encodeURIComponent(ticketType)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load scopes");
+        }
+
+        const data = await response.json();
+
+        setScopes(data);
+
+        // Clear current scope if it doesn't exist
+        // under the newly selected ticket type.
+        setScope((currentScope) => {
+          const exists = data.some(
+            (item: TicketTypeScope) => item.scope === currentScope,
+          );
+
+          return exists ? currentScope : "";
+        });
+      } catch (error) {
+        console.error("Failed to load scopes:", error);
+
+        setScopes([]);
+        setScope("");
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load ticket scopes.",
+        });
+      } finally {
+        setLoadingScopes(false);
+      }
+    }
+
+    loadScopes();
+  }, [ticketType]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setLoadingCategories(true);
+
+        const response = await fetch("/api/settings/ticket-type-categories");
+
+        if (!response.ok) {
+          throw new Error("Failed to load categories.");
+        }
+
+        const data = await response.json();
+
+        setCategoryOptions(data);
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load ticket categories.",
+        });
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  const getSlaTarget = (categoryCode: string) => {
+    const selected = categoryOptions.find((item) => item.code === categoryCode);
+
+    return selected?.sla || "";
+  };
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -185,6 +296,7 @@ export default function NewTicketForm() {
     () => categoryOptions.find((c) => c.code === category),
     [category],
   );
+
   useEffect(() => {
     async function loadCustomers() {
       const response = await fetch("/api/customers");
@@ -519,9 +631,7 @@ export default function NewTicketForm() {
         <div className="h-1.5 bg-blue-600" />
 
         <div className="p-6 lg:p-8 space-y-10">
-          {/* ================================================= */}
           {/* TICKET DETAILS - ROW 1*/}
-          {/* ================================================= */}
 
           <div>
             <h2 className="text-xl font-bold text-slate-800">
@@ -625,6 +735,12 @@ export default function NewTicketForm() {
                     target: { value: SetStateAction<string> };
                   }) => setCategory(e.target.value)}
                 >
+                  <option value="">
+                    {loadingCategories
+                      ? "Loading categories..."
+                      : "Select Category"}
+                  </option>
+
                   {categoryOptions.map((item) => (
                     <option key={item.code} value={item.code}>
                       {item.code} ({item.label})
@@ -669,19 +785,15 @@ export default function NewTicketForm() {
                     target: { value: SetStateAction<string> };
                   }) => setScope(e.target.value)}
                 >
-                  <option value="">Select Scope</option>
-                  <option value="MEP & Technical Defects">
-                    MEP & Technical Defects
+                  <option value="">
+                    {loadingScopes ? "Loading scopes..." : "Select Scope"}
                   </option>
-                  <option value="Documentation & Title Deeds">
-                    Documentation & Title Deeds
-                  </option>
-                  <option value="Payment, Ledger & Billing Issues">
-                    Payment, Ledger & Billing Issues
-                  </option>
-                  <option value="Contractual / SPA Legal Escalations">
-                    Contractual / SPA Legal Escalations
-                  </option>
+
+                  {scopes.map((item) => (
+                    <option key={item.id} value={item.scope}>
+                      {item.scope}
+                    </option>
+                  ))}
                 </SelectField>
 
                 <SelectField

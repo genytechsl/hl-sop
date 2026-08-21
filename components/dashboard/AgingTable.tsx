@@ -59,7 +59,7 @@ export default function AgingTable() {
   return (
     <section className="flex items-stretch gap-6">
       {/* Aging Table */}
-      <div id="agingTable" className="flex min-w-0 flex-[2] flex-col">
+      <div id="agingTable" className="flex min-w-0 flex-[1] flex-col">
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
           {/* Premium top border */}
           <div className="absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
@@ -140,7 +140,7 @@ export default function AgingTable() {
       </div>
 
       {/* Monthly volume & data profile */}
-      <div id="totalVolume" className="flex min-w-0 flex-[2] flex-col">
+      <div id="totalVolume" className="flex min-w-0 flex-[1] flex-col">
         <div className="relative flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
           <div className="absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
 

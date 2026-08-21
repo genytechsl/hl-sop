@@ -6,12 +6,12 @@ import {
   Clock3,
   MapPin,
   User,
-  Flag,
+  FolderOpen,
   CheckCircle2,
   LoaderCircle,
-  FolderOpen,
   ChevronDown,
 } from "lucide-react";
+
 import TicketDetailsTabs from "./TicketDetailsTabs";
 import { useEffect, useState } from "react";
 import Toast from "../BottomRIghtToast";
@@ -23,10 +23,248 @@ interface User {
   designation: string;
   email: string;
 }
+
 interface Props {
   ticket: any;
   user: User;
 }
+
+/*
+ * ---------------------------------------------------------
+ * SLA HELPERS
+ * ---------------------------------------------------------
+ */
+
+/**
+ * Converts database datetime strings such as:
+ *
+ * 2026-08-19 16:19
+ *
+ * into a JavaScript Date.
+ *
+ * The database value does not contain a timezone, so we treat
+ * it as local server/browser time.
+ */
+const parseTicketDate = (value: string): Date => {
+  if (!value) {
+    return new Date();
+  }
+
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+
+  return new Date(normalized);
+};
+
+/**
+ * Parse an SLA string.
+ *
+ * Examples:
+ *
+ * "24 Minutes"
+ * "24 Hours"
+ * "7 Days"
+ * "7 Working Days"
+ * "10 Working Days"
+ */
+const parseSla = (sla?: string) => {
+  if (!sla) {
+    return {
+      value: 24,
+      unit: "Hours",
+    };
+  }
+
+  const normalized = sla.trim();
+
+  const match = normalized.match(
+    /^(\d+(?:\.\d+)?)\s*(Minutes|Hours|Days|Working Days)$/i,
+  );
+
+  if (!match) {
+    return {
+      value: 24,
+      unit: "Hours",
+    };
+  }
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit === "minutes") {
+    return {
+      value,
+      unit: "Minutes",
+    };
+  }
+
+  if (unit === "hours") {
+    return {
+      value,
+      unit: "Hours",
+    };
+  }
+
+  if (unit === "days") {
+    return {
+      value,
+      unit: "Days",
+    };
+  }
+
+  return {
+    value,
+    unit: "Working Days",
+  };
+};
+
+/**
+ * Add calendar days.
+ */
+const addCalendarDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+
+  result.setDate(result.getDate() + days);
+
+  return result;
+};
+
+/**
+ * Add working days.
+ *
+ * Monday-Friday are working days.
+ *
+ * Saturday and Sunday are skipped.
+ *
+ * If the ticket is created on a weekend, the calculation
+ * starts from the following Monday.
+ */
+const addWorkingDays = (date: Date, workingDays: number): Date => {
+  const result = new Date(date);
+
+  let remaining = Math.max(0, Math.floor(workingDays));
+
+  /*
+   * If created during Saturday/Sunday, move to Monday
+   * before starting the SLA count.
+   */
+  while (result.getDay() === 0 || result.getDay() === 6) {
+    result.setDate(result.getDate() + 1);
+  }
+
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+
+    const day = result.getDay();
+
+    if (day !== 0 && day !== 6) {
+      remaining--;
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Calculate the actual SLA due date.
+ */
+const getSlaDueDate = (createdAt: string, slaTarget?: string): Date => {
+  const createdDate = parseTicketDate(createdAt);
+
+  const { value, unit } = parseSla(slaTarget);
+
+  if (unit === "Minutes") {
+    return new Date(createdDate.getTime() + value * 60 * 1000);
+  }
+
+  if (unit === "Hours") {
+    return new Date(createdDate.getTime() + value * 60 * 60 * 1000);
+  }
+
+  if (unit === "Days") {
+    return addCalendarDays(createdDate, value);
+  }
+
+  if (unit === "Working Days") {
+    return addWorkingDays(createdDate, value);
+  }
+
+  return new Date(createdDate.getTime() + 24 * 60 * 60 * 1000);
+};
+
+/**
+ * Calculate SLA duration in hours.
+ *
+ * This is useful for percentage calculations.
+ *
+ * NOTE:
+ * Working days are represented as 24 working hours here.
+ * This is useful for approximate progress percentages,
+ * while the actual due date is calculated using calendar
+ * working days.
+ */
+const getHoursFromSla = (sla?: string): number => {
+  const { value, unit } = parseSla(sla);
+
+  switch (unit) {
+    case "Minutes":
+      return value / 60;
+
+    case "Hours":
+      return value;
+
+    case "Days":
+      return value * 24;
+
+    case "Working Days":
+      return value * 24;
+
+    default:
+      return 24;
+  }
+};
+
+/**
+ * Calculate SLA progress percentage.
+ *
+ * For working-day SLAs, this is an approximate elapsed-time
+ * percentage. The actual breach decision is made using the
+ * calculated due date.
+ */
+const getSlaPercent = (createdAt: string, slaTarget?: string): number => {
+  const createdDate = parseTicketDate(createdAt);
+  const dueDate = getSlaDueDate(createdAt, slaTarget);
+
+  const totalDuration = dueDate.getTime() - createdDate.getTime();
+
+  if (totalDuration <= 0) {
+    return 100;
+  }
+
+  const elapsed = Date.now() - createdDate.getTime();
+
+  return Math.round(
+    Math.min(100, Math.max(0, (elapsed / totalDuration) * 100)),
+  );
+};
+
+/**
+ * Determine whether SLA has been breached.
+ */
+const isTicketSlaBreached = (ticket: any): boolean => {
+  if (!["OPEN", "IN_PROGRESS"].includes(ticket.status)) {
+    return false;
+  }
+
+  const dueDate = getSlaDueDate(ticket.createdAt, ticket.slaTarget);
+
+  return Date.now() > dueDate.getTime();
+};
+
+/*
+ * ---------------------------------------------------------
+ * COMPONENT
+ * ---------------------------------------------------------
+ */
 
 export default function TicketHeader({ ticket, user }: Props) {
   const [dialog, setDialog] = useState<{
@@ -48,6 +286,36 @@ export default function TicketHeader({ ticket, user }: Props) {
     message: "",
   });
 
+  const [status, setStatus] = useState(ticket.status);
+
+  const [remark, setRemark] = useState("");
+
+  const [saving, setSaving] = useState(false);
+
+  const [employees, setEmployees] = useState<User[]>([]);
+
+  const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
+
+  const [reassigning, setReassigning] = useState(false);
+
+  /*
+   * ---------------------------------------------------------
+   * SLA
+   * ---------------------------------------------------------
+   */
+
+  const slaDueDate = getSlaDueDate(ticket.createdAt, ticket.slaTarget);
+
+  const slaBreached = isTicketSlaBreached(ticket);
+
+  const slaPercent = getSlaPercent(ticket.createdAt, ticket.slaTarget);
+
+  /*
+   * ---------------------------------------------------------
+   * TOAST AUTO CLOSE
+   * ---------------------------------------------------------
+   */
+
   useEffect(() => {
     if (!toast.open) return;
 
@@ -61,18 +329,33 @@ export default function TicketHeader({ ticket, user }: Props) {
     return () => clearTimeout(timer);
   }, [toast.open]);
 
+  /*
+   * ---------------------------------------------------------
+   * CATEGORY COLOR
+   * ---------------------------------------------------------
+   */
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "CAT-A":
         return "bg-red-100 text-red-700 border-red-200";
+
       case "CAT-B":
         return "bg-blue-100 text-blue-700 border-blue-200";
+
       case "CAT-C":
         return "bg-slate-100 text-slate-700 border-slate-200";
+
       default:
         return "bg-green-100 text-green-700 border-green-200";
     }
   };
+
+  /*
+   * ---------------------------------------------------------
+   * STATUS CONFIG
+   * ---------------------------------------------------------
+   */
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -96,36 +379,15 @@ export default function TicketHeader({ ticket, user }: Props) {
     }
   };
 
-  function isSlaBreached(): boolean {
-    const createdAt = new Date(ticket.createdAt.replace(" ", "T"));
-
-    const ageHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
-
-    let slaHours = 0;
-
-    const value = parseInt(ticket.slaTarget);
-
-    if (ticket.slaTarget.includes("wd")) {
-      slaHours = value * 24 * 5;
-    } else if (ticket.slaTarget.includes("d")) {
-      slaHours = value * 24;
-    } else if (ticket.slaTarget.includes("h")) {
-      slaHours = value;
-    }
-
-    return ageHours > slaHours;
-  }
-
   const statusConfig = getStatusConfig(ticket.status);
+
   const StatusIcon = statusConfig.icon;
 
-  const [status, setStatus] = useState(ticket.status);
-  const [remark, setRemark] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const [employees, setEmployees] = useState<User[]>([]);
-  const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
-  const [reassigning, setReassigning] = useState(false);
+  /*
+   * ---------------------------------------------------------
+   * LOAD EMPLOYEES
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     async function loadEmployees() {
@@ -146,6 +408,12 @@ export default function TicketHeader({ ticket, user }: Props) {
 
     loadEmployees();
   }, []);
+
+  /*
+   * ---------------------------------------------------------
+   * REASSIGN
+   * ---------------------------------------------------------
+   */
 
   const handleReassign = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newAssignedToId = e.target.value;
@@ -178,7 +446,6 @@ export default function TicketHeader({ ticket, user }: Props) {
           message: result.message || "Unable to reassign ticket.",
         });
 
-        // Restore original selection
         setAssignedToId(ticket.assignedToId || "");
 
         return;
@@ -193,7 +460,6 @@ export default function TicketHeader({ ticket, user }: Props) {
 
       setAssignedToId(newAssignedToId);
 
-      // Reload to get the latest ticket information
       setTimeout(() => {
         window.location.reload();
       }, 800);
@@ -212,20 +478,31 @@ export default function TicketHeader({ ticket, user }: Props) {
       setReassigning(false);
     }
   };
+
+  /*
+   * ---------------------------------------------------------
+   * UPDATE STATUS
+   * ---------------------------------------------------------
+   */
+
   const handleUpdateStatus = async () => {
     if (!remark.trim()) {
       setToast({
         open: true,
         type: "warning",
         title: "Remarks Required!",
-        message: `Please add a comment before updating status.`,
+        message: "Please add a comment before updating status.",
       });
+
       return;
     }
 
     try {
       setSaving(true);
 
+      /*
+       * Add remark
+       */
       const response = await fetch("/api/remarks", {
         method: "POST",
         headers: {
@@ -243,11 +520,16 @@ export default function TicketHeader({ ticket, user }: Props) {
           open: true,
           type: "error",
           title: "Failed",
-          message: `Unable to add remarks. Please try again`,
+          message: "Unable to add remarks. Please try again.",
         });
+
+        return;
       }
 
-      const response_updateTicketStatus = await fetch(
+      /*
+       * Update ticket status
+       */
+      const responseUpdateTicketStatus = await fetch(
         "/api/tickets/update-status",
         {
           method: "POST",
@@ -262,56 +544,69 @@ export default function TicketHeader({ ticket, user }: Props) {
         },
       );
 
-      if (!response_updateTicketStatus.ok) {
+      if (!responseUpdateTicketStatus.ok) {
         setToast({
           open: true,
           type: "error",
           title: "Failed",
-          message: `Unable to add remarks. Please try again.`,
+          message: "Unable to update ticket status. Please try again.",
         });
-      } else if (response_updateTicketStatus.ok) {
-        setToast({
-          open: true,
-          type: "success",
-          title: "Success",
-          message: `Status updated successfully. Remark Added.`,
-        });
-        setRemark("");
-        // Refresh the page so the latest ticket and remarks are loaded
-        window.location.reload();
+
+        return;
       }
+
+      setToast({
+        open: true,
+        type: "success",
+        title: "Success",
+        message: "Status updated successfully. Remark added.",
+      });
+
+      setRemark("");
+
+      window.location.reload();
     } catch (err) {
+      console.error(err);
+
       setToast({
         open: true,
         type: "error",
         title: "Failed",
-        message: `Unable to add remarks. Please try again.`,
+        message: "Unable to update ticket. Please try again.",
       });
     } finally {
       setSaving(false);
     }
   };
 
+  /*
+   * ---------------------------------------------------------
+   * RENDER
+   * ---------------------------------------------------------
+   */
+
   return (
     <>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Row 1 - Left - Ticket Summary */}
+        {/* -------------------------------------------------
+            TICKET SUMMARY
+        ------------------------------------------------- */}
 
         <div className="xl:col-span-2 white-section">
           <div className="flex items-start justify-between gap-6">
             <div>
               <span
                 className={`
-                inline-flex
-                items-center
-                rounded-full
-                border
-                px-3
-                py-1
-                text-xs
-                font-semibold
-                ${getCategoryColor(ticket.category)}
-              `}
+                  inline-flex
+                  items-center
+                  rounded-full
+                  border
+                  px-3
+                  py-1
+                  text-xs
+                  font-semibold
+                  ${getCategoryColor(ticket.category)}
+                `}
               >
                 {ticket.category} • {ticket.categoryLabel}
               </span>
@@ -326,12 +621,13 @@ export default function TicketHeader({ ticket, user }: Props) {
 
               <div className="mt-3 flex items-center gap-2 text-slate-500">
                 <MapPin size={16} />
-                {/* <span>{ticket.property.propertyName}</span> */}
                 <span>{ticket.property}</span>
               </div>
             </div>
 
             <div className="min-w-[220px] space-y-4">
+              {/* CURRENT STATUS */}
+
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">
                   Current Status
@@ -339,46 +635,63 @@ export default function TicketHeader({ ticket, user }: Props) {
 
                 <div
                   className={`
-                  mt-1
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-xl
-                  px-3
-                  py-2
-                  font-medium
-                  ${statusConfig.className}
-                `}
+                    mt-1
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-xl
+                    px-3
+                    py-2
+                    font-medium
+                    ${statusConfig.className}
+                  `}
                 >
                   <StatusIcon size={18} />
+
                   {ticket.status.replace("_", " ")}
                 </div>
               </div>
+
+              {/* SLA DUE */}
 
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">
                   SLA Due
                 </p>
 
-                <div className="mt-1 flex items-center gap-2 text-red-600 font-semibold">
+                <div
+                  className={`
+                    mt-1
+                    flex
+                    items-center
+                    gap-2
+                    font-semibold
+                    ${slaBreached ? "text-red-600" : "text-slate-700"}
+                  `}
+                >
                   <Clock3 size={18} />
 
-                  {new Date(ticket.createdAt).toLocaleString("en-GB", {
+                  {slaDueDate.toLocaleString("en-GB", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
-                    second: "2-digit",
                     hour12: true,
                   })}
+                </div>
+
+                <div className="mt-1 text-xs text-slate-400">
+                  {slaBreached ? "SLA Breached" : `${slaPercent}% elapsed`}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Row 1 - Right - Ticket Meta */}
+        {/* -------------------------------------------------
+            TICKET DETAILS
+        ------------------------------------------------- */}
 
         <div className="white-section">
           <h3 className="mb-6 text-sm font-semibold uppercase tracking-wider text-slate-500">
@@ -386,20 +699,12 @@ export default function TicketHeader({ ticket, user }: Props) {
           </h3>
 
           <div className="divide-y divide-slate-100">
-            {/* <div className="flex items-center justify-between my-2">
-              <div className="flex items-center gap-3 text-slate-500">
-                <Flag size={16} className="text-red-500" />
-                <span className="text-sm">Priority</span>
-              </div>
-
-              <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-800">
-                {ticket.priority}
-              </span>
-            </div> */}
+            {/* TARGET SLA */}
 
             <div className="flex items-center justify-between my-2">
               <div className="flex items-center gap-3 text-slate-500">
                 <AlertTriangle size={16} className="text-amber-500" />
+
                 <span className="text-sm">Target SLA</span>
               </div>
 
@@ -408,9 +713,12 @@ export default function TicketHeader({ ticket, user }: Props) {
               </span>
             </div>
 
+            {/* ASSIGNED TO */}
+
             <div className="flex items-center justify-between my-2 gap-4">
               <div className="flex items-center gap-3 text-slate-500 shrink-0">
                 <User size={16} className="text-blue-500" />
+
                 <span className="text-sm">Assigned To</span>
               </div>
 
@@ -421,28 +729,28 @@ export default function TicketHeader({ ticket, user }: Props) {
                     onChange={handleReassign}
                     disabled={reassigning}
                     className="
-          w-full
-          appearance-none
-          rounded-lg
-          border
-          border-slate-200
-          bg-white
-          px-3
-          py-2
-          pr-9
-          text-sm
-          font-semibold
-          text-slate-700
-          shadow-sm
-          outline-none
-          transition
-          hover:border-slate-300
-          focus:border-blue-500
-          focus:ring-2
-          focus:ring-blue-100
-          disabled:cursor-not-allowed
-          disabled:opacity-60
-        "
+                      w-full
+                      appearance-none
+                      rounded-lg
+                      border
+                      border-slate-200
+                      bg-white
+                      px-3
+                      py-2
+                      pr-9
+                      text-sm
+                      font-semibold
+                      text-slate-700
+                      shadow-sm
+                      outline-none
+                      transition
+                      hover:border-slate-300
+                      focus:border-blue-500
+                      focus:ring-2
+                      focus:ring-blue-100
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
+                    "
                   >
                     <option value="" disabled>
                       Select employee
@@ -458,13 +766,13 @@ export default function TicketHeader({ ticket, user }: Props) {
                   <ChevronDown
                     size={16}
                     className="
-          pointer-events-none
-          absolute
-          right-3
-          top-1/2
-          -translate-y-1/2
-          text-slate-400
-        "
+                      pointer-events-none
+                      absolute
+                      right-3
+                      top-1/2
+                      -translate-y-1/2
+                      text-slate-400
+                    "
                   />
                 </div>
               ) : (
@@ -477,14 +785,17 @@ export default function TicketHeader({ ticket, user }: Props) {
               )}
             </div>
 
-            <div className="flex items-center justify-between my-2">
+            {/* CREATED DATE */}
+
+            <div className="flex items-center justify-between my-2 gap-4">
               <div className="flex items-center gap-3 text-slate-500">
                 <Calendar size={16} className="text-green-500" />
+
                 <span className="text-sm">Created Date & Time</span>
               </div>
 
-              <span className="font-semibold 6">
-                {new Date(ticket.createdAt).toLocaleString("en-GB", {
+              <span className="font-semibold text-slate-700 text-right">
+                {parseTicketDate(ticket.createdAt).toLocaleString("en-GB", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
@@ -499,9 +810,15 @@ export default function TicketHeader({ ticket, user }: Props) {
         </div>
       </div>
 
+      {/* -------------------------------------------------
+          TICKET TABS
+      ------------------------------------------------- */}
+
       <TicketDetailsTabs ticket={ticket} />
 
-      {/* ROW 3 - Update Status */}
+      {/* -------------------------------------------------
+          UPDATE STATUS
+      ------------------------------------------------- */}
 
       <div className="white-section">
         <div className="flex items-center justify-between mb-6">
@@ -517,7 +834,7 @@ export default function TicketHeader({ ticket, user }: Props) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-          {/* Status */}
+          {/* STATUS */}
 
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-2">
@@ -529,40 +846,39 @@ export default function TicketHeader({ ticket, user }: Props) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className={`
-    w-full
-    rounded-xl
-    border
-    p-4
-    font-semibold
-    shadow-sm
-    transition-all
-    duration-200
-    bg-gradient-to-b
-    from-white
-    to-slate-50
-    border-slate-200
-    hover:border-slate-300
-    hover:shadow-md
-    focus:outline-none
-    focus:ring-4
-    focus:ring-blue-100
-    focus:border-blue-500
-    appearance-none
-
-    ${
-      status === "OPEN"
-        ? "text-red-600"
-        : status === "IN_PROGRESS"
-          ? "text-amber-600"
-          : status === "BEING_PROCESSED"
-            ? "text-fuchsia-600"
-            : status === "RESOLVED"
-              ? "text-blue-600"
-              : status === "RETURN"
-                ? "text-slate-600"
-                : "text-green-600"
-    }
-  `}
+                  w-full
+                  rounded-xl
+                  border
+                  p-4
+                  font-semibold
+                  shadow-sm
+                  transition-all
+                  duration-200
+                  bg-gradient-to-b
+                  from-white
+                  to-slate-50
+                  border-slate-200
+                  hover:border-slate-300
+                  hover:shadow-md
+                  focus:outline-none
+                  focus:ring-4
+                  focus:ring-blue-100
+                  focus:border-blue-500
+                  appearance-none
+                  ${
+                    status === "OPEN"
+                      ? "text-red-600"
+                      : status === "IN_PROGRESS"
+                        ? "text-amber-600"
+                        : status === "BEING_PROCESSED"
+                          ? "text-fuchsia-600"
+                          : status === "RESOLVED"
+                            ? "text-blue-600"
+                            : status === "RETURN"
+                              ? "text-slate-600"
+                              : "text-green-600"
+                  }
+                `}
               >
                 <option value="OPEN" className="text-red-600">
                   Open
@@ -590,14 +906,22 @@ export default function TicketHeader({ ticket, user }: Props) {
                   Return
                 </option>
               </select>
+
               <ChevronDown
                 size={18}
-                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="
+                  pointer-events-none
+                  absolute
+                  right-4
+                  top-1/2
+                  -translate-y-1/2
+                  text-slate-400
+                "
               />
             </div>
           </div>
 
-          {/* Remarks */}
+          {/* REMARKS */}
 
           <div className="lg:col-span-3">
             <label className="block text-sm font-medium text-slate-600 mb-2">
@@ -607,7 +931,7 @@ export default function TicketHeader({ ticket, user }: Props) {
             <textarea
               rows={1}
               value={remark}
-              required={status === "RETURN" || isSlaBreached()}
+              required={status === "RETURN" || slaBreached}
               onChange={(e) => setRemark(e.target.value)}
               placeholder="Enter update remarks, actions taken, notes, observations, etc..."
               className="
@@ -625,49 +949,60 @@ export default function TicketHeader({ ticket, user }: Props) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* FOOTER */}
 
         <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
           <div className="text-sm text-slate-500">
-            {/* Last updated by <span className="font-medium">Facilities Team</span>{" "}
-            on 20 Jul 2026 · 10:45 AM */}
+            {slaBreached && (
+              <span className="font-semibold text-red-600">
+                SLA has been breached.
+              </span>
+            )}
           </div>
 
           <button
             onClick={handleUpdateStatus}
             disabled={saving}
             className="
-            inline-flex
-            items-center
-            gap-2
-            rounded-xl
-            bg-blue-600
-            px-5
-            py-2.5
-            text-white
-            font-medium
-            hover:bg-blue-700
-            disabled:opacity-50
-            disabled:cursor-not-allowed cursor-pointer
-            transition
-          "
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              bg-blue-600
+              px-5
+              py-2.5
+              text-white
+              font-medium
+              hover:bg-blue-700
+              disabled:opacity-50
+              disabled:cursor-not-allowed
+              cursor-pointer
+              transition
+            "
           >
             {saving ? "Updating..." : "Update Status"}
           </button>
         </div>
 
+        {/* DIALOG */}
+
         {dialog.open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-7 animate-in fade-in zoom-in duration-200">
               <div
-                className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full
-        ${
-          dialog.type === "success"
-            ? "bg-emerald-100"
-            : dialog.type === "error"
-              ? "bg-red-100"
-              : "bg-amber-100"
-        }`}
+                className={`
+                  mx-auto mb-5
+                  flex h-16 w-16
+                  items-center justify-center
+                  rounded-full
+                  ${
+                    dialog.type === "success"
+                      ? "bg-emerald-100"
+                      : dialog.type === "error"
+                        ? "bg-red-100"
+                        : "bg-amber-100"
+                  }
+                `}
               >
                 {dialog.type === "success" && (
                   <svg
@@ -702,6 +1037,7 @@ export default function TicketHeader({ ticket, user }: Props) {
                     viewBox="0 0 24 24"
                   >
                     <path d="M12 9v4m0 4h.01" />
+
                     <path d="M10.29 3.86L1.82 18A2 2 0 003.53 21h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                   </svg>
                 )}
@@ -716,14 +1052,31 @@ export default function TicketHeader({ ticket, user }: Props) {
               </p>
 
               <button
-                onClick={() => setDialog((prev) => ({ ...prev, open: false }))}
-                className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+                onClick={() =>
+                  setDialog((prev) => ({
+                    ...prev,
+                    open: false,
+                  }))
+                }
+                className="
+                  mt-7
+                  w-full
+                  rounded-xl
+                  bg-blue-600
+                  py-3
+                  font-semibold
+                  text-white
+                  transition
+                  hover:bg-blue-700
+                "
               >
                 OK
               </button>
             </div>
           </div>
         )}
+
+        {/* TOAST */}
 
         <Toast
           open={toast.open}

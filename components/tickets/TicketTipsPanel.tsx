@@ -153,7 +153,7 @@ function SlaRow({
           {category}
         </span>
 
-        <span className="truncate text-sm text-slate-600">{description}</span>
+        {/* <span className="truncate text-sm text-slate-600">{description}</span> */}
       </div>
 
       <span className="whitespace-nowrap rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">

@@ -120,7 +120,7 @@ export default function UserManagementTable() {
       const response = await fetch("/api/users");
 
       const data = await response.json();
-
+      console.log("All Users: ", data);
       setUsers(data);
     } catch (error) {
       console.error(error);

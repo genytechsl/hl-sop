@@ -77,7 +77,8 @@ export default function Sidebar({
   const settingsActive =
     pathname.startsWith("/settings/user") ||
     pathname.startsWith("/settings/customers") ||
-    pathname.startsWith("/settings/report-schedular");
+    pathname.startsWith("/settings/report-schedular") ||
+    pathname.startsWith("/settings/types-manager");
 
   const logout = async () => {
     await fetch("/api/logout", {
@@ -352,6 +353,21 @@ export default function Sidebar({
                       `}
                     >
                       Report Schedules
+                    </Link>
+
+                    <Link
+                      href="/settings/types-manager"
+                      onClick={() => setOpen(false)}
+                      className={`
+                        block rounded-lg px-3 py-2 text-sm transition
+                        ${
+                          pathname.startsWith("/settings/types-manager")
+                            ? "bg-emerald-50 font-medium text-emerald-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                        }
+                      `}
+                    >
+                      Other
                     </Link>
                   </div>
                 )}
