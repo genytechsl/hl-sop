@@ -35,7 +35,14 @@ export async function GET(
       );
     }
 
-    const absolutePath = path.join(process.cwd(), attachment.filePath);
+    // const absolutePath = path.join(process.cwd(), attachment.filePath);
+    const absolutePath = path.join(
+      process.cwd(),
+      "uploads",
+      "tickets",
+      ticketId,
+      attachment.storedName,
+    );
 
     const file = await fs.readFile(absolutePath);
 
