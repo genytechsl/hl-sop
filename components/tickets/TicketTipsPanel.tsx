@@ -11,12 +11,12 @@ export default function TicketTipsPanel() {
     <div className="space-y-5">
       {/* Ticket Guidelines */}
       <div className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-        <div className="h-1.5 bg-blue-600" />
+        <div className="h-1.5 bg-[#14b8a6]" />
 
         <div className="p-6">
           <div className="flex gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
-              <Info size={20} className="text-blue-600" />
+              <Info size={20} className="text-[#14b8a6]" />
             </div>
 
             <div className="min-w-0 flex-1">
@@ -43,12 +43,12 @@ export default function TicketTipsPanel() {
 
       {/* SLA Information */}
       <div className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-        <div className="h-1.5 bg-amber-500" />
+        <div className="h-1.5 bg-[#14b8a6]" />
 
         <div className="p-6">
           <div className="flex gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50">
-              <Clock3 size={20} className="text-amber-500" />
+              <Clock3 size={20} className="text-[#14b8a6]" />
             </div>
 
             <div className="min-w-0 flex-1">

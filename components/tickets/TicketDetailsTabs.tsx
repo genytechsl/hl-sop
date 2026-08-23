@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
+  getTicketSlaMetrics,
+  parseSla,
+  parseTicketDate,
+  isWorkingDay,
+} from "@/lib/sla";
+import {
   User,
   Mail,
   Paperclip,
@@ -28,6 +34,175 @@ interface Attachment {
   mimeType: string;
   fileSize: number;
   createdAt?: string;
+}
+
+/**
+ * Returns the number of working days between two dates.
+ *
+ * The time portion is also preserved so that partial working days
+ * can be displayed as:
+ *
+ * 2 Working Days 5 Hours
+ */
+function getWorkingTimeDifference(
+  start: Date,
+  end: Date,
+): {
+  workingDays: number;
+  hours: number;
+  minutes: number;
+} {
+  if (end.getTime() <= start.getTime()) {
+    return {
+      workingDays: 0,
+      hours: 0,
+      minutes: 0,
+    };
+  }
+
+  let workingDays = 0;
+  let cursor = new Date(start);
+
+  // Move through complete calendar days.
+  while (true) {
+    const nextDay = new Date(cursor);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    if (nextDay.getTime() > end.getTime()) {
+      break;
+    }
+
+    if (isWorkingDay(cursor)) {
+      workingDays++;
+    }
+
+    cursor = nextDay;
+  }
+
+  // Calculate remaining time from the last complete day.
+  const remainingMs = end.getTime() - cursor.getTime();
+
+  let hours = Math.floor(remainingMs / (1000 * 60 * 60));
+  let minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  // If the remaining portion falls on a weekend, don't count it
+  // as working time.
+  if (!isWorkingDay(cursor)) {
+    hours = 0;
+    minutes = 0;
+  }
+
+  return {
+    workingDays,
+    hours,
+    minutes,
+  };
+}
+
+/**
+ * Format elapsed/remaining SLA time using the same unit
+ * that was configured for the ticket.
+ *
+ * Examples:
+ *
+ * 24 Hours
+ *   -> 18 Hours
+ *
+ * 7 Days
+ *   -> 3 Days 6 Hours
+ *
+ * 5 Working Days
+ *   -> 2 Working Days 6 Hours
+ *
+ * 24 Minutes
+ *   -> 18 Minutes
+ */
+function formatSlaTime(
+  start: Date,
+  end: Date,
+  unit: ReturnType<typeof parseSla>["unit"],
+): string {
+  const isNegative = end.getTime() < start.getTime();
+
+  const effectiveStart = isNegative ? end : start;
+  const effectiveEnd = isNegative ? start : end;
+
+  const differenceMs = effectiveEnd.getTime() - effectiveStart.getTime();
+
+  if (differenceMs <= 0) {
+    switch (unit) {
+      case "Minutes":
+        return "0 Minutes";
+
+      case "Hours":
+        return "0 Hours";
+
+      case "Days":
+        return "0 Days";
+
+      case "Working Days":
+        return "0 Working Days";
+    }
+  }
+
+  switch (unit) {
+    case "Minutes": {
+      const minutes = Math.floor(differenceMs / (1000 * 60));
+
+      return `${minutes} Minute${minutes === 1 ? "" : "s"}`;
+    }
+
+    case "Hours": {
+      const hours = Math.floor(differenceMs / (1000 * 60 * 60));
+
+      return `${hours} Hour${hours === 1 ? "" : "s"}`;
+    }
+
+    case "Days": {
+      const totalHours = differenceMs / (1000 * 60 * 60);
+
+      const days = Math.floor(totalHours / 24);
+      const hours = Math.floor(totalHours % 24);
+
+      const parts: string[] = [];
+
+      if (days > 0) {
+        parts.push(`${days} Day${days === 1 ? "" : "s"}`);
+      }
+
+      if (hours > 0) {
+        parts.push(`${hours} Hour${hours === 1 ? "" : "s"}`);
+      }
+
+      return parts.length > 0 ? parts.join(" ") : "0 Days";
+    }
+
+    case "Working Days": {
+      const { workingDays, hours, minutes } = getWorkingTimeDifference(
+        effectiveStart,
+        effectiveEnd,
+      );
+
+      const parts: string[] = [];
+
+      if (workingDays > 0) {
+        parts.push(`${workingDays} Working Day${workingDays === 1 ? "" : "s"}`);
+      }
+
+      if (hours > 0) {
+        parts.push(`${hours} Hour${hours === 1 ? "" : "s"}`);
+      }
+
+      if (minutes > 0 && workingDays === 0) {
+        parts.push(`${minutes} Minute${minutes === 1 ? "" : "s"}`);
+      }
+
+      return parts.length > 0 ? parts.join(" ") : "0 Working Days";
+    }
+
+    default:
+      return "0 Hours";
+  }
 }
 
 export default function TicketDetailsTabs({ ticket }: Props) {
@@ -90,23 +265,45 @@ export default function TicketDetailsTabs({ ticket }: Props) {
     loadRemarks();
   }, [ticket.id]);
 
-  const getHoursFromSla = (sla: string) => {
-    const value = parseInt(sla);
+  // const getHoursFromSla = (sla: string) => {
+  //   const value = parseInt(sla);
 
-    if (sla.includes("wd")) return value * 24 * 5;
-    if (sla.includes("d")) return value * 24;
-    if (sla.includes("h")) return value;
+  //   if (sla.includes("wd")) return value * 24 * 5;
+  //   if (sla.includes("d")) return value * 24;
+  //   if (sla.includes("h")) return value;
 
-    return 24;
-  };
+  //   return 24;
+  // };
 
-  const createdAt = new Date(ticket.createdAt);
+  // const createdAt = new Date(ticket.createdAt);
+  // const now = new Date();
+  // const elapsedHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+  // const targetHours = getHoursFromSla(ticket.slaTarget);
+  // const progressPercentage = Math.round((elapsedHours / targetHours) * 100);
+  // const remainingHours = targetHours - elapsedHours;
+  // const breached = remainingHours < 0;
+
+  const {
+    createdDate,
+    dueDate,
+    percent: progressPercentage,
+    breached,
+  } = getTicketSlaMetrics({
+    createdAt: ticket.createdAt,
+    slaTarget: ticket.slaTarget,
+    status: ticket.status,
+  });
+
+  const sla = parseSla(ticket.slaTarget);
+
   const now = new Date();
-  const elapsedHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-  const targetHours = getHoursFromSla(ticket.slaTarget);
-  const progressPercentage = Math.round((elapsedHours / targetHours) * 100);
-  const remainingHours = targetHours - elapsedHours;
-  const breached = remainingHours < 0;
+
+  const elapsedTime = formatSlaTime(createdDate, now, sla.unit);
+
+  const slaDifference = formatSlaTime(now, dueDate, sla.unit);
+
+  const remainingTime = formatSlaTime(now, dueDate, sla.unit);
+
   const timeline = [...remarks]
     .sort(
       (a, b) =>
@@ -396,16 +593,13 @@ export default function TicketDetailsTabs({ ticket }: Props) {
           </div>
 
           <div className="mt-5 space-y-4">
-            <MetricRow
-              label="Elapsed Time"
-              value={`${Math.floor(elapsedHours)} h`}
-            />
+            <MetricRow label="Elapsed Time" value={elapsedTime} />
 
-            <MetricRow label="Target SLA" value={`${targetHours} h`} />
+            <MetricRow label="Target SLA" value={`${sla.value} ${sla.unit}`} />
 
             <MetricRow
               label={breached ? "Time Passed" : "Time Remaining"}
-              value={`${Math.abs(Math.floor(remainingHours))} h`}
+              value={slaDifference}
             />
           </div>
         </div>

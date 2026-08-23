@@ -18,6 +18,7 @@ interface User {
   id: string;
   name: string;
   designation: string;
+  department: string;
   email: string;
   active: boolean;
   role: string;
@@ -57,6 +58,64 @@ export default function EditUserPage() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [departmentSearch, setDepartmentSearch] = useState("");
+  const [departments, setDepartments] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [departmentLoading, setDepartmentLoading] = useState(false);
+  const [showDepartmentSuggestions, setShowDepartmentSuggestions] =
+    useState(false);
+
+  async function searchDepartments(value: string) {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      setDepartments([]);
+      setShowDepartmentSuggestions(false);
+      return;
+    }
+
+    try {
+      setDepartmentLoading(true);
+
+      const response = await fetch(
+        `/api/settings/departments?search=${encodeURIComponent(trimmedValue)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load departments");
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setDepartments(data);
+        setShowDepartmentSuggestions(true);
+      } else {
+        setDepartments([]);
+        setShowDepartmentSuggestions(false);
+      }
+    } catch (error) {
+      console.error("Department search error:", error);
+      setDepartments([]);
+      setShowDepartmentSuggestions(false);
+    } finally {
+      setDepartmentLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchDepartments(departmentSearch);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [departmentSearch]);
 
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -106,6 +165,7 @@ export default function EditUserPage() {
       const data: User = await response.json();
 
       setUser(data);
+      setDepartmentSearch(data.department || "");
       setOriginalUsername(data.username);
       setUsernameEdited(false);
     } catch (error) {
@@ -283,6 +343,7 @@ export default function EditUserPage() {
         body: JSON.stringify({
           name: user.name,
           designation: user.designation,
+          department: user.department,
           email: user.email,
           username: user.username,
           role: user.role,
@@ -310,6 +371,7 @@ export default function EditUserPage() {
       //   text: "User information updated successfully",
       // });
     } catch (error) {
+      console.log(error);
       setToast({
         open: true,
         type: "error",
@@ -605,6 +667,75 @@ export default function EditUserPage() {
                     Operations Executive
                   </option>
                 </select>
+              </div>
+
+              <div className="relative">
+                <label className="label">Department</label>
+
+                <div className="relative">
+                  <input
+                    value={departmentSearch}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      setDepartmentSearch(value);
+                      updateField("department", value);
+                      setShowDepartmentSuggestions(true);
+                    }}
+                    onFocus={() => {
+                      if (departmentSearch.trim()) {
+                        setShowDepartmentSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay closing so a suggestion can be clicked
+                      setTimeout(() => {
+                        setShowDepartmentSuggestions(false);
+                      }, 150);
+                    }}
+                    className="input"
+                    placeholder="Search department..."
+                    required
+                    autoComplete="off"
+                  />
+
+                  {departmentLoading && (
+                    <LoaderCircle
+                      size={17}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                    />
+                  )}
+                </div>
+
+                {showDepartmentSuggestions && departments.length > 0 && (
+                  <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                    {departments.map((department) => (
+                      <button
+                        key={department.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+
+                          setDepartmentSearch(department.name);
+                          updateField("department", department.name);
+                          setShowDepartmentSuggestions(false);
+                        }}
+                        className="flex w-full items-center px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        {department.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {showDepartmentSuggestions &&
+                  !departmentLoading &&
+                  departmentSearch.trim() &&
+                  departments.length === 0 && (
+                    <div className="absolute left-0 right-0 z-30 mt-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-lg">
+                      No departments found.
+                    </div>
+                  )}
               </div>
 
               <div>

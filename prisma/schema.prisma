@@ -26,6 +26,18 @@ model Employee {
   @@map("employees")
 }
 
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  head        String
+  email       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("departments")
+}
+
 model Customer {
   id        String   @id
   name      String

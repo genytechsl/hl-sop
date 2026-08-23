@@ -774,7 +774,7 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
 
                       ${
                         currentPage === i + 1
-                          ? "bg-blue-600 text-white"
+                          ? "bg-[#14b8a6] text-white"
                           : "border border-slate-200 hover:bg-slate-50"
                       }
                     `}

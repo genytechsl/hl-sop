@@ -347,6 +347,28 @@ export default function NewTicketForm() {
     "CAT-D": ["Operations Executive"],
   };
 
+  const ALLOWED_FILE_TYPES = new Set([
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-outlook",
+    "application/octet-stream",
+  ]);
+
+  const ALLOWED_FILE_EXTENSIONS = new Set([
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".docx",
+    ".xlsx",
+    ".msg",
+  ]);
+
   useEffect(() => {
     async function loadEmployees() {
       try {
@@ -392,12 +414,43 @@ export default function NewTicketForm() {
   }, [actionOwnerId]);
 
   const addFiles = (newFiles: File[]) => {
+    const invalidFiles: string[] = [];
+
+    const validFiles = newFiles.filter((file) => {
+      const extension = file.name
+        .substring(file.name.lastIndexOf("."))
+        .toLowerCase();
+
+      const validMimeType = ALLOWED_FILE_TYPES.has(file.type);
+      const validExtension = ALLOWED_FILE_EXTENSIONS.has(extension);
+
+      // Accept if either the MIME type OR extension is valid.
+      const isValid = validMimeType || validExtension;
+
+      if (!isValid) {
+        invalidFiles.push(file.name);
+      }
+
+      return isValid;
+    });
+
+    if (invalidFiles.length > 0) {
+      setToast({
+        open: true,
+        type: "warning",
+        title: "Unsupported File Type",
+        message: `The following file${
+          invalidFiles.length > 1 ? "s" : ""
+        } cannot be attached: ${invalidFiles.join(", ")}`,
+      });
+    }
+
     setAttachments((prev) => {
       const existing = new Set(
         prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`),
       );
 
-      const uniqueFiles = newFiles.filter(
+      const uniqueFiles = validFiles.filter(
         (f) => !existing.has(`${f.name}-${f.size}-${f.lastModified}`),
       );
 
@@ -671,7 +724,7 @@ export default function NewTicketForm() {
       <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
         {/* Top Accent */}
 
-        <div className="h-1.5 bg-blue-600" />
+        {/* <div className="h-1.5 bg-blue-600" /> */}
 
         <div className="p-6 lg:p-8 space-y-10">
           {/* TICKET DETAILS - ROW 1*/}
@@ -924,10 +977,7 @@ export default function NewTicketForm() {
               </div>
 
               <Link href={"../settings/customers/new"}>
-                <button
-                  type="button"
-                  className="button-heading-special inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
-                >
+                <button type="button" className="geny-theme-button-border">
                   <User size={18} />
                   New Customer
                 </button>
@@ -1173,8 +1223,8 @@ export default function NewTicketForm() {
 
                         ${
                           dragActive
-                            ? "border-blue-600 bg-blue-100 scale-[1.01]"
-                            : "border-blue-300 bg-blue-50/50 hover:border-blue-500 hover:bg-blue-50"
+                            ? "border-[#10b981] bg-blue-100 scale-[1.01]"
+                            : "border-[#10b981] bg-blue-50/50 hover:border-[#14b8a6] hover:bg-[#14b8a611]"
                         }
                       `}
                 >
@@ -1182,7 +1232,7 @@ export default function NewTicketForm() {
                     size={48}
                     className={`
                       mb-4 transition-all
-                      ${dragActive ? "text-blue-700" : "text-blue-600"}
+                      ${dragActive ? "text-[#10b981]" : "text-[#10b981]"}
                     `}
                   />
 
@@ -1200,8 +1250,9 @@ export default function NewTicketForm() {
                     id="attachment-upload"
                     type="file"
                     multiple
-                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx,.msg,application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-outlook"
                     onChange={handleFileUpload}
+                    className="hidden"
                   />
                 </label>
               </div>
@@ -1405,19 +1456,16 @@ export default function NewTicketForm() {
             <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
               {/* Left Side */}
 
-              <button type="button" className="button-heading w-full sm:w-auto">
+              <button type="button" className="geny-theme-button-border">
                 Cancel
               </button>
 
               {/* Right Side */}
 
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  className="button-heading flex-1 sm:flex-none"
-                >
+                {/* <button type="button" className="geny-theme-button">
                   Save as Draft
-                </button>
+                </button> */}
 
                 {/* <button
                 type="button"
@@ -1429,7 +1477,7 @@ export default function NewTicketForm() {
                 <button
                   onClick={openSubmitConfirmation}
                   disabled={isSaving}
-                  className="button-heading-special flex items-center gap-2 disabled:opacity-50"
+                  className="geny-theme-button"
                 >
                   {isSaving ? (
                     <LoaderCircle size={16} className="animate-spin" />
@@ -1632,7 +1680,7 @@ export default function NewTicketForm() {
           type={toast.type}
           title={toast.title}
           message={toast.message}
-          confirmButton="View Ticket"
+          // confirmButton="View Ticket"
           onClose={() =>
             setToast((prev) => ({
               ...prev,

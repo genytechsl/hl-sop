@@ -440,14 +440,6 @@ export type CustomerPropertyUncheckedUpdateManyWithoutCustomerNestedInput = {
   deleteMany?: Prisma.CustomerPropertyScalarWhereInput | Prisma.CustomerPropertyScalarWhereInput[]
 }
 
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
-
 export type CustomerPropertyCreateNestedOneWithoutTicketsInput = {
   create?: Prisma.XOR<Prisma.CustomerPropertyCreateWithoutTicketsInput, Prisma.CustomerPropertyUncheckedCreateWithoutTicketsInput>
   connectOrCreate?: Prisma.CustomerPropertyCreateOrConnectWithoutTicketsInput

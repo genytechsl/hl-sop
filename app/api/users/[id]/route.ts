@@ -16,6 +16,7 @@ export async function GET(
         id: true,
         name: true,
         designation: true,
+        department: true,
         email: true,
         active: true,
         role: true,
@@ -47,9 +48,10 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { name, designation, email, username, role, active } = body;
+    const { name, designation, department, email, username, role, active } =
+      body;
 
-    if (!name || !designation || !email || !username || !role) {
+    if (!name || !designation || !department || !email || !username || !role) {
       return NextResponse.json(
         { error: "Required fields are missing" },
         { status: 400 },
@@ -69,6 +71,7 @@ export async function PUT(
       data: {
         name,
         designation,
+        department,
         email,
         username,
         role,
@@ -78,6 +81,7 @@ export async function PUT(
         id: true,
         name: true,
         designation: true,
+        department: true,
         email: true,
         active: true,
         role: true,

@@ -3,12 +3,22 @@
 import { useEffect, useState } from "react";
 import { Save, LoaderCircle } from "lucide-react";
 import Toast from "../BottomRIghtToast";
+interface Department {
+  id: number;
+  name: string;
+  head: string | null;
+  email: string | null;
+  description: string | null;
+}
 
 export default function NewUserForm() {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [designation, setDesignation] = useState("");
-  const [department, setDepartment] = useState("sfm");
+  // const [department, setDepartment] = useState("sfm");
+  const [department, setDepartment] = useState("");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +50,49 @@ export default function NewUserForm() {
     title: "",
     message: "",
   });
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        setDepartmentsLoading(true);
+
+        const response = await fetch("/api/settings/departments", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to load departments.");
+        }
+
+        if (!Array.isArray(result)) {
+          throw new Error("Invalid department data received.");
+        }
+
+        setDepartments(result);
+
+        // Select the first department by default
+        if (result.length > 0) {
+          setDepartment(result[0].name);
+        }
+      } catch (error) {
+        console.error("Failed to load departments:", error);
+
+        showWarning(
+          "Department Loading Failed",
+          error instanceof Error
+            ? error.message
+            : "Unable to load departments.",
+        );
+      } finally {
+        setDepartmentsLoading(false);
+      }
+    };
+
+    loadDepartments();
+  }, []);
 
   function generateUsername(employeeName: string) {
     return employeeName
@@ -260,7 +313,7 @@ export default function NewUserForm() {
     setId("");
     setName("");
     setDesignation("");
-    setDepartment("sfm");
+    setDepartment(departments.length > 0 ? departments[0].name : "");
     setEmail("");
     setUsername("");
     setPassword("");
@@ -393,11 +446,20 @@ export default function NewUserForm() {
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
               setDepartment(e.target.value)
             }
+            disabled={departmentsLoading}
           >
-            <option value="sfm">SFM</option>
-            <option value="operations">Operations</option>
-            <option value="technical">Technical</option>
-            <option value="contractor">Contractors</option>
+            <option value="">
+              {departmentsLoading
+                ? "Loading departments..."
+                : "-Select Department-"}
+            </option>
+
+            {!departmentsLoading &&
+              departments.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
           </SelectField>
 
           <SelectField

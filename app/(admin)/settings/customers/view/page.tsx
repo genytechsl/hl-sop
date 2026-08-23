@@ -382,7 +382,7 @@ export default function CustomerViewPage() {
                   </div>
 
                   <p className="helper-text">
-                    Customer identification number cannot be changed.
+                    Customer National Identity Card number cannot be changed.
                   </p>
                 </div>
 
@@ -598,9 +598,8 @@ export default function CustomerViewPage() {
                       <div>
                         <label className="label">Property Address</label>
 
-                        <textarea
-                          rows={3}
-                          className="textarea"
+                        <input
+                          className="input"
                           placeholder="Enter complete property address"
                           value={property.address}
                           onChange={(e) => {
