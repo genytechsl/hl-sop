@@ -3,22 +3,11 @@ import { getEmployeeById } from "@/lib/employee-service";
 import { getTickets, updateTicket } from "@/lib/ticket-service";
 import { sendEmail } from "@/lib/mailer";
 import { slaWarningEmail } from "@/lib/sla-warning-email";
-
-function getHoursFromSla(sla: string) {
-  const value = parseInt(sla);
-
-  if (sla.includes("wd")) return value * 24 * 5;
-
-  if (sla.includes("d")) return value * 24;
-
-  return value;
-}
+import { getSlaDueDate, getSlaPercent } from "@/lib/sla";
 
 export async function GET() {
   try {
     const tickets = await getTickets();
-
-    const now = new Date();
 
     let checked = 0;
     let emailsSent = 0;
@@ -33,44 +22,45 @@ export async function GET() {
       if (ticket.status === "CLOSED") continue;
 
       //----------------------------------------
-      // Already notified?
+      // Calculate SLA progress
       //----------------------------------------
 
-      // if (ticket.warning80Sent) continue;
-
-      //----------------------------------------
-      // Calculate age
-      //----------------------------------------
-
-      const created = new Date(ticket.createdAt.replace(" ", "T"));
-
-      const elapsedHours =
-        (now.getTime() - created.getTime()) / (1000 * 60 * 60);
-
-      //----------------------------------------
-      // SLA
-      //----------------------------------------
-
-      const slaHours = getHoursFromSla(ticket.slaTarget);
-
-      const threshold = slaHours * 0.8;
+      const progressPercentage = getSlaPercent(
+        ticket.createdAt,
+        ticket.slaTarget,
+      );
 
       //----------------------------------------
       // Reached 80%?
       //----------------------------------------
 
-      if (elapsedHours < threshold) continue;
+      if (progressPercentage < 80) continue;
 
       //----------------------------------------
-      // Send Email
+      // Calculate actual SLA due date
       //----------------------------------------
+
+      const dueDate = getSlaDueDate(ticket.createdAt, ticket.slaTarget);
+
+      console.log(
+        `SLA warning: ${ticket.id} - ${progressPercentage}% - Due: ${dueDate.toISOString()}`,
+      );
+
+      //----------------------------------------
+      // Get assigned employee
+      //----------------------------------------
+
       const employee = await getEmployeeById(ticket.assignedToId);
 
       if (!employee) {
         console.log(`Employee ${ticket.assignedToId} not found.`);
-
         continue;
       }
+
+      //----------------------------------------
+      // Send Email
+      //----------------------------------------
+
       const html = slaWarningEmail({
         ticketNumber: ticket.id,
         // customerName: ticket.customerName,
