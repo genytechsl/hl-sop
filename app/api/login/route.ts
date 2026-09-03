@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { validateEmployeeLogin } from "@/lib/employee-service";
+
 import { createSession, type UserRole } from "@/lib/auth/session";
 
-export async function POST(req: NextRequest) {
+import { createLoginAuditLog } from "@/lib/auth/login-audit";
+
+export async function POST(request: NextRequest) {
   try {
-    const { identifier, password } = await req.json();
+    const body = await request.json();
+
+    const identifier =
+      typeof body.identifier === "string" ? body.identifier.trim() : "";
+
+    const password = typeof body.password === "string" ? body.password : "";
+
+    // =========================================================
+    // VALIDATION
+    // =========================================================
 
     if (!identifier || !password) {
       return NextResponse.json(
@@ -12,21 +25,45 @@ export async function POST(req: NextRequest) {
           success: false,
           message: "Username/email and password are required",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
-    const employee = await validateEmployeeLogin(identifier.trim(), password);
+    // =========================================================
+    // VALIDATE CREDENTIALS
+    // =========================================================
+
+    const employee = await validateEmployeeLogin(identifier, password);
+
+    // =========================================================
+    // FAILED LOGIN AUDIT
+    // =========================================================
 
     if (!employee) {
+      await createLoginAuditLog({
+        request,
+        identifier,
+        employeeId: null,
+        event: "LOGIN",
+        success: false,
+      });
+
       return NextResponse.json(
         {
           success: false,
           message: "Invalid username/email or password",
         },
-        { status: 401 },
+        {
+          status: 401,
+        },
       );
     }
+
+    // =========================================================
+    // CREATE SESSION
+    // =========================================================
 
     const role = employee.role as UserRole;
 
@@ -40,6 +77,22 @@ export async function POST(req: NextRequest) {
     };
 
     await createSession(user);
+
+    // =========================================================
+    // SUCCESSFUL LOGIN AUDIT
+    // =========================================================
+
+    await createLoginAuditLog({
+      request,
+      employeeId: employee.id,
+      identifier,
+      event: "LOGIN",
+      success: true,
+    });
+
+    // =========================================================
+    // REDIRECT
+    // =========================================================
 
     let redirectTo = "/dashboard";
 
@@ -71,7 +124,9 @@ export async function POST(req: NextRequest) {
         success: false,
         message: "An error occurred during login",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }

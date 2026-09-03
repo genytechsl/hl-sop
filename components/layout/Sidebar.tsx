@@ -249,7 +249,7 @@ export default function Sidebar({
             {/* =================================================
                 SETTINGS
             ================================================== */}
-            {user.role === "admin" && (
+            {(user.role === "admin" || user.role === "sys_admin") && (
               <div className="mt-6">
                 {!collapsed && (
                   <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -369,6 +369,23 @@ export default function Sidebar({
                     >
                       Other
                     </Link>
+
+                    {user.role === "sys_admin" && (
+                      <Link
+                        href="/settings/login-logs"
+                        onClick={() => setOpen(false)}
+                        className={`
+                        block rounded-lg px-3 py-2 text-sm transition
+                        ${
+                          pathname.startsWith("/settings/login-logs")
+                            ? "bg-emerald-50 font-medium text-emerald-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                        }
+                      `}
+                      >
+                        Logs
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -415,7 +432,7 @@ export default function Sidebar({
                       )}
                     </Link>
 
-                    <Link
+                    {/* <Link
                       href="/reports"
                       onClick={() => setOpen(false)}
                       title={collapsed ? "Escalations" : undefined}
@@ -463,7 +480,7 @@ export default function Sidebar({
                           </span>
                         )}
                       </Link>
-                    )}
+                    )} */}
                   </div>
                 </div>
               </div>

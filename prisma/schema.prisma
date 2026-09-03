@@ -8,22 +8,47 @@ datasource db {
 }
 
 model Employee {
-  id           String   @id
-  name         String
-  designation  String
-  email        String   @unique
-  active       Boolean  @default(true)
-  role         String
-  username     String   @unique
-  passwordHash String   @map("password_hash")
-  department   String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String   @id
+  name            String
+  designation     String
+  email           String   @unique
+  active          Boolean  @default(true)
+  role            String
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  department      String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   assignedTickets Ticket[]       @relation("TicketAssignee")
   updatedRemarks  TicketRemark[] @relation("RemarkUpdater")
 
+  loginAuditLogs  LoginAuditLog[]
+
   @@map("employees")
+}
+
+model LoginAuditLog {
+  id          String    @id @default(cuid())
+
+  employeeId  String?   @map("employee_id")
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  identifier  String?   @db.VarChar(255)
+
+  event       String    @db.VarChar(20)
+  success     Boolean
+
+  ipAddress   String?   @map("ip_address") @db.VarChar(100)
+  userAgent   String?   @map("user_agent") @db.Text
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([employeeId])
+  @@index([createdAt])
+  @@index([event])
+  @@index([success])
+  @@map("login_audit_logs")
 }
 
 model Department {
