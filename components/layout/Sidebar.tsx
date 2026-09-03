@@ -546,8 +546,10 @@ export default function Sidebar({
                       <span className="badge-danger">Administrator</span>
                     ) : user.role === "actionOwner" ? (
                       <span className="badge-info">Case Owner</span>
+                    ) : user.role === "sys_admin" ? (
+                      <span className="badge-info">System Admin</span>
                     ) : (
-                      <span className="badge-warning">Action Owner</span>
+                      <span className="badge-warning">Manager</span>
                     )}
 
                     <button
