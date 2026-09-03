@@ -1,27 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth/session";
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
+    // =========================================================
+    // AUTHENTICATION
+    // =========================================================
 
-    const userCookie = cookieStore.get("user");
+    const sessionUser = await getSession();
 
-    if (!userCookie) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!sessionUser) {
+      return NextResponse.json(
+        {
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
 
-    const user = JSON.parse(userCookie.value);
+    // =========================================================
+    // AUTHORIZATION
+    // =========================================================
 
-    if (!["admin", "cmuManager"].includes(user.role)) {
+    /*
+     * Ticket reassignment changes ownership of a case.
+     * Restrict this operation to administrators only.
+     */
+
+    if (sessionUser.role !== "admin" && sessionUser.role !== "dataEntry") {
       return NextResponse.json(
         {
           message: "You are not authorized to reassign tickets.",
         },
-        { status: 403 },
+        {
+          status: 403,
+        },
       );
     }
+
+    // =========================================================
+    // REQUEST BODY
+    // =========================================================
 
     const body = await request.json();
 
@@ -32,37 +55,23 @@ export async function POST(request: NextRequest) {
         {
           message: "Ticket ID and employee ID are required.",
         },
-        { status: 400 },
-      );
-    }
-
-    const employee = await prisma.employee.findUnique({
-      where: {
-        id: assignedToId,
-      },
-    });
-
-    if (!employee) {
-      return NextResponse.json(
         {
-          message: "Employee not found.",
+          status: 400,
         },
-        { status: 404 },
       );
     }
 
-    if (!employee.active) {
-      return NextResponse.json(
-        {
-          message: "Cannot assign a ticket to an inactive employee.",
-        },
-        { status: 400 },
-      );
-    }
+    // =========================================================
+    // VERIFY TICKET
+    // =========================================================
 
     const existingTicket = await prisma.ticket.findUnique({
       where: {
         id: ticketId,
+      },
+      select: {
+        id: true,
+        assignedToId: true,
       },
     });
 
@@ -71,9 +80,92 @@ export async function POST(request: NextRequest) {
         {
           message: "Ticket not found.",
         },
-        { status: 404 },
+        {
+          status: 404,
+        },
       );
     }
+
+    // =========================================================
+    // VERIFY ASSIGNEE
+    // =========================================================
+
+    const employee = await prisma.employee.findUnique({
+      where: {
+        id: assignedToId,
+      },
+      select: {
+        id: true,
+        name: true,
+        designation: true,
+        department: true,
+        email: true,
+        role: true,
+        active: true,
+      },
+    });
+
+    if (!employee) {
+      return NextResponse.json(
+        {
+          message: "Employee not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    if (!employee.active) {
+      return NextResponse.json(
+        {
+          message: "Cannot assign a ticket to an inactive employee.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =========================================================
+    // ASSIGNEE ROLE VALIDATION
+    // =========================================================
+
+    /*
+     * Tickets should only be assigned to employees who are
+     * allowed to act as ticket owners.
+     */
+
+    if (employee.role !== "actionOwner" && employee.role !== "admin") {
+      return NextResponse.json(
+        {
+          message:
+            "Tickets can only be assigned to an Action Owner or Administrator.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =========================================================
+    // PREVENT UNNECESSARY REASSIGNMENT
+    // =========================================================
+
+    if (existingTicket.assignedToId === employee.id) {
+      return NextResponse.json(
+        {
+          message: "Ticket is already assigned to this employee.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =========================================================
+    // REASSIGN TICKET
+    // =========================================================
 
     const ticket = await prisma.ticket.update({
       where: {
@@ -87,9 +179,23 @@ export async function POST(request: NextRequest) {
         },
       },
       include: {
-        assignedTo: true,
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            designation: true,
+            department: true,
+            email: true,
+            role: true,
+            active: true,
+          },
+        },
       },
     });
+
+    // =========================================================
+    // RESPONSE
+    // =========================================================
 
     return NextResponse.json({
       message: "Ticket reassigned successfully.",

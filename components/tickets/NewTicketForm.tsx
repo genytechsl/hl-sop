@@ -446,10 +446,15 @@ export default function NewTicketForm() {
     return employees.filter((employee) => {
       const matchesCategory = allowedRoles.includes(employee.designation);
 
+      const matchesRole =
+        employee.role === "admin" || employee.role === "actionOwner";
+
       const matchesDepartment =
         !department || employee.department === department;
 
-      return employee.active && matchesCategory && matchesDepartment;
+      return (
+        employee.active && matchesCategory && matchesRole && matchesDepartment
+      );
     });
   }, [category, department, employees]);
 

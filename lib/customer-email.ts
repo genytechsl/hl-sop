@@ -312,12 +312,12 @@ export function customerTicketCreatedEmail({
                                     ">|</span>
 
                                     <span style="color: #173b73;">✉</span>
-                                    <a href="mailto:cmu@homelands.lk"
+                                    <a href="mailto:care@homelandsskyline.lk"
                                        style="
                                            color: #1f2937;
                                            text-decoration: none;
                                        ">
-                                        cmu@homelands.lk
+                                        care@homelandsskyline.lk
                                     </a>
 
                                     <span style="
@@ -327,12 +327,12 @@ export function customerTicketCreatedEmail({
                                     ">|</span>
 
                                     <span style="color: #173b73;">🌐</span>
-                                    <a href="https://www.homelands.lk"
+                                    <a href="https://www.homelandsskyline.lk/"
                                        style="
                                            color: #1f2937;
                                            text-decoration: none;
                                        ">
-                                        www.homelands.lk
+                                        www.homelandsskyline.lk
                                     </a>
                                 </td>
                             </tr>
@@ -346,4 +346,229 @@ export function customerTicketCreatedEmail({
     </tr>
 </table>
   `;
+}
+
+export function customerTicketResolvedEmail({
+  customerName,
+  ticketNumber,
+}: {
+  customerName: string;
+  ticketNumber: string;
+}) {
+  return `
+<table role="presentation"
+       width="100%"
+       cellspacing="0"
+       cellpadding="0"
+       border="0"
+       style="background-color:#f4f6f8;">
+<tr>
+<td align="center">
+
+<table role="presentation"
+       width="800"
+       cellspacing="0"
+       cellpadding="0"
+       border="0"
+       style="
+          width:100%;
+          max-width:800px;
+          background-color:#ffffff;
+          border:1px solid #d8e2f0;
+          border-radius:10px;
+          overflow:hidden;
+       ">
+
+<tr>
+<td style="padding:14px 20px 12px 20px;">
+
+<table width="100%">
+<tr>
+<td style="
+font-size:15px;
+line-height:1.45;
+color:#111827;
+">
+
+<strong>Dear ${customerName},</strong>
+
+<div style="height:6px;"></div>
+
+We are pleased to inform you that your reported concern has been successfully resolved and the ticket has been closed.
+
+</td>
+</tr>
+</table>
+
+<table width="100%"
+       cellspacing="0"
+       cellpadding="0"
+       border="0"
+       style="
+          margin-top:12px;
+          max-width:510px;
+          background-color:#f8faff;
+          border:1px solid #cbdcf4;
+          border-radius:8px;
+       ">
+
+<tr>
+<td style="padding:10px 12px;">
+
+<table width="100%">
+
+<tr>
+<td width="35"
+style="
+padding:5px 4px 5px 0;
+font-size:20px;
+">
+🎫
+</td>
+
+<td width="120"
+style="
+padding:5px 8px;
+font-size:14px;
+font-weight:bold;
+white-space:nowrap;
+">
+Ticket Number
+</td>
+
+<td style="
+font-size:14px;
+font-weight:bold;
+color:#173b73;
+">
+${ticketNumber}
+</td>
+
+</tr>
+
+<tr>
+<td width="35"
+style="
+padding:5px 4px 5px 0;
+font-size:20px;
+">
+✅
+</td>
+
+<td width="120"
+style="
+padding:5px 8px;
+font-size:14px;
+font-weight:bold;
+white-space:nowrap;
+">
+Status
+</td>
+
+<td style="
+font-size:14px;
+font-weight:bold;
+color:#15803d;
+">
+RESOLVED & CLOSED
+</td>
+
+</tr>
+
+</table>
+
+</td>
+</tr>
+
+</table>
+
+<table width="100%" style="margin-top:10px;">
+<tr>
+<td style="
+font-size:15px;
+line-height:1.45;
+color:#111827;
+">
+
+Thank you for your patience and cooperation throughout this process.
+
+<br><br>
+
+Should you require any further assistance, please feel free to contact our Customer Management Unit.
+
+</td>
+</tr>
+</table>
+
+<table width="100%" style="margin-top:10px;">
+<tr>
+<td style="
+height:1px;
+background-color:#d4dde9;
+font-size:0;
+">
+&nbsp;
+</td>
+</tr>
+</table>
+
+<table width="100%" style="margin-top:9px;">
+<tr>
+<td style="
+font-size:14px;
+line-height:1.4;
+color:#111827;
+">
+
+Regards,<br>
+Customer Management Unit (CMU)<br>
+Home Lands Group
+
+</td>
+</tr>
+</table>
+
+<table width="100%" style="margin-top:8px;">
+<tr>
+<td style="
+font-size:13px;
+line-height:1.5;
+color:#1f2937;
+">
+
+<span style="color:#173b73;">☎</span>
+<a href="tel:+94112786786"
+style="color:#1f2937;text-decoration:none;">
++94 11 2 786 786
+</a>
+
+<span style="margin:0 9px;color:#c4cbd5;">|</span>
+
+<span style="color:#173b73;">✉</span>
+<a href="mailto:care@homelandsskyline.lk"
+style="color:#1f2937;text-decoration:none;">
+care@homelandsskyline.lk
+</a>
+
+<span style="margin:0 9px;color:#c4cbd5;">|</span>
+
+<span style="color:#173b73;">🌐</span>
+<a href="https://www.homelandsskyline.lk/"
+style="color:#1f2937;text-decoration:none;">
+www.homelandsskyline.lk
+</a>
+
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+`;
 }

@@ -50,7 +50,9 @@ export type CustomerCountAggregateOutputType = {
   id: number
   name: number
   email: number
+  otherEmails: number
   mobile: number
+  otherMobiles: number
   nic: number
   active: number
   createdAt: number
@@ -85,7 +87,9 @@ export type CustomerCountAggregateInputType = {
   id?: true
   name?: true
   email?: true
+  otherEmails?: true
   mobile?: true
+  otherMobiles?: true
   nic?: true
   active?: true
   createdAt?: true
@@ -169,7 +173,9 @@ export type CustomerGroupByOutputType = {
   id: string
   name: string
   email: string
+  otherEmails: string[]
   mobile: string
+  otherMobiles: string[]
   nic: string
   active: boolean
   createdAt: Date
@@ -201,7 +207,9 @@ export type CustomerWhereInput = {
   id?: Prisma.StringFilter<"Customer"> | string
   name?: Prisma.StringFilter<"Customer"> | string
   email?: Prisma.StringFilter<"Customer"> | string
+  otherEmails?: Prisma.StringNullableListFilter<"Customer">
   mobile?: Prisma.StringFilter<"Customer"> | string
+  otherMobiles?: Prisma.StringNullableListFilter<"Customer">
   nic?: Prisma.StringFilter<"Customer"> | string
   active?: Prisma.BoolFilter<"Customer"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
@@ -214,7 +222,9 @@ export type CustomerOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   email?: Prisma.SortOrder
+  otherEmails?: Prisma.SortOrder
   mobile?: Prisma.SortOrder
+  otherMobiles?: Prisma.SortOrder
   nic?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -230,7 +240,9 @@ export type CustomerWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.CustomerWhereInput | Prisma.CustomerWhereInput[]
   name?: Prisma.StringFilter<"Customer"> | string
   email?: Prisma.StringFilter<"Customer"> | string
+  otherEmails?: Prisma.StringNullableListFilter<"Customer">
   mobile?: Prisma.StringFilter<"Customer"> | string
+  otherMobiles?: Prisma.StringNullableListFilter<"Customer">
   nic?: Prisma.StringFilter<"Customer"> | string
   active?: Prisma.BoolFilter<"Customer"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
@@ -243,7 +255,9 @@ export type CustomerOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   email?: Prisma.SortOrder
+  otherEmails?: Prisma.SortOrder
   mobile?: Prisma.SortOrder
+  otherMobiles?: Prisma.SortOrder
   nic?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -260,7 +274,9 @@ export type CustomerScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Customer"> | string
   name?: Prisma.StringWithAggregatesFilter<"Customer"> | string
   email?: Prisma.StringWithAggregatesFilter<"Customer"> | string
+  otherEmails?: Prisma.StringNullableListFilter<"Customer">
   mobile?: Prisma.StringWithAggregatesFilter<"Customer"> | string
+  otherMobiles?: Prisma.StringNullableListFilter<"Customer">
   nic?: Prisma.StringWithAggregatesFilter<"Customer"> | string
   active?: Prisma.BoolWithAggregatesFilter<"Customer"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Customer"> | Date | string
@@ -271,7 +287,9 @@ export type CustomerCreateInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -284,7 +302,9 @@ export type CustomerUncheckedCreateInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -297,7 +317,9 @@ export type CustomerUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -310,7 +332,9 @@ export type CustomerUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -323,7 +347,9 @@ export type CustomerCreateManyInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -334,7 +360,9 @@ export type CustomerUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -345,18 +373,30 @@ export type CustomerUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+export type StringNullableListFilter<$PrismaModel = never> = {
+  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
+  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
+  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  isEmpty?: boolean
+}
+
 export type CustomerCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   email?: Prisma.SortOrder
+  otherEmails?: Prisma.SortOrder
   mobile?: Prisma.SortOrder
+  otherMobiles?: Prisma.SortOrder
   nic?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -388,6 +428,24 @@ export type CustomerMinOrderByAggregateInput = {
 export type CustomerScalarRelationFilter = {
   is?: Prisma.CustomerWhereInput
   isNot?: Prisma.CustomerWhereInput
+}
+
+export type CustomerCreateotherEmailsInput = {
+  set: string[]
+}
+
+export type CustomerCreateotherMobilesInput = {
+  set: string[]
+}
+
+export type CustomerUpdateotherEmailsInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
+export type CustomerUpdateotherMobilesInput = {
+  set?: string[]
+  push?: string | string[]
 }
 
 export type CustomerCreateNestedOneWithoutPropertiesInput = {
@@ -422,7 +480,9 @@ export type CustomerCreateWithoutPropertiesInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -434,7 +494,9 @@ export type CustomerUncheckedCreateWithoutPropertiesInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -462,7 +524,9 @@ export type CustomerUpdateWithoutPropertiesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -474,7 +538,9 @@ export type CustomerUncheckedUpdateWithoutPropertiesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -486,7 +552,9 @@ export type CustomerCreateWithoutTicketsInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -498,7 +566,9 @@ export type CustomerUncheckedCreateWithoutTicketsInput = {
   id: string
   name: string
   email: string
+  otherEmails?: Prisma.CustomerCreateotherEmailsInput | string[]
   mobile: string
+  otherMobiles?: Prisma.CustomerCreateotherMobilesInput | string[]
   nic: string
   active?: boolean
   createdAt?: Date | string
@@ -526,7 +596,9 @@ export type CustomerUpdateWithoutTicketsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -538,7 +610,9 @@ export type CustomerUncheckedUpdateWithoutTicketsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
+  otherEmails?: Prisma.CustomerUpdateotherEmailsInput | string[]
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  otherMobiles?: Prisma.CustomerUpdateotherMobilesInput | string[]
   nic?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -590,7 +664,9 @@ export type CustomerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   id?: boolean
   name?: boolean
   email?: boolean
+  otherEmails?: boolean
   mobile?: boolean
+  otherMobiles?: boolean
   nic?: boolean
   active?: boolean
   createdAt?: boolean
@@ -604,7 +680,9 @@ export type CustomerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   id?: boolean
   name?: boolean
   email?: boolean
+  otherEmails?: boolean
   mobile?: boolean
+  otherMobiles?: boolean
   nic?: boolean
   active?: boolean
   createdAt?: boolean
@@ -615,7 +693,9 @@ export type CustomerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   id?: boolean
   name?: boolean
   email?: boolean
+  otherEmails?: boolean
   mobile?: boolean
+  otherMobiles?: boolean
   nic?: boolean
   active?: boolean
   createdAt?: boolean
@@ -626,14 +706,16 @@ export type CustomerSelectScalar = {
   id?: boolean
   name?: boolean
   email?: boolean
+  otherEmails?: boolean
   mobile?: boolean
+  otherMobiles?: boolean
   nic?: boolean
   active?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "mobile" | "nic" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["customer"]>
+export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "otherEmails" | "mobile" | "otherMobiles" | "nic" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["customer"]>
 export type CustomerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   properties?: boolean | Prisma.Customer$propertiesArgs<ExtArgs>
   tickets?: boolean | Prisma.Customer$ticketsArgs<ExtArgs>
@@ -652,7 +734,9 @@ export type $CustomerPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     id: string
     name: string
     email: string
+    otherEmails: string[]
     mobile: string
+    otherMobiles: string[]
     nic: string
     active: boolean
     createdAt: Date
@@ -1085,7 +1169,9 @@ export interface CustomerFieldRefs {
   readonly id: Prisma.FieldRef<"Customer", 'String'>
   readonly name: Prisma.FieldRef<"Customer", 'String'>
   readonly email: Prisma.FieldRef<"Customer", 'String'>
+  readonly otherEmails: Prisma.FieldRef<"Customer", 'String[]'>
   readonly mobile: Prisma.FieldRef<"Customer", 'String'>
+  readonly otherMobiles: Prisma.FieldRef<"Customer", 'String[]'>
   readonly nic: Prisma.FieldRef<"Customer", 'String'>
   readonly active: Prisma.FieldRef<"Customer", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Customer", 'DateTime'>

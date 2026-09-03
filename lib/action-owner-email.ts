@@ -8,7 +8,7 @@ type ActionOwnerTicketEmailProps = {
   complaintSource: string;
   description: string;
   property: string;
-  sla: string;
+  slaTarget: string;
 };
 
 export function actionOwnerTicketCreatedEmail({
@@ -21,14 +21,14 @@ export function actionOwnerTicketCreatedEmail({
   description,
   complaintSource,
   scope,
-  sla,
+  slaTarget,
 }: ActionOwnerTicketEmailProps) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New CMU Ticket Assignment</title>
+    <title>New CIM Ticket Assignment</title>
 </head>
 
 <body style="
@@ -158,15 +158,7 @@ export function actionOwnerTicketCreatedEmail({
                                             </td>
                                         </tr>
 
-                                        <tr>
-                                            <td style="padding: 2px 0; font-size: 13px; font-weight: bold;">
-                                                Priority
-                                            </td>
-                                            <td style="padding: 2px 8px; font-size: 13px;">:</td>
-                                            <td style="padding: 2px 0; font-size: 13px;">
-                                                High
-                                            </td>
-                                        </tr>
+                                        
 
                                     </table>
                                 </td>
@@ -215,35 +207,19 @@ export function actionOwnerTicketCreatedEmail({
                                             </td>
                                         </tr>
 
-                                        <tr>
-                                            <td style="padding: 2px 0; font-size: 13px; font-weight: bold;">
-                                                Floor / Area
-                                            </td>
-                                            <td style="padding: 2px 8px; font-size: 13px;">:</td>
-                                            <td style="padding: 2px 0; font-size: 13px;">
-                                                Basement Parking - C2
-                                            </td>
-                                        </tr>
+                                        
 
                                         <tr>
                                             <td style="padding: 2px 0; font-size: 13px; font-weight: bold;">
-                                                SLA (Auto)
+                                                SLA Target
                                             </td>
                                             <td style="padding: 2px 8px; font-size: 13px;">:</td>
                                             <td style="padding: 2px 0; font-size: 13px;">
-                                                ${sla}
+                                                ${slaTarget}
                                             </td>
                                         </tr>
 
-                                        <tr>
-                                            <td style="padding: 2px 0; font-size: 13px; font-weight: bold;">
-                                                SLA Due Date
-                                            </td>
-                                            <td style="padding: 2px 8px; font-size: 13px;">:</td>
-                                            <td style="padding: 2px 0; font-size: 13px;">
-                                                28 May 2025 10:30 AM
-                                            </td>
-                                        </tr>
+                                        
 
                                     </table>
                                 </td>
@@ -308,7 +284,7 @@ export function actionOwnerTicketCreatedEmail({
                                     line-height: 1.4;
                                     color: #111827;
                                 ">
-                                    Please log in to the <a href="http://localhost:3000/" target="_blank"> USCP </a> to update the status and take necessary action.
+                                    Please log in to the <a href="https://cip.homelandsskyline.lk/" target="_blank"> CIP App </a> to update the status and take necessary action.
                                 </td>
                             </tr>
                         </table>

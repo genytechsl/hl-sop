@@ -287,15 +287,10 @@ export default function TicketHeader({ ticket, user }: Props) {
   });
 
   const [status, setStatus] = useState(ticket.status);
-
   const [remark, setRemark] = useState("");
-
   const [saving, setSaving] = useState(false);
-
   const [employees, setEmployees] = useState<User[]>([]);
-
   const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
-
   const [reassigning, setReassigning] = useState(false);
 
   /*
@@ -305,9 +300,7 @@ export default function TicketHeader({ ticket, user }: Props) {
    */
 
   const slaDueDate = getSlaDueDate(ticket.createdAt, ticket.slaTarget);
-
   const slaBreached = isTicketSlaBreached(ticket);
-
   const slaPercent = getSlaPercent(ticket.createdAt, ticket.slaTarget);
 
   /*
@@ -339,13 +332,10 @@ export default function TicketHeader({ ticket, user }: Props) {
     switch (category) {
       case "CAT-A":
         return "bg-red-100 text-red-700 border-red-200";
-
       case "CAT-B":
         return "bg-blue-100 text-blue-700 border-blue-200";
-
       case "CAT-C":
         return "bg-slate-100 text-slate-700 border-slate-200";
-
       default:
         return "bg-green-100 text-green-700 border-green-200";
     }
@@ -380,7 +370,6 @@ export default function TicketHeader({ ticket, user }: Props) {
   };
 
   const statusConfig = getStatusConfig(ticket.status);
-
   const StatusIcon = statusConfig.icon;
 
   /*
@@ -540,6 +529,8 @@ export default function TicketHeader({ ticket, user }: Props) {
             ticketId: ticket.id,
             status,
             remark,
+            customerEmail: ticket.customerEmail,
+            customerName: ticket.customerName,
           }),
         },
       );

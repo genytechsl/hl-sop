@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth/session";
+
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -8,11 +11,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const ALLOWED_TYPES = new Set([
   "application/pdf",
-
   "image/jpeg",
   "image/png",
   "image/webp",
-
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-outlook",
@@ -24,25 +25,69 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // =========================================================
+    // AUTHENTICATION
+    // =========================================================
+
+    const sessionUser = await getSession();
+
+    if (!sessionUser) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: ticketId } = await params;
 
-    // Verify ticket exists
+    // =========================================================
+    // GET TICKET + AUTHORIZATION
+    // =========================================================
+
     const ticket = await prisma.ticket.findUnique({
       where: {
         id: ticketId,
+      },
+      select: {
+        id: true,
+        assignedToId: true,
       },
     });
 
     if (!ticket) {
       return NextResponse.json(
-        {
-          message: "Ticket not found.",
-        },
-        {
-          status: 404,
-        },
+        { message: "Ticket not found." },
+        { status: 404 },
       );
     }
+
+    /*
+     * Action owners may only upload attachments
+     * to tickets assigned to themselves.
+     */
+
+    if (
+      sessionUser.role === "actionOwner" &&
+      ticket.assignedToId !== sessionUser.id
+    ) {
+      return NextResponse.json(
+        { message: "Ticket not found." },
+        { status: 404 },
+      );
+    }
+
+    /*
+     * Only known authorized roles may upload.
+     */
+
+    if (
+      sessionUser.role !== "admin" &&
+      sessionUser.role !== "dataEntry" &&
+      sessionUser.role !== "actionOwner"
+    ) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    // =========================================================
+    // FORM DATA
+    // =========================================================
 
     const formData = await request.formData();
 
@@ -52,14 +97,14 @@ export async function POST(
 
     if (files.length === 0) {
       return NextResponse.json(
-        {
-          message: "No files were provided.",
-        },
-        {
-          status: 400,
-        },
+        { message: "No files were provided." },
+        { status: 400 },
       );
     }
+
+    // =========================================================
+    // UPLOAD DIRECTORY
+    // =========================================================
 
     const uploadDirectory = path.join(
       process.cwd(),
@@ -73,6 +118,10 @@ export async function POST(
     });
 
     const attachments = [];
+
+    // =========================================================
+    // PROCESS FILES
+    // =========================================================
 
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
@@ -149,24 +198,65 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // =========================================================
+    // AUTHENTICATION
+    // =========================================================
+
+    const sessionUser = await getSession();
+
+    if (!sessionUser) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: ticketId } = await params;
+
+    // =========================================================
+    // GET TICKET + AUTHORIZATION
+    // =========================================================
 
     const ticket = await prisma.ticket.findUnique({
       where: {
         id: ticketId,
       },
+      select: {
+        id: true,
+        assignedToId: true,
+      },
     });
 
     if (!ticket) {
       return NextResponse.json(
-        {
-          message: "Ticket not found.",
-        },
-        {
-          status: 404,
-        },
+        { message: "Ticket not found." },
+        { status: 404 },
       );
     }
+
+    /*
+     * Action owners may only view attachments
+     * belonging to tickets assigned to themselves.
+     */
+
+    if (
+      sessionUser.role === "actionOwner" &&
+      ticket.assignedToId !== sessionUser.id
+    ) {
+      return NextResponse.json(
+        { message: "Ticket not found." },
+        { status: 404 },
+      );
+    }
+
+    if (
+      sessionUser.role !== "admin" &&
+      sessionUser.role !== "dataEntry" &&
+      sessionUser.role !== "actionOwner"
+    ) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    // =========================================================
+    // GET ATTACHMENTS
+    // =========================================================
 
     const attachments = await prisma.ticketAttachment.findMany({
       where: {

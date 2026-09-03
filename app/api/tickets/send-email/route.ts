@@ -1,10 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+
 import { customerTicketCreatedEmail } from "@/lib/customer-email";
 import { actionOwnerTicketCreatedEmail } from "@/lib/action-owner-email";
+import { getSession } from "@/lib/auth/session";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    // =========================================================
+    // AUTHENTICATION
+    // =========================================================
+
+    const sessionUser = await getSession();
+
+    if (!sessionUser) {
+      return NextResponse.json(
+        {
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    // =========================================================
+    // AUTHORIZATION
+    // =========================================================
+
+    /*
+     * Ticket creation emails should only be triggered by users
+     * who are authorized to create/manage tickets.
+     */
+
+    if (sessionUser.role !== "admin" && sessionUser.role !== "dataEntry") {
+      return NextResponse.json(
+        {
+          message: "Forbidden",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =========================================================
+    // REQUEST BODY
+    // =========================================================
+
+    const body = await request.json();
+
     const {
       customerEmail,
       customerName,
@@ -17,85 +62,144 @@ export async function POST(req: NextRequest) {
       cctoList,
       actionOwnerName,
       scope,
-      sla,
+      slaTarget,
       property,
-    } = await req.json();
+    } = body;
 
-    // const transporter = nodemailer.createTransport({
-    //   host: process.env.SMTP_HOST,
-    //   port: Number(process.env.SMTP_PORT),
-    //   secure: false,
-    //   auth: {
-    //     user: process.env.SMTP_USER,
-    //     pass: process.env.SMTP_PASSWORD,
-    //   },
-    // });
+    // =========================================================
+    // VALIDATION
+    // =========================================================
+
+    if (!ticketNumber || !title || !category || !scope) {
+      return NextResponse.json(
+        {
+          message: "Required ticket information is missing.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (!customerEmail && !actionOwnerEmail) {
+      return NextResponse.json(
+        {
+          message: "No email recipients were provided.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =========================================================
+    // SMTP CONFIGURATION
+    // =========================================================
+
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD;
+    const smtpFrom = process.env.SMTP_FROM;
+
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFrom) {
+      console.error("SMTP configuration is incomplete.");
+
+      return NextResponse.json(
+        {
+          message: "Email service is not configured correctly.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
 
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
+      host: smtpHost,
+      port: Number(smtpPort),
       secure: false,
       requireTLS: true,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
+        user: smtpUser,
+        pass: smtpPassword,
       },
     });
 
+    // =========================================================
+    // VERIFY SMTP CONNECTION
+    // =========================================================
+
     await transporter.verify();
 
-    console.log("From api/tickets/send-mail, SMTP connection successful");
+    const subject = `[Open]_${ticketNumber}_${category}_${scope}`;
 
-    // Customer email
+    // =========================================================
+    // CUSTOMER EMAIL
+    // =========================================================
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: [customerEmail].filter(Boolean), //Protect against undefined values:
+    if (customerEmail) {
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: customerEmail,
+        subject,
+        html: customerTicketCreatedEmail({
+          customerName,
+          ticketNumber,
+          title,
+          category,
+          actionOwnerName,
+        }),
+      });
+    }
 
-      subject: `[Open]_${ticketNumber}_${category}_${scope}`,
-      html: customerTicketCreatedEmail({
-        customerName,
-        ticketNumber,
-        title,
-        category,
-        actionOwnerName,
-      }),
-    });
+    // =========================================================
+    // ACTION OWNER + CC EMAIL
+    // =========================================================
 
-    // Action Owner & CC list email
+    if (actionOwnerEmail) {
+      const ccRecipients = Array.isArray(cctoList)
+        ? cctoList.filter(
+            (email): email is string =>
+              typeof email === "string" && email.trim().length > 0,
+          )
+        : [];
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: [actionOwnerEmail].filter(Boolean), //Protect against undefined values:
-      cc: (cctoList || []).filter(Boolean),
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: actionOwnerEmail,
+        cc: ccRecipients,
+        subject,
+        html: actionOwnerTicketCreatedEmail({
+          customerName,
+          ticketNumber,
+          category,
+          title,
+          actionOwnerName,
+          property,
+          description,
+          complaintSource,
+          scope,
+          slaTarget,
+        }),
+      });
+    }
 
-      // to: [customerEmail],
-      // cc: [...cctoList, actionOwnerEmail],
-
-      subject: `[Open]_${ticketNumber}_${category}_${scope}`,
-      html: actionOwnerTicketCreatedEmail({
-        customerName,
-        ticketNumber,
-        category,
-        title,
-        actionOwnerName,
-        property,
-        description,
-        complaintSource,
-        scope,
-        sla,
-      }),
-    });
+    // =========================================================
+    // RESPONSE
+    // =========================================================
 
     return NextResponse.json({
       success: true,
+      message: "Ticket emails sent successfully.",
     });
   } catch (error) {
-    console.error(error);
+    console.error("Ticket email error:", error);
 
     return NextResponse.json(
       {
         success: false,
+        message: "Failed to send ticket emails.",
       },
       {
         status: 500,

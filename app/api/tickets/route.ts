@@ -400,10 +400,10 @@ export async function POST(request: NextRequest) {
        * an action owner.
        */
 
-      if (employee.role !== "actionOwner") {
+      if (employee.role !== "actionOwner" && employee.role !== "admin") {
         return NextResponse.json(
           {
-            message: "Selected employee is not a case owner",
+            message: employee.role + " Selected employee is not a case owner",
           },
           {
             status: 400,

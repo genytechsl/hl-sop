@@ -23,7 +23,7 @@ interface User {
   username: string;
 }
 
-const roles = ["admin", "manager", "actionOwner", "viewer"];
+const roles = ["admin", "manager", "actionOwner", "dataEntry"];
 
 export default function UserManagementTable() {
   const ITEMS_PER_PAGE = 10;
@@ -350,7 +350,7 @@ export default function UserManagementTable() {
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
 
-                  <span>Show inactive customers</span>
+                  <span>Show inactive users</span>
                 </label>
 
                 {/* {!showInactive && (

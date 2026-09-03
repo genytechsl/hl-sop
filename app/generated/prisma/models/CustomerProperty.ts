@@ -241,7 +241,6 @@ export type CustomerPropertyOrderByWithRelationInput = {
 
 export type CustomerPropertyWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  customerId_propertyName?: Prisma.CustomerPropertyCustomerIdPropertyNameCompoundUniqueInput
   AND?: Prisma.CustomerPropertyWhereInput | Prisma.CustomerPropertyWhereInput[]
   OR?: Prisma.CustomerPropertyWhereInput[]
   NOT?: Prisma.CustomerPropertyWhereInput | Prisma.CustomerPropertyWhereInput[]
@@ -252,7 +251,7 @@ export type CustomerPropertyWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"CustomerProperty"> | Date | string
   customer?: Prisma.XOR<Prisma.CustomerScalarRelationFilter, Prisma.CustomerWhereInput>
   tickets?: Prisma.TicketListRelationFilter
-}, "id" | "customerId_propertyName">
+}, "id">
 
 export type CustomerPropertyOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -351,11 +350,6 @@ export type CustomerPropertyListRelationFilter = {
 
 export type CustomerPropertyOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
-}
-
-export type CustomerPropertyCustomerIdPropertyNameCompoundUniqueInput = {
-  customerId: string
-  propertyName: string
 }
 
 export type CustomerPropertyCountOrderByAggregateInput = {

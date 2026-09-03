@@ -25,13 +25,13 @@ interface User {
   username: string;
 }
 
-const roles = ["admin", "manager", "actionOwner", "viewer"];
+const roles = ["admin", "manager", "actionOwner", "dataEntry"];
 
 const roleLabels: Record<string, string> = {
   admin: "Administrator",
   manager: "Manager",
   actionOwner: "Action Owner",
-  viewer: "Viewer",
+  dataEntry: "Agent/Data Entry",
 };
 
 export default function EditUserPage() {

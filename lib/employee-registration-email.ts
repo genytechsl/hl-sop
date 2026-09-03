@@ -57,7 +57,7 @@ export function userRegistrationEmail({
         color:#1e40af;
         font-size:22px;
     ">
-        Customer Inquiry Management Platform
+        Case Intelligence Platform
     </h2>
 
     <p style="

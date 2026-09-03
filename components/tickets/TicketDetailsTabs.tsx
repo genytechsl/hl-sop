@@ -295,15 +295,10 @@ export default function TicketDetailsTabs({ ticket }: Props) {
   });
 
   const sla = parseSla(ticket.slaTarget);
-
   const now = new Date();
-
   const elapsedTime = formatSlaTime(createdDate, now, sla.unit);
-
   const slaDifference = formatSlaTime(now, dueDate, sla.unit);
-
   const remainingTime = formatSlaTime(now, dueDate, sla.unit);
-
   const timeline = [...remarks]
     .sort(
       (a, b) =>
@@ -392,7 +387,7 @@ export default function TicketDetailsTabs({ ticket }: Props) {
 
                 <InfoField label="Mobile" value={ticket.customerMobile} />
 
-                <InfoField label="Email" value="customer@email.com" />
+                <InfoField label="Email" value={ticket.customerEmail} />
               </div>
             </section>
 
