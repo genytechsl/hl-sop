@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
+import { destroySession } from "@/lib/auth/session";
 
 export async function POST() {
-  const response = NextResponse.json({
+  await destroySession();
+
+  return NextResponse.json({
     success: true,
   });
-
-  response.cookies.set("user", "", {
-    path: "/",
-    maxAge: 0,
-  });
-
-  return response;
 }

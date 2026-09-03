@@ -482,9 +482,15 @@ export default function Sidebar({
             >
               {collapsed ? (
                 <div className="flex flex-col items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
+                  <Link
+                    href="/profile"
+                    title="My Profile"
+                    className="mb-3 flex items-center gap-3 rounded-xl p-1.5 -m-1.5 transition hover:bg-white"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  </Link>
 
                   <button
                     onClick={logout}
@@ -497,9 +503,15 @@ export default function Sidebar({
               ) : (
                 <>
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Link
+                      href="/profile"
+                      title="My Profile"
+                      className="mb-3 flex items-center gap-3 rounded-xl p-1.5 -m-1.5 transition hover:bg-white"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-sm font-bold text-white">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                    </Link>
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-900">
@@ -518,7 +530,7 @@ export default function Sidebar({
                     ) : user.role === "actionOwner" ? (
                       <span className="badge-info">Case Owner</span>
                     ) : (
-                      <span className="badge-warning">Coordinator</span>
+                      <span className="badge-warning">Action Owner</span>
                     )}
 
                     <button

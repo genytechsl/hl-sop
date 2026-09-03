@@ -1,11 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    /*
+     * =====================================================
+     * AUTHENTICATION
+     * =====================================================
+     */
+
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    /*
+     * =====================================================
+     * RBAC
+     * =====================================================
+     *
+     * Only administrators can view user details.
+     *
+     */
+
+    if (session.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    /*
+     * =====================================================
+     * GET USER
+     * =====================================================
+     */
+
     const { id } = await params;
 
     const user = await prisma.employee.findUnique({
@@ -30,7 +63,7 @@ export async function GET(
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error(error);
+    console.error("GET /api/users/[id] error:", error);
 
     return NextResponse.json(
       { error: "Failed to retrieve user" },
@@ -44,12 +77,55 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    /*
+     * =====================================================
+     * AUTHENTICATION
+     * =====================================================
+     */
+
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    /*
+     * =====================================================
+     * RBAC
+     * =====================================================
+     *
+     * Only administrators can update users.
+     *
+     */
+
+    if (session.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    /*
+     * =====================================================
+     * GET USER ID
+     * =====================================================
+     */
+
     const { id } = await params;
+
+    /*
+     * =====================================================
+     * REQUEST BODY
+     * =====================================================
+     */
 
     const body = await request.json();
 
     const { name, designation, department, email, username, role, active } =
       body;
+
+    /*
+     * =====================================================
+     * VALIDATION
+     * =====================================================
+     */
 
     if (!name || !designation || !department || !email || !username || !role) {
       return NextResponse.json(
@@ -58,16 +134,32 @@ export async function PUT(
       );
     }
 
+    /*
+     * =====================================================
+     * FIND EXISTING USER
+     * =====================================================
+     */
+
     const existingUser = await prisma.employee.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    /*
+     * =====================================================
+     * UPDATE USER
+     * =====================================================
+     */
+
     const updatedUser = await prisma.employee.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: {
         name,
         designation,
@@ -91,7 +183,7 @@ export async function PUT(
 
     return NextResponse.json(updatedUser);
   } catch (error) {
-    console.error(error);
+    console.error("PUT /api/users/[id] error:", error);
 
     return NextResponse.json(
       { error: "Failed to update user" },

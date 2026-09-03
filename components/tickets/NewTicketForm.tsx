@@ -28,6 +28,14 @@ interface TicketCategory {
   priority: string;
 }
 
+interface Department {
+  id: number;
+  name: string;
+  head: string;
+  email: string;
+  description?: string | null;
+}
+
 interface TicketTypeScope {
   id: number;
   ticketType: string;
@@ -152,6 +160,9 @@ export default function NewTicketForm() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setisSaving] = useState<boolean>(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [department, setDepartment] = useState("");
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const [scopes, setScopes] = useState<TicketTypeScope[]>([]);
   const [loadingScopes, setLoadingScopes] = useState(false);
@@ -160,6 +171,39 @@ export default function NewTicketForm() {
 
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [category, setCategory] = useState("categoryOptions[0].code");
+
+  useEffect(() => {
+    async function loadDepartments() {
+      try {
+        setLoadingDepartments(true);
+
+        const response = await fetch("/api/settings/departments");
+
+        if (!response.ok) {
+          throw new Error("Failed to load departments");
+        }
+
+        const data = await response.json();
+
+        setDepartments(data);
+      } catch (error) {
+        console.error("Failed to load departments:", error);
+
+        setDepartments([]);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load departments.",
+        });
+      } finally {
+        setLoadingDepartments(false);
+      }
+    }
+
+    loadDepartments();
+  }, []);
 
   useEffect(() => {
     async function loadScopes() {
@@ -399,11 +443,15 @@ export default function NewTicketForm() {
   const availableEmployees = useMemo(() => {
     const allowedRoles = categoryRoleMap[category] || [];
 
-    return employees.filter(
-      (employee) =>
-        employee.active && allowedRoles.includes(employee.designation),
-    );
-  }, [category, employees]);
+    return employees.filter((employee) => {
+      const matchesCategory = allowedRoles.includes(employee.designation);
+
+      const matchesDepartment =
+        !department || employee.department === department;
+
+      return employee.active && matchesCategory && matchesDepartment;
+    });
+  }, [category, department, employees]);
 
   const emailSuggestions = useMemo(() => {
     return employees.filter((employee) => employee.active);
@@ -854,6 +902,30 @@ export default function NewTicketForm() {
               {/* Row 2 */}
 
               <div className="grid md:grid-cols-4 gap-4">
+                <div className="md:col-span-1">
+                  <SelectField
+                    label="Department"
+                    value={department}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                      setDepartment(e.target.value);
+
+                      // Clear selected action owner when department changes
+                      setActionOwnerId("");
+                    }}
+                  >
+                    <option value="">
+                      {loadingDepartments
+                        ? "Loading departments..."
+                        : "Select Department"}
+                    </option>
+
+                    {departments.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
                 {/* Action Owner */}
                 <div className="md:col-span-1">
                   <div className="col-span-2">

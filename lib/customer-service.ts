@@ -6,7 +6,9 @@ function mapCustomer(customer: any): Customer {
     id: customer.id,
     name: customer.name,
     email: customer.email,
+    otherEmails: customer.otherEmails ?? [],
     mobile: customer.mobile,
+    otherMobiles: customer.otherMobiles ?? [],
     NIC: customer.nic,
     active: customer.active,
     createdDate: customer.createdAt.toISOString().split("T")[0],
@@ -28,7 +30,6 @@ export async function getCustomers(): Promise<Customer[]> {
       createdAt: "desc",
     },
   });
-
   return customers.map(mapCustomer);
 }
 
@@ -43,21 +44,17 @@ export async function getCustomerById(
       properties: true,
     },
   });
-
   if (!customer) {
     return undefined;
   }
-
   return mapCustomer(customer);
 }
 
 export async function searchCustomers(keyword: string): Promise<Customer[]> {
   const search = keyword.trim();
-
   if (!search) {
     return getCustomers();
   }
-
   const customers = await prisma.customer.findMany({
     where: {
       OR: [
@@ -84,6 +81,16 @@ export async function searchCustomers(keyword: string): Promise<Customer[]> {
             contains: search,
           },
         },
+        {
+          otherEmails: {
+            has: search,
+          },
+        },
+        {
+          otherMobiles: {
+            has: search,
+          },
+        },
       ],
     },
     include: {
@@ -93,7 +100,6 @@ export async function searchCustomers(keyword: string): Promise<Customer[]> {
       createdAt: "desc",
     },
   });
-
   return customers.map(mapCustomer);
 }
 
@@ -103,27 +109,25 @@ export async function createCustomer(customer: Customer): Promise<Customer> {
       id: customer.id,
     },
   });
-
   if (existingCustomer) {
     throw new Error("Customer already exists");
   }
-
   const existingNic = await prisma.customer.findFirst({
     where: {
       nic: customer.NIC,
     },
   });
-
   if (existingNic) {
     throw new Error("Existing account found under this NIC");
   }
-
   const createdCustomer = await prisma.customer.create({
     data: {
       id: customer.id,
       name: customer.name,
       email: customer.email,
+      otherEmails: customer.otherEmails ?? [],
       mobile: customer.mobile,
+      otherMobiles: customer.otherMobiles ?? [],
       nic: customer.NIC,
       active: customer.active,
       properties: {
@@ -137,7 +141,6 @@ export async function createCustomer(customer: Customer): Promise<Customer> {
       properties: true,
     },
   });
-
   return mapCustomer(createdCustomer);
 }
 
@@ -150,13 +153,10 @@ export async function generateCustomerId(): Promise<string> {
       id: true,
     },
   });
-
   if (!lastCustomer) {
     return "CUS-000001";
   }
-
   const lastNumber = Number(lastCustomer.id.replace("CUS-", ""));
-
   return `CUS-${String(lastNumber + 1).padStart(6, "0")}`;
 }
 
@@ -168,11 +168,9 @@ export async function updateCustomer(
       id: updatedCustomer.id,
     },
   });
-
   if (!existingCustomer) {
     throw new Error("Customer not found");
   }
-
   const duplicateNic = await prisma.customer.findFirst({
     where: {
       nic: updatedCustomer.NIC,
@@ -181,18 +179,15 @@ export async function updateCustomer(
       },
     },
   });
-
   if (duplicateNic) {
     throw new Error("Existing account found under this NIC");
   }
-
   const updated = await prisma.$transaction(async (tx) => {
     await tx.customerProperty.deleteMany({
       where: {
         customerId: updatedCustomer.id,
       },
     });
-
     return tx.customer.update({
       where: {
         id: updatedCustomer.id,
@@ -200,7 +195,9 @@ export async function updateCustomer(
       data: {
         name: updatedCustomer.name,
         email: updatedCustomer.email,
+        otherEmails: updatedCustomer.otherEmails ?? [],
         mobile: updatedCustomer.mobile,
+        otherMobiles: updatedCustomer.otherMobiles ?? [],
         nic: updatedCustomer.NIC,
         active: updatedCustomer.active,
         properties: {
@@ -215,6 +212,5 @@ export async function updateCustomer(
       },
     });
   });
-
   return mapCustomer(updated);
 }

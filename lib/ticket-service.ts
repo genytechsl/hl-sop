@@ -143,6 +143,33 @@ export async function getTicketById(id: string): Promise<Ticket | undefined> {
   return formatTicket(ticket);
 }
 
+export async function getTicketByIdForUser(
+  ticketId: string,
+  userId: string,
+  role: "admin" | "actionOwner" | "dataEntry",
+): Promise<Ticket | undefined> {
+  const ticket = await prisma.ticket.findFirst({
+    where: {
+      id: ticketId,
+
+      // Action owners can ONLY access their own tickets.
+      ...(role === "actionOwner"
+        ? {
+            assignedToId: userId,
+          }
+        : {}),
+    },
+
+    include: ticketInclude,
+  });
+
+  if (!ticket) {
+    return undefined;
+  }
+
+  return formatTicket(ticket);
+}
+
 export async function getTicketsByAssignedTo(
   assignedTo: string,
 ): Promise<Ticket[]> {

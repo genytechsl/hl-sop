@@ -242,17 +242,47 @@ export async function deleteEmployee(id: string): Promise<boolean> {
  * Compares the supplied password against
  * the stored bcrypt password hash.
  */
+// export async function validateEmployeeLogin(
+//   username: string,
+//   password: string,
+// ): Promise<Employee | null> {
+//   const employee = await getEmployeeByUsername(username);
+
+//   if (!employee) {
+//     return null;
+//   }
+
+//   if (!employee.active) {
+//     return null;
+//   }
+
+//   const passwordValid = await bcrypt.compare(password, employee.passwordHash);
+
+//   if (!passwordValid) {
+//     return null;
+//   }
+
+//   return employee;
+// }
 export async function validateEmployeeLogin(
-  username: string,
+  identifier: string,
   password: string,
-): Promise<Employee | null> {
-  const employee = await getEmployeeByUsername(username);
+) {
+  const employee = await prisma.employee.findFirst({
+    where: {
+      OR: [
+        {
+          username: identifier,
+        },
+        {
+          email: identifier,
+        },
+      ],
+      active: true,
+    },
+  });
 
   if (!employee) {
-    return null;
-  }
-
-  if (!employee.active) {
     return null;
   }
 

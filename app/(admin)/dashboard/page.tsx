@@ -7,7 +7,6 @@ import DashboardCharts from "@/components/dashboard/DashboardCharts";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
 import SlaBreachRateCard from "@/components/reports/TargetComplianceChart";
-import ScopeDistributionChart from "@/components/reports/MonthlyScopeVolumeChart";
 
 export default function DashboardPage() {
   const cardRef = useRef<HTMLDivElement>(null);

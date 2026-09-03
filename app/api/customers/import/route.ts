@@ -26,10 +26,67 @@ function getCellValue(row: Record<string, unknown>, header: string): string {
   return String(value).trim();
 }
 
+function parseArrayCell(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .split(/[,;\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function normalizeOtherEmails(
+  values: string[],
+  primaryEmail: string,
+): string[] {
+  const primary = primaryEmail.trim().toLowerCase();
+  const seen = new Set<string>();
+
+  return values.filter((email) => {
+    const normalized = email.trim().toLowerCase();
+
+    if (!normalized) {
+      return false;
+    }
+
+    if (normalized === primary) {
+      return false;
+    }
+
+    if (seen.has(normalized)) {
+      return false;
+    }
+
+    seen.add(normalized);
+
+    return true;
+  });
+}
+
+function normalizeOtherMobiles(
+  values: string[],
+  primaryMobile: string,
+): string[] {
+  const primary = primaryMobile.trim();
+
+  return Array.from(
+    new Set(
+      values
+        .map((mobile) => mobile.trim())
+        .filter((mobile) => mobile && mobile !== primary),
+    ),
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
@@ -77,10 +134,32 @@ export async function POST(request: NextRequest) {
 
     const worksheet = workbook.Sheets[sheetName];
 
+    /*
+     * Ignore Column A completely.
+     *
+     * Actual customer table:
+     *
+     * B = Customer Name
+     * C = NIC
+     * D = email
+     * E = other emails
+     * F = Mobile
+     * G = Other Telephone
+     * H onward = Property columns
+     */
+    const worksheetRange = XLSX.utils.decode_range(
+      worksheet["!ref"] || "A1:A1",
+    );
+
+    worksheetRange.s.c = 1;
+
+    const importRange = XLSX.utils.encode_range(worksheetRange);
+
     const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
       worksheet,
       {
         defval: "",
+        range: importRange,
       },
     );
 
@@ -95,13 +174,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /*
-     * Normalize column names.
-     *
-     * Example:
-     * "Customer Name" -> "customer name"
-     * "Property 1 Name" -> "property 1 name"
-     */
     const rows = rawRows.map((row) => {
       const normalized: Record<string, unknown> = {};
 
@@ -116,18 +188,26 @@ export async function POST(request: NextRequest) {
 
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
-
       const excelRowNumber = index + 2;
 
       try {
         const name = getCellValue(row, "customer name");
         const nic = getCellValue(row, "nic");
         const email = getCellValue(row, "email");
+        const otherEmailsRaw = getCellValue(row, "other emails");
         const mobile = getCellValue(row, "mobile");
+        const otherTelephoneRaw = getCellValue(row, "other telephone");
 
-        /*
-         * Basic validation
-         */
+        const otherEmails = normalizeOtherEmails(
+          parseArrayCell(otherEmailsRaw),
+          email,
+        );
+
+        const otherMobiles = normalizeOtherMobiles(
+          parseArrayCell(otherTelephoneRaw),
+          mobile,
+        );
+
         if (!name) {
           throw new Error("Customer name is required.");
         }
@@ -136,24 +216,24 @@ export async function POST(request: NextRequest) {
           throw new Error("NIC is required.");
         }
 
-        if (!email) {
-          throw new Error("Email is required.");
-        }
+        // if (!email) {
+        //   throw new Error("Email is required.");
+        // }
 
-        if (!mobile) {
-          throw new Error("Mobile number is required.");
-        }
+        // if (!mobile) {
+        //   throw new Error("Mobile number is required.");
+        // }
 
         /*
-         * Find all property columns dynamically.
+         * Dynamically detect:
          *
-         * This means the API can handle:
-         *
-         * Property 1 Name
-         * Property 1 Address
-         * Property 2 Name
-         * Property 2 Address
+         * Property 1 Name / Address
+         * Property 2 Name / Address
          * ...
+         * Property 7 Name / Address
+         *
+         * This also means the importer can support
+         * more properties later without code changes.
          */
         const propertyNumbers = new Set<number>();
 
@@ -183,20 +263,12 @@ export async function POST(request: NextRequest) {
             `property ${propertyNumber} address`,
           );
 
-          /*
-           * If both are empty, simply ignore the property.
-           */
           if (!propertyName && !address) {
             continue;
           }
 
-          /*
-           * Don't allow incomplete property records.
-           */
-          if (!propertyName || !address) {
-            throw new Error(
-              `Property ${propertyNumber} must have both name and address.`,
-            );
+          if (!propertyName) {
+            throw new Error(`Property ${propertyNumber} must have a name`);
           }
 
           properties.push({
@@ -209,9 +281,6 @@ export async function POST(request: NextRequest) {
           throw new Error("At least one property is required.");
         }
 
-        /*
-         * Check whether NIC already exists.
-         */
         const existingCustomer = await prisma.customer.findFirst({
           where: {
             nic,
@@ -222,24 +291,19 @@ export async function POST(request: NextRequest) {
           throw new Error(`A customer with NIC ${nic} already exists.`);
         }
 
-        /*
-         * Generate the customer ID.
-         */
         const customerId = await generateCustomerId();
 
-        /*
-         * Create customer + properties atomically.
-         */
         await prisma.$transaction(async (tx) => {
           await tx.customer.create({
             data: {
               id: customerId,
               name,
               email,
+              otherEmails,
               mobile,
+              otherMobiles,
               nic,
               active: true,
-
               properties: {
                 create: properties.map((property) => ({
                   propertyName: property.propertyName,

@@ -675,116 +675,160 @@ function TimelineActivityItem({
     remark.statusChangedTo === "OPEN"
       ? {
           color: "bg-red-500",
-          badge: "bg-red-100 text-red-700",
+          ring: "ring-red-100",
+          badge: "bg-red-50 text-red-700 border-red-100",
           icon: Circle,
+          label: "Open",
         }
       : remark.statusChangedTo === "IN_PROGRESS"
         ? {
             color: "bg-amber-500",
-            badge: "bg-amber-100 text-amber-700",
+            ring: "ring-amber-100",
+            badge: "bg-amber-50 text-amber-700 border-amber-100",
             icon: LoaderCircle,
+            label: "In Progress",
           }
         : remark.statusChangedTo === "RESOLVED"
           ? {
               color: "bg-blue-500",
-              badge: "bg-blue-100 text-blue-700",
+              ring: "ring-blue-100",
+              badge: "bg-blue-50 text-blue-700 border-blue-100",
               icon: Clock3,
+              label: "Resolved",
             }
           : {
-              color: "bg-green-500",
-              badge: "bg-green-100 text-green-700",
+              color: "bg-emerald-500",
+              ring: "ring-emerald-100",
+              badge: "bg-emerald-50 text-emerald-700 border-emerald-100",
               icon: CheckCircle2,
+              label: "Closed",
             };
 
   const Icon = config.icon;
 
-  return (
-    <div className="relative flex gap-5 pb-4">
-      {/* Timeline */}
+  const formattedDate = new Date(remark.createdDate).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 
-      <div className="relative flex flex-col items-center">
+  return (
+    <div className="relative flex gap-3 sm:gap-5">
+      {/* Timeline rail */}
+      <div className="relative flex w-9 shrink-0 justify-center sm:w-11">
+        {/* Vertical connector */}
+        {!last && (
+          <div className="absolute top-10 bottom-0 w-px bg-gradient-to-b from-slate-200 to-slate-100" />
+        )}
+
+        {/* Icon */}
         <div
           className={`
-            z-10
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
+            relative z-10
+            flex h-9 w-9 items-center justify-center
             rounded-full
-            shadow-md
             ${config.color}
+            ring-4 ${config.ring}
+            shadow-sm
+            sm:h-10 sm:w-10
           `}
         >
-          <Icon size={18} className="text-white" />
+          <Icon
+            size={16}
+            strokeWidth={2.4}
+            className="text-white sm:size-[18px]"
+          />
         </div>
-
-        {!last && (
-          <div className="absolute top-10 w-[3px] h-full bg-blue-200" />
-        )}
       </div>
 
-      {/* Card */}
+      {/* Activity content */}
+      <div className="min-w-0 flex-1 pb-5 sm:pb-6">
+        <div
+          className="
+            group
+            rounded-xl
+            border border-slate-200/80
+            bg-white
+            px-4 py-3
+            shadow-[0_1px_3px_rgba(15,23,42,0.04)]
+            transition-all duration-200
+            hover:border-slate-300
+            hover:shadow-[0_6px_20px_rgba(15,23,42,0.06)]
+            sm:rounded-2xl
+            sm:px-5 sm:py-4
+          "
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-800 sm:text-[15px]">
+                {remark.remarkType}
+              </p>
 
-      <div
-        className="
-          flex-1
-          rounded-2xl
-          border
-          border-slate-200
-          bg-white
-          px-5 py-1
-          shadow-sm
-          transition-all
-          hover:border-blue-200
-          hover:shadow-md
-        "
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="mt-2">
-            <p className="font-semibold text-slate-800">{remark.remarkType}</p>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+                <span>Updated by</span>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Updated by{" "}
-              <span className="font-medium text-slate-700">
-                {remark.updatedBy}
-              </span>
-            </p>
+                <span className="truncate font-medium text-slate-700">
+                  {remark.updatedBy}
+                </span>
+              </div>
+            </div>
+
+            {/* Status badge */}
+            <span
+              className={`
+                shrink-0
+                rounded-full
+                border
+                px-2.5 py-1
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-wide
+                sm:px-3 sm:py-1.5
+                sm:text-[11px]
+                ${config.badge}
+              `}
+            >
+              {config.label}
+            </span>
           </div>
 
-          <span
-            className={`
-              rounded-full
-              px-3
-              py-1
-              text-xs
-              font-semibold
-              whitespace-nowrap
-              ${config.badge}
-            `}
+          {/* Footer */}
+          <div
+            className="
+              mt-3
+              flex
+              items-center
+              justify-between
+              gap-3
+              border-t
+              border-slate-100
+              pt-2.5
+              sm:mt-4
+              sm:pt-3
+            "
           >
-            {remark.statusChangedTo.replace("_", " ")}
-          </span>
-        </div>
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+              Activity
+            </span>
 
-        <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wide text-slate-400">
-            {/* Activity */}
-          </span>
-
-          <span className="text-xs text-slate-500">
-            <td className="px-4 py-3 text-center whitespace-nowrap">
-              {new Date(remark.createdDate).toLocaleString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              })}
-            </td>
-          </span>
+            <time
+              dateTime={remark.createdDate}
+              className="
+                whitespace-nowrap
+                text-[11px]
+                font-medium
+                text-slate-500
+                sm:text-xs
+              "
+            >
+              {formattedDate}
+            </time>
+          </div>
         </div>
       </div>
     </div>

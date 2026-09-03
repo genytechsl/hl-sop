@@ -1,23 +1,18 @@
 "use client";
 
 import { useState } from "react";
+
 import Sidebar from "./Sidebar";
 import MobileNavbar from "./MobileNavbar";
 
-interface User {
-  id: string;
-  name: string;
-  role: string;
-  designation: string;
-  email: string;
-}
+import type { SessionUser } from "@/lib/auth/session";
 
 export default function AdminShell({
   children,
   user,
 }: {
   children: React.ReactNode;
-  user: User;
+  user: SessionUser;
 }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Save,
   LoaderCircle,
-  User,
   Building2,
   Phone,
   Mail,
@@ -15,9 +14,9 @@ import {
   CalendarDays,
   CreditCard,
   CircleUserRound,
+  X,
 } from "lucide-react";
 import Toast from "@/components/BottomRIghtToast";
-import DashboardHeader from "@/components/DashboardHeader";
 import CustomerTicketHistory from "@/components/customers/CustomerTicketHistory";
 
 interface Property {
@@ -29,26 +28,26 @@ interface Customer {
   id: string;
   name: string;
   email: string;
+  otherEmails: string[];
   mobile: string;
+  otherMobiles: string[];
   NIC: string;
   active: boolean;
   createdDate: string;
   properties: Property[];
 }
 
+type CustomerTab = "details" | "tickets";
+
 export default function CustomerViewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const id = searchParams.get("id");
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  type CustomerTab = "details" | "tickets";
-
   const [activeTab, setActiveTab] = useState<CustomerTab>("details");
-
   const [toast, setToast] = useState({
     open: false,
     type: "success" as "success" | "error" | "warning" | "info",
@@ -57,28 +56,59 @@ export default function CustomerViewPage() {
   });
 
   useEffect(() => {
-    if (id) loadCustomer();
+    if (id) {
+      loadCustomer();
+    }
   }, [id]);
-
-  async function loadCustomer() {
-    const response = await fetch(`/api/customers/${id}`);
-    const data = await response.json();
-    setCustomer(data);
-    setLoading(false);
-  }
 
   useEffect(() => {
     if (!toast.open) return;
-
     const timer = setTimeout(() => {
       setToast((prev) => ({
         ...prev,
         open: false,
       }));
     }, 7000);
-
     return () => clearTimeout(timer);
   }, [toast.open]);
+
+  async function loadCustomer() {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/customers/${id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load customer.");
+      }
+
+      setCustomer({
+        ...data,
+        otherEmails: data.otherEmails ?? [],
+        otherMobiles: data.otherMobiles ?? [],
+        properties: data.properties ?? [],
+      });
+    } catch (error) {
+      console.error("Failed to load customer:", error);
+      setToast({
+        open: true,
+        type: "error",
+        title: "Failed to Load",
+        message: "Failed to load customer information.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function showWarning(title: string, message: string) {
+    setToast({
+      open: true,
+      type: "warning",
+      title,
+      message,
+    });
+  }
 
   function isRequiredFieldsValid(): boolean {
     if (!customer) return false;
@@ -89,32 +119,60 @@ export default function CustomerViewPage() {
       customer.mobile.trim() === "" ||
       customer.NIC.trim() === ""
     ) {
-      setToast({
-        open: true,
-        type: "warning",
-        title: "Missing Information",
-        message: "Please complete all required fields.",
-      });
-
+      showWarning(
+        "Missing Information",
+        "Please complete all required fields.",
+      );
       return false;
     }
 
     return true;
   }
 
-  function isEmail(): boolean {
+  function isEmailValid(): boolean {
     if (!customer) return false;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const primaryEmail = customer.email.trim();
 
-    if (!emailRegex.test(customer.email.trim())) {
-      setToast({
-        open: true,
-        type: "warning",
-        title: "Invalid Email",
-        message: "Please enter a valid email address.",
-      });
+    if (!emailRegex.test(primaryEmail)) {
+      showWarning(
+        "Invalid Email",
+        "Please enter a valid primary email address.",
+      );
+      return false;
+    }
 
+    const otherEmails = customer.otherEmails
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    for (const email of otherEmails) {
+      if (!emailRegex.test(email)) {
+        showWarning(
+          "Invalid Email",
+          `"${email}" is not a valid additional email address.`,
+        );
+        return false;
+      }
+    }
+
+    const primaryNormalized = primaryEmail.toLowerCase();
+    const normalizedOtherEmails = otherEmails.map((item) => item.toLowerCase());
+
+    if (normalizedOtherEmails.includes(primaryNormalized)) {
+      showWarning(
+        "Duplicate Email",
+        "The primary email address cannot also be added as an additional email.",
+      );
+      return false;
+    }
+
+    if (new Set(normalizedOtherEmails).size !== normalizedOtherEmails.length) {
+      showWarning(
+        "Duplicate Email",
+        "The same additional email address has been entered more than once.",
+      );
       return false;
     }
 
@@ -124,23 +182,51 @@ export default function CustomerViewPage() {
   function isMobileValid(): boolean {
     if (!customer) return false;
 
-    const regex = /^0\d{9}$/;
+    const phoneRegex = /^0\d{9}$/;
+    const primaryMobile = customer.mobile.trim();
 
-    if (!regex.test(customer.mobile.trim())) {
-      setToast({
-        open: true,
-        type: "warning",
-        title: "Invalid Mobile Number",
-        message: "Please enter a valid Sri Lankan mobile number.",
-      });
+    if (!phoneRegex.test(primaryMobile)) {
+      showWarning(
+        "Invalid Mobile Number",
+        "Please enter a valid Sri Lankan primary mobile number.",
+      );
+      return false;
+    }
 
+    const otherMobiles = customer.otherMobiles
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    for (const number of otherMobiles) {
+      if (!phoneRegex.test(number)) {
+        showWarning(
+          "Invalid Contact Number",
+          `"${number}" is not a valid Sri Lankan telephone number.`,
+        );
+        return false;
+      }
+    }
+
+    if (otherMobiles.includes(primaryMobile)) {
+      showWarning(
+        "Duplicate Contact Number",
+        "The primary mobile number cannot also be added as an additional contact number.",
+      );
+      return false;
+    }
+
+    if (new Set(otherMobiles).size !== otherMobiles.length) {
+      showWarning(
+        "Duplicate Contact Number",
+        "The same additional contact number has been entered more than once.",
+      );
       return false;
     }
 
     return true;
   }
 
-  function isProperty(): boolean {
+  function isPropertyValid(): boolean {
     if (!customer) return false;
 
     const validProperties = customer.properties.filter(
@@ -149,17 +235,86 @@ export default function CustomerViewPage() {
     );
 
     if (validProperties.length === 0) {
-      setToast({
-        open: true,
-        type: "warning",
-        title: "Property Required",
-        message: "Please add at least one property.",
-      });
+      showWarning("Property Required", "Please add at least one property.");
+      return false;
+    }
 
+    const incompleteProperty = customer.properties.find(
+      (property) =>
+        (property.propertyName.trim() !== "" &&
+          property.address.trim() === "") ||
+        (property.propertyName.trim() === "" && property.address.trim() !== ""),
+    );
+
+    if (incompleteProperty) {
+      showWarning(
+        "Incomplete Property",
+        "Each property must have both a property name and address.",
+      );
       return false;
     }
 
     return true;
+  }
+
+  function addOtherEmail() {
+    if (!customer) return;
+
+    setCustomer({
+      ...customer,
+      otherEmails: [...customer.otherEmails, ""],
+    });
+  }
+
+  function updateOtherEmail(index: number, value: string) {
+    if (!customer) return;
+
+    const otherEmails = [...customer.otherEmails];
+    otherEmails[index] = value;
+
+    setCustomer({
+      ...customer,
+      otherEmails,
+    });
+  }
+
+  function removeOtherEmail(index: number) {
+    if (!customer) return;
+
+    setCustomer({
+      ...customer,
+      otherEmails: customer.otherEmails.filter((_, i) => i !== index),
+    });
+  }
+
+  function addOtherMobile() {
+    if (!customer) return;
+
+    setCustomer({
+      ...customer,
+      otherMobiles: [...customer.otherMobiles, ""],
+    });
+  }
+
+  function updateOtherMobile(index: number, value: string) {
+    if (!customer) return;
+
+    const otherMobiles = [...customer.otherMobiles];
+    otherMobiles[index] = value;
+
+    setCustomer({
+      ...customer,
+      otherMobiles,
+    });
+  }
+
+  function removeOtherMobile(index: number) {
+    if (!customer) return;
+
+    setCustomer({
+      ...customer,
+      otherMobiles: customer.otherMobiles.filter((_, i) => i !== index),
+    });
   }
 
   async function saveCustomer() {
@@ -167,9 +322,9 @@ export default function CustomerViewPage() {
 
     if (
       !isRequiredFieldsValid() ||
-      !isEmail() ||
+      !isEmailValid() ||
       !isMobileValid() ||
-      !isProperty()
+      !isPropertyValid()
     ) {
       return;
     }
@@ -177,17 +332,51 @@ export default function CustomerViewPage() {
     try {
       setSaving(true);
 
+      const payload = {
+        ...customer,
+        name: customer.name.trim(),
+        email: customer.email.trim(),
+        otherEmails: customer.otherEmails
+          .map((item) => item.trim())
+          .filter(Boolean),
+        mobile: customer.mobile.trim(),
+        otherMobiles: customer.otherMobiles
+          .map((item) => item.trim())
+          .filter(Boolean),
+        properties: customer.properties
+          .filter(
+            (property) =>
+              property.propertyName.trim() !== "" &&
+              property.address.trim() !== "",
+          )
+          .map((property) => ({
+            propertyName: property.propertyName.trim(),
+            address: property.address.trim(),
+          })),
+      };
+
       const response = await fetch("/api/customers", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(customer),
+        body: JSON.stringify(payload),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error();
+        throw new Error(result.message || "Failed to update customer.");
       }
+
+      setCustomer({
+        ...customer,
+        email: payload.email,
+        otherEmails: payload.otherEmails,
+        mobile: payload.mobile,
+        otherMobiles: payload.otherMobiles,
+        properties: payload.properties,
+      });
 
       setToast({
         open: true,
@@ -195,14 +384,13 @@ export default function CustomerViewPage() {
         title: "Customer Updated",
         message: `${customer.id} has been updated successfully.`,
       });
-    } catch (error) {
-      console.error(error);
-
+    } catch (error: any) {
+      console.error("Customer update error:", error);
       setToast({
         open: true,
         type: "error",
         title: "Update Failed",
-        message: "Failed to update customer.",
+        message: error.message || "Failed to update customer.",
       });
     } finally {
       setSaving(false);
@@ -219,8 +407,6 @@ export default function CustomerViewPage() {
 
   return (
     <div className="page">
-      {/* <DashboardHeader header="Customer Management" page={6} /> */}
-
       <div className="page-header">
         <div>
           <div className="mb-2 flex items-center gap-3">
@@ -232,10 +418,8 @@ export default function CustomerViewPage() {
             >
               <ArrowLeft size={17} />
             </button>
-
             <div>
               <h1 className="page-title">Edit Customer</h1>
-
               <p className="page-description">
                 Manage customer information, contact details and properties.
               </p>
@@ -279,20 +463,17 @@ export default function CustomerViewPage() {
         </div>
       </div>
 
-      {/* Tab Content */}
       {activeTab === "details" && (
         <>
-          {/* Customer Header / Basic Information */}
+          {/* Basic Information */}
           <div className="card">
             <div className="card-header">
               <div className="flex items-center gap-4">
                 <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
                   <CircleUserRound size={24} />
                 </div>
-
                 <div>
                   <h2 className="card-title">{customer.name}</h2>
-
                   <p className="card-description">
                     Customer ID:{" "}
                     <span className="font-medium text-slate-700">
@@ -302,7 +483,6 @@ export default function CustomerViewPage() {
                 </div>
               </div>
 
-              {/* Account Status */}
               <button
                 type="button"
                 onClick={() =>
@@ -329,7 +509,6 @@ export default function CustomerViewPage() {
                     }`}
                   />
                 </div>
-
                 <div className="hidden text-left sm:block">
                   <p
                     className={`text-xs font-semibold ${
@@ -338,7 +517,6 @@ export default function CustomerViewPage() {
                   >
                     {customer.active ? "Active" : "Inactive"}
                   </p>
-
                   <p className="text-[10px] text-slate-400">
                     {customer.active ? "Customer enabled" : "Customer disabled"}
                   </p>
@@ -348,10 +526,8 @@ export default function CustomerViewPage() {
 
             <div className="card-body">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                {/* Customer Name */}
                 <div>
                   <label className="label">Customer Name</label>
-
                   <input
                     className="input"
                     value={customer.name}
@@ -364,38 +540,31 @@ export default function CustomerViewPage() {
                   />
                 </div>
 
-                {/* NIC */}
                 <div>
                   <label className="label">NIC</label>
-
                   <div className="relative">
                     <CreditCard
                       size={17}
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                     />
-
                     <input
                       readOnly
                       value={customer.NIC}
                       className="input bg-slate-50 pl-11 text-slate-500"
                     />
                   </div>
-
                   <p className="helper-text">
                     Customer National Identity Card number cannot be changed.
                   </p>
                 </div>
 
-                {/* Created Date */}
                 <div>
                   <label className="label">Created Date</label>
-
                   <div className="relative">
                     <CalendarDays
                       size={17}
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                     />
-
                     <input
                       readOnly
                       value={new Date(customer.createdDate).toLocaleDateString(
@@ -414,87 +583,201 @@ export default function CustomerViewPage() {
             </div>
           </div>
 
-          {/* Email + Mobile */}
+          {/* Contact Information */}
           <div className="grid gap-6 lg:grid-cols-2">
+            {/* Email */}
             <div className="card">
               <div className="card-header">
                 <div>
-                  <h2 className="card-title">Email Address</h2>
-
+                  <h2 className="card-title">Email Addresses</h2>
                   <p className="card-description">
-                    Primary email address used for customer communication.
+                    Manage the customer's primary and additional email
+                    addresses.
                   </p>
                 </div>
-
                 <div className="rounded-xl bg-sky-100 p-3 text-sky-600">
                   <Mail size={20} />
                 </div>
               </div>
 
               <div className="card-body">
-                <label className="label">Email</label>
-
-                <div className="relative">
-                  <Mail
-                    size={17}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    type="email"
-                    className="input pl-11"
-                    value={customer.email}
-                    onChange={(e) =>
-                      setCustomer({
-                        ...customer,
-                        email: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header">
                 <div>
-                  <h2 className="card-title">Mobile Number</h2>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="label">Primary Email Address</label>
+                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
+                      Primary
+                    </span>
+                  </div>
 
-                  <p className="card-description">
-                    Primary contact number for customer communication.
+                  <div className="relative">
+                    <Mail
+                      size={17}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="email"
+                      className="input pl-11"
+                      value={customer.email}
+                      onChange={(e) =>
+                        setCustomer({
+                          ...customer,
+                          email: e.target.value,
+                        })
+                      }
+                      placeholder="Enter primary email address"
+                    />
+                  </div>
+
+                  <p className="helper-text">
+                    This email remains the customer's primary email address.
                   </p>
                 </div>
 
+                {customer.otherEmails.length > 0 && (
+                  <div className="mt-5 space-y-4 border-t border-slate-200 pt-5">
+                    {customer.otherEmails.map((email, index) => (
+                      <div key={index}>
+                        <label className="label">
+                          Additional Email {index + 1}
+                        </label>
+
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Mail
+                              size={17}
+                              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                            />
+                            <input
+                              type="email"
+                              className="input pl-11"
+                              value={email}
+                              onChange={(e) =>
+                                updateOtherEmail(index, e.target.value)
+                              }
+                              placeholder="Enter additional email address"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeOtherEmail(index)}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                            title="Remove email"
+                          >
+                            <X size={17} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={addOtherEmail}
+                  className="btn-outline mt-5 !px-4 !py-2"
+                >
+                  <Plus size={16} />
+                  Add Email Address
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile */}
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h2 className="card-title">Contact Numbers</h2>
+                  <p className="card-description">
+                    Manage the customer's primary mobile and additional
+                    telephone numbers.
+                  </p>
+                </div>
                 <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600">
                   <Phone size={20} />
                 </div>
               </div>
 
               <div className="card-body">
-                <label className="label">Mobile</label>
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="label">Primary Mobile Number</label>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
+                      Primary
+                    </span>
+                  </div>
 
-                <div className="relative">
-                  <Phone
-                    size={17}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+                  <div className="relative">
+                    <Phone
+                      size={17}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="tel"
+                      className="input pl-11"
+                      value={customer.mobile}
+                      onChange={(e) =>
+                        setCustomer({
+                          ...customer,
+                          mobile: e.target.value,
+                        })
+                      }
+                      placeholder="Enter primary mobile number"
+                    />
+                  </div>
 
-                  <input
-                    type="tel"
-                    className="input pl-11"
-                    value={customer.mobile}
-                    onChange={(e) =>
-                      setCustomer({
-                        ...customer,
-                        mobile: e.target.value,
-                      })
-                    }
-                  />
+                  <p className="helper-text">
+                    This number remains the customer's primary mobile number.
+                  </p>
                 </div>
 
-                <p className="helper-text">
-                  Enter a valid Sri Lankan mobile number.
-                </p>
+                {customer.otherMobiles.length > 0 && (
+                  <div className="mt-5 space-y-4 border-t border-slate-200 pt-5">
+                    {customer.otherMobiles.map((number, index) => (
+                      <div key={index}>
+                        <label className="label">
+                          Additional Contact Number {index + 1}
+                        </label>
+
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Phone
+                              size={17}
+                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                            />
+                            <input
+                              type="tel"
+                              className="input pl-11"
+                              value={number}
+                              onChange={(e) =>
+                                updateOtherMobile(index, e.target.value)
+                              }
+                              placeholder="Enter additional contact number"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeOtherMobile(index)}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                            title="Remove contact number"
+                          >
+                            <X size={17} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={addOtherMobile}
+                  className="btn-outline mt-5 !px-4 !py-2"
+                >
+                  <Plus size={16} />
+                  Add Contact Number
+                </button>
               </div>
             </div>
           </div>
@@ -509,7 +792,6 @@ export default function CustomerViewPage() {
 
                 <div>
                   <h2 className="card-title">Customer Properties</h2>
-
                   <p className="card-description">
                     Manage the properties associated with this customer.
                   </p>
@@ -549,7 +831,6 @@ export default function CustomerViewPage() {
                         <p className="text-sm font-semibold text-slate-800">
                           Property {index + 1}
                         </p>
-
                         <p className="mt-1 text-xs text-slate-500">
                           Property information and address
                         </p>
@@ -558,14 +839,14 @@ export default function CustomerViewPage() {
                       {customer.properties.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={() =>
                             setCustomer({
                               ...customer,
                               properties: customer.properties.filter(
                                 (_, i) => i !== index,
                               ),
-                            });
-                          }}
+                            })
+                          }
                           className="btn-ghost !px-3 !py-2 text-red-600 hover:bg-red-50 hover:text-red-700"
                         >
                           <Trash2 size={16} />
@@ -577,14 +858,12 @@ export default function CustomerViewPage() {
                     <div className="space-y-5">
                       <div>
                         <label className="label">Property Name</label>
-
                         <input
                           className="input"
                           placeholder="Enter property name"
                           value={property.propertyName}
                           onChange={(e) => {
                             const properties = [...customer.properties];
-
                             properties[index].propertyName = e.target.value;
 
                             setCustomer({
@@ -597,14 +876,12 @@ export default function CustomerViewPage() {
 
                       <div>
                         <label className="label">Property Address</label>
-
                         <input
                           className="input"
                           placeholder="Enter complete property address"
                           value={property.address}
                           onChange={(e) => {
                             const properties = [...customer.properties];
-
                             properties[index].address = e.target.value;
 
                             setCustomer({
@@ -628,7 +905,6 @@ export default function CustomerViewPage() {
                 <p className="text-sm font-medium text-slate-700">
                   Ready to save changes?
                 </p>
-
                 <p className="mt-1 text-xs text-slate-500">
                   Make sure all customer information is correct.
                 </p>
@@ -646,7 +922,6 @@ export default function CustomerViewPage() {
                   ) : (
                     <Save size={18} />
                   )}
-
                   {saving ? "Saving..." : "Save Customer"}
                 </button>
               </div>
