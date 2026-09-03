@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import { customerTicketCreatedEmail } from "@/lib/customer-email";
 import { actionOwnerTicketCreatedEmail } from "@/lib/action-owner-email";
 import { getSession } from "@/lib/auth/session";
+import { ticketData } from "@/components/tickets/ticket-data";
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,6 +133,8 @@ export async function POST(request: NextRequest) {
 
     await transporter.verify();
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     const subject = `[Open]_${ticketNumber}_${category}_${scope}`;
 
     // =========================================================
@@ -139,18 +142,25 @@ export async function POST(request: NextRequest) {
     // =========================================================
 
     if (customerEmail) {
-      await transporter.sendMail({
-        from: smtpFrom,
-        to: customerEmail,
-        subject,
-        html: customerTicketCreatedEmail({
-          customerName,
-          ticketNumber,
-          title,
-          category,
-          actionOwnerName,
-        }),
-      });
+      if (
+        customerEmail === "" ||
+        customerEmail === null ||
+        !emailRegex.test(customerEmail.trim())
+      ) {
+      } else {
+        await transporter.sendMail({
+          from: smtpFrom,
+          to: customerEmail,
+          subject,
+          html: customerTicketCreatedEmail({
+            customerName,
+            ticketNumber,
+            title,
+            category,
+            actionOwnerName,
+          }),
+        });
+      }
     }
 
     // =========================================================
