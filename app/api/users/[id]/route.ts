@@ -1,43 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
+
+const PROTECTED_USERNAMES = ["geny_admin", "geny_admin_b"] as const;
+
+function isProtectedUsername(username: string) {
+  return PROTECTED_USERNAMES.includes(
+    username.toLowerCase() as (typeof PROTECTED_USERNAMES)[number],
+  );
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    /*
-     * =====================================================
-     * AUTHENTICATION
-     * =====================================================
-     */
-
     const session = await getSession();
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    /*
-     * =====================================================
-     * RBAC
-     * =====================================================
-     *
-     * Only administrators can view user details.
-     *
-     */
-
     if (session.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    /*
-     * =====================================================
-     * GET USER
-     * =====================================================
-     */
 
     const { id } = await params;
 
@@ -77,55 +63,22 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    /*
-     * =====================================================
-     * AUTHENTICATION
-     * =====================================================
-     */
-
     const session = await getSession();
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    /*
-     * =====================================================
-     * RBAC
-     * =====================================================
-     *
-     * Only administrators can update users.
-     *
-     */
-
     if (session.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    /*
-     * =====================================================
-     * GET USER ID
-     * =====================================================
-     */
-
     const { id } = await params;
-
-    /*
-     * =====================================================
-     * REQUEST BODY
-     * =====================================================
-     */
 
     const body = await request.json();
 
     const { name, designation, department, email, username, role, active } =
       body;
-
-    /*
-     * =====================================================
-     * VALIDATION
-     * =====================================================
-     */
 
     if (!name || !designation || !department || !email || !username || !role) {
       return NextResponse.json(
@@ -133,12 +86,6 @@ export async function PUT(
         { status: 400 },
       );
     }
-
-    /*
-     * =====================================================
-     * FIND EXISTING USER
-     * =====================================================
-     */
 
     const existingUser = await prisma.employee.findUnique({
       where: {
@@ -151,10 +98,64 @@ export async function PUT(
     }
 
     /*
-     * =====================================================
-     * UPDATE USER
-     * =====================================================
+     * Protected system accounts cannot be modified.
      */
+    if (isProtectedUsername(existingUser.username)) {
+      return NextResponse.json(
+        {
+          error: "This is a protected system account and cannot be modified.",
+        },
+        { status: 403 },
+      );
+    }
+
+    /*
+     * Prevent other users from being renamed to a protected username.
+     */
+    if (isProtectedUsername(username)) {
+      return NextResponse.json(
+        {
+          error: "This username is reserved for a protected system account.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const duplicateUsername = await prisma.employee.findFirst({
+      where: {
+        username,
+        NOT: {
+          id,
+        },
+      },
+    });
+
+    if (duplicateUsername) {
+      return NextResponse.json(
+        {
+          error: "Username is already in use.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const duplicateEmail = await prisma.employee.findFirst({
+      where: {
+        email,
+        NOT: {
+          id,
+        },
+      },
+    });
+
+    if (duplicateEmail) {
+      return NextResponse.json(
+        {
+          error: "Email address is already in use.",
+        },
+        { status: 409 },
+      );
+    }
 
     const updatedUser = await prisma.employee.update({
       where: {
@@ -187,6 +188,69 @@ export async function PUT(
 
     return NextResponse.json(
       { error: "Failed to update user" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (session.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    const existingUser = await prisma.employee.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    /*
+     * Protected system accounts cannot be deleted.
+     */
+    if (isProtectedUsername(existingUser.username)) {
+      return NextResponse.json(
+        {
+          error: "This is a protected system account and cannot be deleted.",
+        },
+        { status: 403 },
+      );
+    }
+
+    await prisma.employee.delete({
+      where: {
+        id,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "User deleted successfully.",
+    });
+  } catch (error) {
+    console.error("DELETE /api/users/[id] error:", error);
+
+    return NextResponse.json(
+      { error: "Failed to delete user" },
       { status: 500 },
     );
   }

@@ -4,7 +4,7 @@ import { jwtVerify, type JWTPayload } from "jose";
 interface SessionUser {
   id: string;
   name: string;
-  role: "admin" | "actionOwner" | "dataEntry";
+  role: "admin" | "actionOwner" | "dataEntry" | "sys_admin";
   designation: string;
   email: string;
   department?: string | null;
@@ -46,15 +46,8 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // =========================================================
-  // PUBLIC / INTERNAL ROUTES
+  // PROTECTED ADMIN API ROUTES
   // =========================================================
-
-  // =========================================================
-  // API ROUTES
-  // =========================================================
-
-  // API routes normally handle their own authentication.
-  // However, /api/settings is ADMIN ONLY.
   if (
     pathname.startsWith("/api/settings") ||
     pathname.startsWith("/api/customers") ||
@@ -66,13 +59,16 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "sys_admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.next();
   }
 
+  // =========================================================
+  // OTHER API / INTERNAL ROUTES
+  // =========================================================
   if (
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
@@ -84,13 +80,11 @@ export async function proxy(request: NextRequest) {
   // =========================================================
   // GET CURRENT SESSION
   // =========================================================
-
   const user = await getMiddlewareSession(request);
 
   // =========================================================
   // LOGIN PAGE
   // =========================================================
-
   if (pathname === "/") {
     if (user) {
       return NextResponse.redirect(
@@ -107,15 +101,21 @@ export async function proxy(request: NextRequest) {
   // =========================================================
   // PROTECTED PAGES
   // =========================================================
-
   if (!user) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // =========================================================
+  // SYSTEM ADMIN
+  // Full access to all authenticated routes
+  // =========================================================
+  if (user.role === "sys_admin") {
+    return NextResponse.next();
+  }
+
+  // =========================================================
   // ADMIN ONLY
   // =========================================================
-
   if (pathname.startsWith("/settings")) {
     if (user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -125,7 +125,6 @@ export async function proxy(request: NextRequest) {
   // =========================================================
   // REPORTS - ADMIN ONLY
   // =========================================================
-
   if (pathname.startsWith("/reports")) {
     if (user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -136,7 +135,6 @@ export async function proxy(request: NextRequest) {
   // ASSIGNED TICKETS
   // Admin + Action Owner
   // =========================================================
-
   if (pathname.startsWith("/assigned")) {
     if (user.role !== "actionOwner" && user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -147,7 +145,6 @@ export async function proxy(request: NextRequest) {
   // TICKET LIST
   // Admin + Data Entry ONLY
   // =========================================================
-
   if (pathname === "/tickets") {
     if (user.role !== "admin" && user.role !== "dataEntry") {
       return NextResponse.redirect(new URL("/assigned", request.url));
@@ -156,20 +153,16 @@ export async function proxy(request: NextRequest) {
 
   // =========================================================
   // NEW TICKET
-  // Admin + Data Entry + Action Owner
+  // All authenticated users allowed here
   // =========================================================
-
   if (pathname === "/tickets/new") {
     return NextResponse.next();
   }
 
   // =========================================================
   // INDIVIDUAL TICKET
-  //
-  // All authenticated users may reach the page.
-  // API verifies whether Action Owner owns the ticket.
+  // API performs ticket-specific authorization
   // =========================================================
-
   if (pathname.startsWith("/tickets/view")) {
     return NextResponse.next();
   }
