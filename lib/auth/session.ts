@@ -11,7 +11,7 @@ if (!secret) {
 
 const encodedSecret = new TextEncoder().encode(secret);
 
-export type UserRole = "admin" | "actionOwner" | "dataEntry";
+export type UserRole = "admin" | "actionOwner" | "dataEntry" | "sys_admin";
 
 export interface SessionUser {
   id: string;
