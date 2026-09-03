@@ -42,3 +42,4 @@ next-env.d.ts
 
 /lib/generated/prisma
 app/generated/prisma/internal/prismaNamespace.ts
+/app/generated/prisma/internal
