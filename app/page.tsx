@@ -1,55 +1,90 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  ArrowRight,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { Eye, EyeOff, Lock, ArrowRight, ShieldCheck, User } from "lucide-react";
+import Toast from "@/components/BottomRIghtToast";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [toast, setToast] = useState({
+    open: false,
+    type: "success" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    if (!toast.open) return;
+
+    const timer = setTimeout(() => {
+      setToast((prev) => ({
+        ...prev,
+        open: false,
+      }));
+    }, 7000);
+
+    return () => clearTimeout(timer);
+  }, [toast.open]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    setLoading(true);
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-
-      router.replace(data.redirectTo);
-      router.refresh();
-
+    if (!identifier.trim() || !password) {
       return;
     }
 
-    alert("Invalid username or password");
+    setLoading(true);
 
-    setLoading(false);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.status === 400) {
+        setToast({
+          open: true,
+          type: "warning",
+          title: "Missing Information",
+          message: data.message,
+        });
+      }
+
+      if (res.ok) {
+        router.replace(data.redirectTo);
+        router.refresh();
+        return;
+      } else {
+        setToast({
+          open: true,
+          type: "error",
+          title: "Login Unsuccessful",
+          message: "Username/Email & password do not match. Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Login request failed:", error);
+      alert("Unable to sign in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -69,13 +104,6 @@ export default function LoginPage() {
             Case Intelligence Platform
           </div>
 
-          {/* <h1 className="mt-8 text-5xl font-bold leading-tight text-slate-900">
-            Customer Complaint
-            <br />
-            Management Platform
-          </h1> */}
-
-          {/* Logo here */}
           <div className="mt-8 flex justify-center lg:justify-start">
             <Image
               src="/login_page.png"
@@ -92,23 +120,6 @@ export default function LoginPage() {
             collaboration, monitor SLA performance, and ensure every issue is
             tracked from creation to resolution.
           </p>
-
-          {/* <div className="mt-12 flex gap-14">
-            <div>
-              <h3 className="text-3xl font-bold text-[#3b82f6]">100%</h3>
-              <p className="mt-1 text-slate-500">Complaint Traceability</p>
-            </div>
-
-            <div>
-              <h3 className="text-3xl font-bold text-[#3b82f6]">24/7</h3>
-              <p className="mt-1 text-slate-500">SLA Monitoring</p>
-            </div>
-
-            <div>
-              <h3 className="text-3xl font-bold text-[#3b82f6]">Secure</h3>
-              <p className="mt-1 text-slate-500">Role-Based Access</p>
-            </div>
-          </div> */}
         </div>
 
         {/* ================================================= */}
@@ -130,11 +141,11 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
-              {/* Username */}
+              {/* Username / Email */}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Username
+                  Username or Email
                 </label>
 
                 <div className="relative">
@@ -145,9 +156,11 @@ export default function LoginPage() {
 
                   <input
                     type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username or email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    autoComplete="username"
+                    required
                     className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#3b82f6] focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
@@ -171,6 +184,8 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
                     className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-12 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#3b82f6] focus:ring-4 focus:ring-blue-100"
                   />
 
@@ -178,6 +193,9 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-[#2563eb]"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -220,14 +238,10 @@ export default function LoginPage() {
                 )}
               </button>
 
-              {/* Powered by */}
-
               {/* Powered By */}
 
               <div className="pt-4">
                 <div className="flex items-center justify-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-5">
-                  {/* Logo */}
-
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
                     <img
                       src="/images/logo-only.png"
@@ -235,8 +249,6 @@ export default function LoginPage() {
                       className="h-12 w-auto object-contain"
                     />
                   </div>
-
-                  {/* Text */}
 
                   <div className="text-left">
                     <p className="text-xs font-medium uppercase tracking-[0.25em] text-slate-400">
@@ -257,6 +269,18 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <Toast
+        open={toast.open}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() =>
+          setToast((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+      />
     </main>
   );
 }

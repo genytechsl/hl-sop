@@ -8,6 +8,8 @@ export interface Customer {
   name: string;
   email: string;
   mobile: string;
+  otherEmails: string[];
+  otherMobiles: string[];
   NIC: string;
   active: boolean;
   createdDate: string;

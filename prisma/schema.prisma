@@ -39,12 +39,15 @@ model Department {
 }
 
 model Customer {
-  id        String   @id
-  name      String
-  email     String
-  mobile    String
-  nic       String   @map("nic")
-  active    Boolean  @default(true)
+  id           String   @id
+  name         String
+  email        String
+  otherEmails  String[] @default([]) @map("other_emails")
+  mobile       String
+  otherMobiles String[] @default([]) @map("other_mobiles")
+  nic          String   @map("nic")
+  active       Boolean  @default(true)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -54,6 +57,7 @@ model Customer {
   @@index([name])
   @@index([email])
   @@index([nic])
+
   @@map("customers")
 }
 
@@ -69,7 +73,7 @@ model CustomerProperty {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([customerId, propertyName])
+  
   @@index([customerId])
   @@map("customer_properties")
 }

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solvy360 - Customer Inquiry Management by GenY Tech",
-  description: "Solvy360 - Customer Inquiry Management by GenY Tech",
+  title: "Case Intelligence Platform by Solvy360 (GenY Tech)",
+  description: "Case Intelligence Platform by Solvy360 (GenY Tech)",
 };
 
 export default function RootLayout({
