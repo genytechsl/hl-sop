@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
-
-const filePath = path.join(process.cwd(), "data", "report-schedulers.json");
+import "server-only";
+import { prisma } from "@/lib/prisma";
 
 export interface ReportScheduler {
   id: string;
@@ -14,59 +12,117 @@ export interface ReportScheduler {
   createdDate: string;
 }
 
-function readSchedulers(): ReportScheduler[] {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([], null, 2));
+function mapScheduler(scheduler: any): ReportScheduler {
+  return {
+    id: scheduler.id,
+    email: scheduler.email,
+    report: scheduler.report,
+    frequency: scheduler.frequency,
+    day: scheduler.day ?? 1,
+    time: scheduler.time,
+    active: scheduler.active,
+    createdDate: scheduler.createdAt.toISOString().split("T")[0],
+  };
+}
+
+async function generateSchedulerId(): Promise<string> {
+  const schedulers = await prisma.reportScheduler.findMany({
+    select: {
+      id: true,
+    },
+  });
+
+  let highest = 0;
+
+  for (const scheduler of schedulers) {
+    const match = scheduler.id.match(/^SCH(\d+)$/);
+
+    if (match) {
+      const number = Number(match[1]);
+
+      if (number > highest) {
+        highest = number;
+      }
+    }
   }
 
-  const data = fs.readFileSync(filePath, "utf-8");
-  return JSON.parse(data);
+  return `SCH${String(highest + 1).padStart(3, "0")}`;
 }
 
-function saveSchedulers(data: ReportScheduler[]) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+export async function getSchedulers(): Promise<ReportScheduler[]> {
+  const schedulers = await prisma.reportScheduler.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
-function generateSchedulerId(schedulers: ReportScheduler[]) {
-  const next = schedulers.length + 1;
-  return `SCH${String(next).padStart(3, "0")}`;
-}
-
-export async function getSchedulers() {
-  return readSchedulers();
+  return schedulers.map(mapScheduler);
 }
 
 export async function createScheduler(
   scheduler: Omit<ReportScheduler, "id" | "createdDate">,
-) {
-  const schedulers = readSchedulers();
-  const newScheduler: ReportScheduler = {
-    id: generateSchedulerId(schedulers),
-    ...scheduler,
-    createdDate: new Date().toISOString().split("T")[0],
-  };
+): Promise<ReportScheduler> {
+  const created = await prisma.reportScheduler.create({
+    data: {
+      id: await generateSchedulerId(),
+      email: scheduler.email,
+      report: scheduler.report,
+      frequency: scheduler.frequency,
+      day: scheduler.day,
+      time: scheduler.time,
+      active: scheduler.active,
+    },
+  });
 
-  schedulers.push(newScheduler);
-  saveSchedulers(schedulers);
-  return newScheduler;
+  return mapScheduler(created);
 }
 
-export async function updateScheduler(updated: ReportScheduler) {
-  const schedulers = readSchedulers();
-  const index = schedulers.findIndex((s) => s.id === updated.id);
-  if (index === -1) {
+export async function updateScheduler(
+  updated: ReportScheduler,
+): Promise<ReportScheduler> {
+  const existing = await prisma.reportScheduler.findUnique({
+    where: {
+      id: updated.id,
+    },
+  });
+
+  if (!existing) {
     throw new Error("Scheduler not found");
   }
-  schedulers[index] = updated;
-  saveSchedulers(schedulers);
 
-  return updated;
+  const scheduler = await prisma.reportScheduler.update({
+    where: {
+      id: updated.id,
+    },
+    data: {
+      email: updated.email,
+      report: updated.report,
+      frequency: updated.frequency,
+      day: updated.day,
+      time: updated.time,
+      active: updated.active,
+    },
+  });
+
+  return mapScheduler(scheduler);
 }
 
 export async function deleteScheduler(id: string) {
-  const schedulers = readSchedulers();
-  const filtered = schedulers.filter((s) => s.id !== id);
-  saveSchedulers(filtered);
+  const existing = await prisma.reportScheduler.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!existing) {
+    throw new Error("Scheduler not found");
+  }
+
+  await prisma.reportScheduler.delete({
+    where: {
+      id,
+    },
+  });
 
   return {
     success: true,
