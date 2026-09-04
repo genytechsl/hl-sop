@@ -1,14 +1,23 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
+
 import {
   LoaderCircle,
   CheckCircle,
   AlertCircle,
   Search,
   ArrowUpDown,
-  Filter,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
 import Link from "next/link";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -34,86 +43,155 @@ interface Customer {
   properties: Property[];
 }
 
+type PageItem = number | "ellipsis";
+
 const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
   function CustomerManagementTable(_, ref) {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
-    // Pagination Setup
-    const ITEMS_PER_PAGE = 10;
-    const [currentPage, setCurrentPage] = useState(1);
 
-    //search setup
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // =========================================================
+    // SEARCH / SORT / FILTER
+    // =========================================================
+
     const [search, setSearch] = useState("");
+
     const [sortBy, setSortBy] = useState<"name" | "createdDate">("name");
+
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-    const [statusFilter, setStatusFilter] = useState<
-      "all" | "active" | "inactive"
-    >("all");
+
     const [showInactive, setShowInactive] = useState(false);
 
-    // const totalPages = Math.ceil(customers.length / ITEMS_PER_PAGE);
-    // const paginatedCustomers = customers.slice(
-    //   (currentPage - 1) * ITEMS_PER_PAGE,
-    //   currentPage * ITEMS_PER_PAGE,
-    // );
+    // =========================================================
+    // MESSAGE
+    // =========================================================
 
-    const filteredCustomers = customers
-      .filter((customer) => {
-        const keyword = search.toLowerCase();
+    const [message, setMessage] = useState<{
+      type: "success" | "error";
+      text: string;
+    } | null>(null);
 
-        const matchesSearch =
-          customer.name.toLowerCase().includes(keyword) ||
-          customer.NIC.toLowerCase().includes(keyword) ||
-          customer.email.toLowerCase().includes(keyword) ||
-          customer.mobile.toLowerCase().includes(keyword);
+    // =========================================================
+    // FILTERED + SORTED CUSTOMERS
+    // =========================================================
 
-        // Hide inactive customers by default
-        const matchesInactive = showInactive || customer.active;
+    const filteredCustomers = useMemo(() => {
+      return customers
+        .filter((customer) => {
+          const keyword = search.trim().toLowerCase();
 
-        const matchesStatus =
-          statusFilter === "all"
-            ? true
-            : statusFilter === "active"
-              ? customer.active
-              : !customer.active;
+          const matchesSearch =
+            customer.name.toLowerCase().includes(keyword) ||
+            customer.NIC.toLowerCase().includes(keyword) ||
+            customer.email.toLowerCase().includes(keyword) ||
+            customer.mobile.toLowerCase().includes(keyword);
 
-        return matchesSearch && matchesStatus && matchesInactive;
-      })
-      .sort((a, b) => {
-        let comparison = 0;
+          // Hide inactive customers by default.
+          const matchesInactive = showInactive || customer.active;
 
-        if (sortBy === "name") {
-          comparison = a.name.localeCompare(b.name);
-        } else {
-          comparison =
-            new Date(a.createdDate).getTime() -
-            new Date(b.createdDate).getTime();
-        }
+          return matchesSearch && matchesInactive;
+        })
+        .sort((a, b) => {
+          let comparison = 0;
 
-        return sortOrder === "asc" ? comparison : -comparison;
-      });
+          if (sortBy === "name") {
+            comparison = a.name.localeCompare(b.name);
+          } else {
+            comparison =
+              new Date(a.createdDate).getTime() -
+              new Date(b.createdDate).getTime();
+          }
 
-    const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+          return sortOrder === "asc" ? comparison : -comparison;
+        });
+    }, [customers, search, sortBy, sortOrder, showInactive]);
+
+    // =========================================================
+    // PAGINATION DATA
+    // =========================================================
+
+    const totalPages = Math.max(
+      Math.ceil(filteredCustomers.length / itemsPerPage),
+      1,
+    );
 
     const paginatedCustomers = filteredCustomers.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE,
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
     );
+
+    const startResult =
+      filteredCustomers.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+
+    const endResult = Math.min(
+      currentPage * itemsPerPage,
+      filteredCustomers.length,
+    );
+
+    // =========================================================
+    // TRUNCATED PAGE NUMBERS
+    // =========================================================
+
+    const pageItems = useMemo<PageItem[]>(() => {
+      if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+      }
+
+      if (currentPage <= 4) {
+        return [1, 2, 3, 4, 5, "ellipsis", totalPages];
+      }
+
+      if (currentPage >= totalPages - 3) {
+        return [
+          1,
+          "ellipsis",
+          totalPages - 4,
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages,
+        ];
+      }
+
+      return [
+        1,
+        "ellipsis",
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        "ellipsis",
+        totalPages,
+      ];
+    }, [currentPage, totalPages]);
+
+    // =========================================================
+    // KEEP CURRENT PAGE VALID
+    // =========================================================
+
+    useEffect(() => {
+      if (currentPage > totalPages) {
+        setCurrentPage(totalPages);
+      }
+    }, [currentPage, totalPages]);
+
+    // =========================================================
+    // EXPORT
+    // =========================================================
 
     useImperativeHandle(ref, () => ({
       exportCsv() {
-        /*
-         * Find the maximum number of properties belonging
-         * to any customer in the currently filtered result.
-         */
         const maxProperties = filteredCustomers.reduce(
           (max, customer) => Math.max(max, customer.properties.length),
           0,
         );
 
-        /*
-         * Build the fixed customer columns.
-         */
         const headers = [
           "No.",
           "Customer ID",
@@ -123,25 +201,15 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
           "Mobile",
         ];
 
-        /*
-         * Dynamically add:
-         * Property 1 Name
-         * Property 1 Address
-         * Property 2 Name
-         * Property 2 Address
-         * etc.
-         */
         for (let i = 1; i <= maxProperties; i++) {
           headers.push(`Property ${i} Name`);
+
           headers.push(`Property ${i} Address`);
         }
 
         headers.push("Status");
         headers.push("Created");
 
-        /*
-         * Build the export rows.
-         */
         const rows = filteredCustomers.map((customer, index) => {
           const row: (string | number)[] = [
             index + 1,
@@ -152,16 +220,11 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
             customer.mobile,
           ];
 
-          /*
-           * Add property data.
-           *
-           * If a customer does not have that many properties,
-           * empty values are inserted so the columns remain aligned.
-           */
           for (let i = 0; i < maxProperties; i++) {
             const property = customer.properties[i];
 
             row.push(property?.propertyName ?? "");
+
             row.push(property?.address ?? "");
           }
 
@@ -195,15 +258,19 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
         });
 
         const url = URL.createObjectURL(blob);
+
         const link = document.createElement("a");
 
         link.href = url;
+
         link.download = `customers-${new Date()
           .toISOString()
           .slice(0, 10)}.csv`;
 
         document.body.appendChild(link);
+
         link.click();
+
         document.body.removeChild(link);
 
         URL.revokeObjectURL(url);
@@ -212,18 +279,11 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
       exportPdf() {
         const doc = new jsPDF("landscape");
 
-        /*
-         * Find the maximum number of properties in the
-         * currently filtered customers.
-         */
         const maxProperties = filteredCustomers.reduce(
           (max, customer) => Math.max(max, customer.properties.length),
           0,
         );
 
-        /*
-         * Fixed columns.
-         */
         const headers = [
           "No.",
           "Customer ID",
@@ -233,38 +293,29 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
           "Mobile",
         ];
 
-        /*
-         * Dynamic property columns.
-         */
         for (let i = 1; i <= maxProperties; i++) {
           headers.push(`Property ${i} Name`);
+
           headers.push(`Property ${i} Address`);
         }
 
         headers.push("Status");
         headers.push("Created");
 
-        /*
-         * Report heading.
-         */
         doc.setFontSize(18);
+
         doc.text("Customer Management Report", 14, 15);
 
         doc.setFontSize(10);
+
         doc.text(
           `Generated: ${new Date().toLocaleDateString("en-GB")}`,
           14,
           22,
         );
 
-        /*
-         * Add a small summary.
-         */
         doc.text(`Customers: ${filteredCustomers.length}`, 14, 27);
 
-        /*
-         * Build PDF rows.
-         */
         const body = filteredCustomers.map((customer, index) => {
           const row: (string | number)[] = [
             index + 1,
@@ -275,13 +326,11 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
             customer.mobile,
           ];
 
-          /*
-           * Add property name/address pairs.
-           */
           for (let i = 0; i < maxProperties; i++) {
             const property = customer.properties[i];
 
             row.push(property?.propertyName ?? "");
+
             row.push(property?.address ?? "");
           }
 
@@ -320,29 +369,32 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
             0: {
               cellWidth: 10,
             },
+
             1: {
               cellWidth: 22,
             },
+
             2: {
               cellWidth: 28,
             },
+
             3: {
               cellWidth: 22,
             },
+
             4: {
               cellWidth: 35,
             },
+
             5: {
               cellWidth: 25,
             },
           },
 
           didParseCell(data) {
-            /*
-             * Give property columns a reasonable width.
-             */
             if (data.section === "body" || data.section === "head") {
               const propertyStartIndex = 6;
+
               const propertyEndIndex = propertyStartIndex + maxProperties * 2;
 
               if (
@@ -359,10 +411,9 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
       },
     }));
 
-    const [message, setMessage] = useState<{
-      type: "success" | "error";
-      text: string;
-    } | null>(null);
+    // =========================================================
+    // LOAD CUSTOMERS
+    // =========================================================
 
     useEffect(() => {
       loadCustomers();
@@ -371,10 +422,19 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
     async function loadCustomers() {
       try {
         setLoading(true);
+
         const response = await fetch("/api/customers");
+
+        if (!response.ok) {
+          throw new Error("Failed to load customers");
+        }
+
         const data = await response.json();
+
         setCustomers(data);
-      } catch {
+      } catch (error) {
+        console.error("Failed to load customers:", error);
+
         setMessage({
           type: "error",
           text: "Failed to load customers",
@@ -383,6 +443,10 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
         setLoading(false);
       }
     }
+
+    // =========================================================
+    // LOADING
+    // =========================================================
 
     if (loading) {
       return (
@@ -395,21 +459,9 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
     return (
       <>
         <div className="white-section mt-6">
-          <div className="flex items-center gap-3 mb-6">
-            {/* <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
-            <Users size={22} />
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800">
-              Customer Management
-            </h2>
-
-            <p className="text-sm text-slate-500">
-              Update customer information
-            </p>
-          </div> */}
-          </div>
+          {/* =================================================
+                MESSAGE
+            ================================================== */}
 
           {message && (
             <div
@@ -428,9 +480,15 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
               {message.text}
             </div>
           )}
+
+          {/* =================================================
+                FILTERS
+            ================================================== */}
+
           <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Search */}
+
               <div className="relative w-full md:w-96">
                 <Search
                   size={18}
@@ -439,33 +497,36 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
 
                 <input
                   value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+
                     setCurrentPage(1);
                   }}
-                  placeholder="Search by name, mobile or NIC..."
+                  placeholder="Search by name, mobile, NIC or email..."
                   className="
-          h-11
-          w-full
-          rounded-xl
-          border
-          border-slate-200
-          bg-white
-          pl-11
-          pr-4
-          text-sm
-          placeholder:text-slate-400
-          focus:border-blue-500
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500/20
-        "
+                      h-11
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      pl-11
+                      pr-4
+                      text-sm
+                      placeholder:text-slate-400
+                      focus:border-blue-500
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-blue-500/20
+                    "
                 />
               </div>
 
               {/* Right-side filters */}
+
               <div className="flex flex-wrap items-center gap-3">
                 {/* Sort */}
+
                 <div className="relative">
                   <ArrowUpDown
                     size={16}
@@ -474,31 +535,35 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
 
                   <select
                     value={sortBy}
-                    onChange={(e) => {
-                      setSortBy(e.target.value as "name" | "createdDate");
+                    onChange={(event) => {
+                      setSortBy(event.target.value as "name" | "createdDate");
+
                       setCurrentPage(1);
                     }}
                     className="
-            h-11
-            rounded-xl
-            border
-            border-slate-200
-            bg-white
-            pl-9
-            pr-8
-            text-sm
-            focus:border-blue-500
-            focus:outline-none
-            focus:ring-2
-            focus:ring-blue-500/20
-          "
+                        h-11
+                        rounded-xl
+                        border
+                        border-slate-200
+                        bg-white
+                        pl-9
+                        pr-8
+                        text-sm
+                        text-slate-700
+                        focus:border-blue-500
+                        focus:outline-none
+                        focus:ring-2
+                        focus:ring-blue-500/20
+                      "
                   >
                     <option value="name">Sort by Name</option>
+
                     <option value="createdDate">Created Date</option>
                   </select>
                 </div>
 
                 {/* Sort Order */}
+
                 <div className="relative">
                   <ArrowUpDown
                     size={16}
@@ -507,66 +572,71 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
 
                   <select
                     value={sortOrder}
-                    onChange={(e) => {
-                      setSortOrder(e.target.value as "asc" | "desc");
+                    onChange={(event) => {
+                      setSortOrder(event.target.value as "asc" | "desc");
+
                       setCurrentPage(1);
                     }}
                     className="
-            h-11
-            rounded-xl
-            border
-            border-slate-200
-            bg-white
-            pl-9
-            pr-8
-            text-sm
-            focus:border-blue-500
-            focus:outline-none
-            focus:ring-2
-            focus:ring-blue-500/20
-          "
+                        h-11
+                        rounded-xl
+                        border
+                        border-slate-200
+                        bg-white
+                        pl-9
+                        pr-8
+                        text-sm
+                        text-slate-700
+                        focus:border-blue-500
+                        focus:outline-none
+                        focus:ring-2
+                        focus:ring-blue-500/20
+                      "
                   >
                     <option value="asc">Ascending</option>
+
                     <option value="desc">Descending</option>
                   </select>
                 </div>
 
                 {/* Show inactive */}
+
                 <label
                   className="
-          flex
-          h-11
-          cursor-pointer
-          items-center
-          gap-2.5
-          rounded-xl
-          border
-          border-slate-200
-          bg-white
-          px-3.5
-          text-sm
-          font-medium
-          text-slate-600
-          transition
-          hover:border-slate-300
-          hover:bg-slate-50
-        "
+                      flex
+                      h-11
+                      cursor-pointer
+                      items-center
+                      gap-2.5
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-3.5
+                      text-sm
+                      font-medium
+                      text-slate-600
+                      transition
+                      hover:border-slate-300
+                      hover:bg-slate-50
+                    "
                 >
                   <input
                     type="checkbox"
                     checked={showInactive}
-                    onChange={(e) => {
-                      setShowInactive(e.target.checked);
+                    onChange={(event) => {
+                      setShowInactive(event.target.checked);
+
                       setCurrentPage(1);
                     }}
                     className="
-            h-4
-            w-4
-            rounded
-            border-slate-300
-            text-blue-600
-            focus:ring-blue-500
-          "
+                        h-4
+                        w-4
+                        rounded
+                        border-slate-300
+                        text-blue-600
+                        focus:ring-blue-500
+                      "
                   />
 
                   <span>Show inactive customers</span>
@@ -574,233 +644,367 @@ const CustomerManagementTable = forwardRef<CustomerManagementTableRef>(
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-[1500px] w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="px-4 py-4 text-left">#</th>
-                  <th className="px-4 py-4 text-left">Customer ID</th>
-                  <th className="px-4 py-4 text-left">Name</th>
-                  <th className="px-4 py-4 text-left">Primary Email</th>
-                  <th className="px-4 py-4 text-left">Primary Mobile</th>
-                  <th className="px-4 py-4 text-left">Properties</th>
-                  <th className="px-4 py-4 text-left">Status</th>
-                  <th className="px-4 py-4 text-left">Created</th>
-                </tr>
-              </thead>
 
-              <tbody>
-                {paginatedCustomers.map((customer, index) => (
-                  <tr
-                    key={customer.id}
-                    className={`
-                      border-b
-                      border-slate-100
-                      transition
+          {/* =================================================
+                TABLE
+            ================================================== */}
 
-                      ${
-                        customer.active
-                          ? "hover:bg-slate-50"
-                          : "bg-slate-50/70 text-slate-400"
-                      }
-                    `}
-                  >
-                    <td className="px-4 py-2">
-                      {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                    </td>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1500px] w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      #
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/settings/customers/view?id=${customer.id}`}
-                        className={`
-            font-semibold
-            hover:underline
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Customer ID
+                    </th>
 
-            ${
-              customer.active
-                ? "text-emerald-600 transition hover:text-emerald-700"
-                : "text-slate-500"
-            }
-          `}
-                      >
-                        {customer.id}
-                      </Link>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Name
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <div className="font-semibold text-slate-800">
-                        {customer.name}
-                      </div>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Primary Email
+                    </th>
 
-                      <div className="mt-1 text-xs text-slate-500">
-                        {customer.NIC}
-                      </div>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Primary Mobile
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <div className="font-medium text-slate-700">
-                        {customer.email}
-                      </div>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Properties
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <div className="font-medium text-slate-700">
-                        {customer.mobile}
-                      </div>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Status
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                        {customer.properties.length}{" "}
-                        {customer.properties.length === 1
-                          ? "Property"
-                          : "Properties"}
-                      </span>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Created
+                    </th>
 
-                    <td className="px-4 py-2">
-                      <span
-                        className={`
-            inline-flex
-            rounded-full
-            px-3
-            py-1
-            text-xs
-            font-semibold
-
-            ${
-              customer.active
-                ? "bg-green-100 text-green-700"
-                : "bg-slate-200 text-slate-500"
-            }
-          `}
-                      >
-                        {customer.active ? "ACTIVE" : "INACTIVE"}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-2 whitespace-nowrap text-slate-500">
-                      {new Date(customer.createdDate).toLocaleDateString(
-                        "en-GB",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        },
-                      )}
-                    </td>
-
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/settings/customers/view?id=${customer.id}`}
-                        className="
-            inline-flex
-            items-center
-            rounded-xl
-            border
-            border-slate-200
-            bg-white
-            px-4
-            py-2
-            text-sm
-            font-medium
-            text-slate-700
-            transition
-            hover:border-blue-200
-            hover:bg-blue-50
-            hover:text-blue-700
-          "
-                      >
-                        View
-                      </Link>
-                    </td>
+                    <th className="px-4 py-4 text-left font-semibold text-slate-600">
+                      Action
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
-              <div className="text-sm text-slate-500">
-                Showing{" "}
-                <span className="font-medium">
-                  {filteredCustomers.length === 0
-                    ? 0
-                    : (currentPage - 1) * ITEMS_PER_PAGE + 1}
-                </span>
-                -
-                <span className="font-medium">
-                  {" "}
-                  {Math.min(
-                    currentPage * ITEMS_PER_PAGE,
-                    filteredCustomers.length,
+                </thead>
+
+                <tbody>
+                  {paginatedCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-14 text-center">
+                        <p className="text-sm font-medium text-slate-700">
+                          No customers found
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          Try changing your search or filters.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedCustomers.map((customer, index) => (
+                      <tr
+                        key={customer.id}
+                        className={`
+                              border-b
+                              border-slate-100
+                              transition
+                              ${
+                                customer.active
+                                  ? "hover:bg-slate-50"
+                                  : "bg-slate-50/70 text-slate-400"
+                              }
+                            `}
+                      >
+                        <td className="px-4 py-2">
+                          {(currentPage - 1) * itemsPerPage + index + 1}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <Link
+                            href={`/settings/customers/view?id=${customer.id}`}
+                            className={`
+                                  font-semibold
+                                  hover:underline
+                                  ${
+                                    customer.active
+                                      ? "text-emerald-600 transition hover:text-emerald-700"
+                                      : "text-slate-500"
+                                  }
+                                `}
+                          >
+                            {customer.id}
+                          </Link>
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <div className="font-semibold text-slate-800">
+                            {customer.name}
+                          </div>
+
+                          <div className="mt-1 text-xs text-slate-500">
+                            {customer.NIC}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <div className="font-medium text-slate-700">
+                            {customer.email}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <div className="font-medium text-slate-700">
+                            {customer.mobile}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {customer.properties.length}{" "}
+                            {customer.properties.length === 1
+                              ? "Property"
+                              : "Properties"}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <span
+                            className={`
+                                  inline-flex
+                                  rounded-full
+                                  px-3
+                                  py-1
+                                  text-xs
+                                  font-semibold
+                                  ${
+                                    customer.active
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-slate-200 text-slate-500"
+                                  }
+                                `}
+                          >
+                            {customer.active ? "ACTIVE" : "INACTIVE"}
+                          </span>
+                        </td>
+
+                        <td className="whitespace-nowrap px-4 py-2 text-slate-500">
+                          {new Date(customer.createdDate).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          <Link
+                            href={`/settings/customers/view?id=${customer.id}`}
+                            className="
+                                  inline-flex
+                                  items-center
+                                  rounded-xl
+                                  border
+                                  border-slate-200
+                                  bg-white
+                                  px-4
+                                  py-2
+                                  text-sm
+                                  font-medium
+                                  text-slate-700
+                                  transition
+                                  hover:border-blue-200
+                                  hover:bg-blue-50
+                                  hover:text-blue-700
+                                "
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </span>{" "}
-                of{" "}
-                <span className="font-medium">{filteredCustomers.length}</span>{" "}
-                customers
+                </tbody>
+              </table>
+            </div>
+
+            {/* =================================================
+                  PAGINATION
+              ================================================== */}
+
+            <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              {/* Results / rows per page */}
+
+              <div className="flex flex-wrap items-center gap-4">
+                <p className="text-sm text-slate-500">
+                  Showing{" "}
+                  <span className="font-medium text-slate-700">
+                    {startResult}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-medium text-slate-700">
+                    {endResult}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium text-slate-700">
+                    {filteredCustomers.length}
+                  </span>{" "}
+                  customers
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="customerRowsPerPage"
+                    className="text-sm text-slate-500"
+                  >
+                    Rows per page
+                  </label>
+
+                  <select
+                    id="customerRowsPerPage"
+                    value={itemsPerPage}
+                    onChange={(event) => {
+                      setItemsPerPage(Number(event.target.value));
+
+                      setCurrentPage(1);
+                    }}
+                    className="
+                        h-9
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        px-3
+                        text-sm
+                        font-medium
+                        text-slate-700
+                        outline-none
+                        transition
+                        hover:border-slate-300
+                        focus:border-blue-500
+                        focus:ring-2
+                        focus:ring-blue-500/20
+                      "
+                  >
+                    <option value={10}>10</option>
+
+                    <option value={25}>25</option>
+
+                    <option value={50}>50</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Pagination controls */}
+
+              <div className="flex items-center gap-1 self-end lg:self-auto">
                 <button
+                  type="button"
                   onClick={() =>
                     setCurrentPage((page) => Math.max(1, page - 1))
                   }
                   disabled={currentPage === 1}
                   className="
-                  rounded-lg
-                  border
-                  border-slate-200
-                  px-3
-                  py-2
-                  text-sm
-                  hover:bg-slate-50
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
-                >
-                  Previous
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`
+                      inline-flex
                       h-9
-                      w-9
+                      items-center
+                      gap-1
                       rounded-lg
+                      border
+                      border-slate-200
+                      bg-white
+                      px-3
                       text-sm
                       font-medium
+                      text-slate-600
                       transition
+                      hover:bg-slate-50
+                      disabled:cursor-not-allowed
+                      disabled:opacity-40
+                    "
+                >
+                  <ChevronLeft size={16} />
+                  Back
+                </button>
 
-                      ${
-                        currentPage === i + 1
-                          ? "bg-[#14b8a6] text-white"
-                          : "border border-slate-200 hover:bg-slate-50"
-                      }
-                    `}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                <div className="mx-1 flex items-center gap-1">
+                  {pageItems.map((item, index) => {
+                    if (item === "ellipsis") {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="flex h-9 min-w-9 items-center justify-center px-1 text-sm text-slate-400"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const active = item === currentPage;
+
+                    return (
+                      <button
+                        type="button"
+                        key={item}
+                        onClick={() => setCurrentPage(item)}
+                        aria-current={active ? "page" : undefined}
+                        className={`
+                              flex
+                              h-9
+                              min-w-9
+                              items-center
+                              justify-center
+                              rounded-lg
+                              px-2
+                              text-sm
+                              font-medium
+                              transition
+                              ${
+                                active
+                                  ? "bg-[#14b8a6] text-white"
+                                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                              }
+                            `}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
 
                 <button
+                  type="button"
                   onClick={() =>
                     setCurrentPage((page) => Math.min(totalPages, page + 1))
                   }
                   disabled={currentPage === totalPages}
                   className="
+                      inline-flex
+                      h-9
+                      items-center
+                      gap-1
                       rounded-lg
                       border
                       border-slate-200
+                      bg-white
                       px-3
-                      py-2
                       text-sm
+                      font-medium
+                      text-slate-600
+                      transition
                       hover:bg-slate-50
                       disabled:cursor-not-allowed
-                      disabled:opacity-50
+                      disabled:opacity-40
                     "
                 >
                   Next
+                  <ChevronRight size={16} />
                 </button>
               </div>
             </div>

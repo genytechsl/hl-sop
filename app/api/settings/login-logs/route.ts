@@ -5,83 +5,143 @@ import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: NextRequest) {
   try {
-    // =========================================================
-    // AUTHENTICATION
-    // =========================================================
-
     const sessionUser = await getSession();
 
     if (!sessionUser) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // =========================================================
-    // ADMIN ONLY
-    // =========================================================
-
-    if (sessionUser.role !== "sys_admin") {
-      return NextResponse.json(
-        {
-          message: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
+    if (sessionUser.role !== "admin") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
-
-    // =========================================================
-    // QUERY PARAMETERS
-    // =========================================================
 
     const { searchParams } = new URL(request.url);
 
-    const limitParam = searchParams.get("limit");
+    const page = Math.max(Number(searchParams.get("page")) || 1, 1);
 
-    const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
+    const limit = Math.min(
+      Math.max(Number(searchParams.get("limit")) || 25, 10),
+      100,
+    );
 
-    // =========================================================
-    // GET LOGS
-    // =========================================================
+    const event = searchParams.get("event");
+    const success = searchParams.get("success");
+    const search = searchParams.get("search")?.trim();
 
-    const logs = await prisma.loginAuditLog.findMany({
-      take: limit,
+    const where = {
+      ...(event && event !== "ALL"
+        ? {
+            event,
+          }
+        : {}),
 
-      orderBy: {
-        createdAt: "desc",
-      },
+      ...(success === "true"
+        ? {
+            success: true,
+          }
+        : success === "false"
+          ? {
+              success: false,
+            }
+          : {}),
 
-      select: {
-        id: true,
-        identifier: true,
-        event: true,
-        success: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
+      ...(search
+        ? {
+            OR: [
+              {
+                identifier: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                ipAddress: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                employee: {
+                  is: {
+                    OR: [
+                      {
+                        name: {
+                          contains: search,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                      {
+                        username: {
+                          contains: search,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: search,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
 
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            email: true,
-            designation: true,
-            department: true,
-            role: true,
+    const [logs, total] = await Promise.all([
+      prisma.loginAuditLog.findMany({
+        where,
+
+        skip: (page - 1) * limit,
+
+        take: limit,
+
+        orderBy: {
+          createdAt: "desc",
+        },
+
+        select: {
+          id: true,
+          identifier: true,
+          event: true,
+          success: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true,
+
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              email: true,
+              designation: true,
+              department: true,
+              role: true,
+            },
           },
         },
+      }),
+
+      prisma.loginAuditLog.count({
+        where,
+      }),
+    ]);
+
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    return NextResponse.json({
+      logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
       },
     });
-
-    return NextResponse.json(logs);
   } catch (error) {
     console.error("GET login audit logs error:", error);
 
