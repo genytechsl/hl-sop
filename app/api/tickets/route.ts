@@ -11,7 +11,10 @@ import {
   getActionOwnerWorkload,
   getCategoryVolume,
   getTicketsByCustomerId,
+  getSlaCompliance,
   getTicketByIdForUser,
+  getScopeDistribution,
+  getTicketMonths,
 } from "@/lib/ticket-service";
 
 import { prisma } from "@/lib/prisma";
@@ -60,11 +63,11 @@ export async function GET(request: NextRequest) {
 
     const user = await getSession();
 
-    console.log("GET /api/tickets session:", {
-      id: user?.id,
-      role: user?.role,
-      name: user?.name,
-    });
+    // console.log("GET /api/tickets session:", {
+    //   id: user?.id,
+    //   role: user?.role,
+    //   name: user?.name,
+    // });
 
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -137,6 +140,47 @@ export async function GET(request: NextRequest) {
       }
 
       return NextResponse.json(await getCategoryVolume());
+    }
+
+    // =====================================================
+    // SLA COMPLIANCE
+    // Admin + Data Entry ONLY
+    // =====================================================
+
+    if (searchParams.get("slaCompliance") === "true") {
+      if (!isAdmin && !isDataEntry) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+
+      return NextResponse.json(await getSlaCompliance());
+    }
+
+    // =====================================================
+    // AVAILABLE TICKET MONTHS
+    // Admin + Data Entry ONLY
+    // =====================================================
+
+    if (searchParams.get("months") === "true") {
+      if (!isAdmin && !isDataEntry) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+
+      return NextResponse.json(await getTicketMonths());
+    }
+
+    // =====================================================
+    // SCOPE DISTRIBUTION
+    // Admin + Data Entry ONLY
+    // =====================================================
+
+    if (searchParams.get("scopeDistribution") === "true") {
+      if (!isAdmin && !isDataEntry) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+
+      const month = searchParams.get("month") ?? undefined;
+
+      return NextResponse.json(await getScopeDistribution(month));
     }
 
     // =====================================================

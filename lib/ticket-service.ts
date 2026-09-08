@@ -558,13 +558,6 @@ export async function getAgingOverview() {
 }
 
 export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
-  const tickets = await prisma.ticket.findMany({
-    select: {
-      createdAt: true,
-      status: true,
-    },
-  });
-
   const monthNames = [
     "Jan",
     "Feb",
@@ -582,52 +575,64 @@ export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
 
   const now = new Date();
 
-  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0, 0);
 
   const result: TicketVolumeItem[] = [];
 
   for (let i = 0; i < 12; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const date = new Date(start.getFullYear(), start.getMonth() + i, 1);
 
     result.push({
-      year: d.getFullYear(),
-      monthIndex: d.getMonth(),
-      month: monthNames[d.getMonth()],
+      year: date.getFullYear(),
+      monthIndex: date.getMonth(),
+      month: monthNames[date.getMonth()],
       open: 0,
       inProgress: 0,
       closed: 0,
     });
   }
 
-  tickets.forEach((ticket) => {
-    const created = new Date(ticket.createdAt);
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      createdAt: {
+        gte: start,
+      },
+    },
+    select: {
+      createdAt: true,
+      status: true,
+    },
+  });
 
-    const index = result.findIndex(
-      (month) =>
-        month.year === created.getFullYear() &&
-        month.monthIndex === created.getMonth(),
+  for (const ticket of tickets) {
+    const createdAt = ticket.createdAt;
+
+    const month = result.find(
+      (item) =>
+        item.year === createdAt.getFullYear() &&
+        item.monthIndex === createdAt.getMonth(),
     );
 
-    if (index === -1) {
-      return;
+    if (!month) {
+      continue;
     }
 
     switch (ticket.status) {
       case "OPEN":
-        result[index].open++;
+        month.open++;
         break;
 
       case "IN_PROGRESS":
       case "BEING_PROCESSED":
-        result[index].inProgress++;
+        month.inProgress++;
         break;
 
       case "RESOLVED":
       case "CLOSED":
-        result[index].closed++;
+        month.closed++;
         break;
     }
-  });
+  }
 
   return result;
 }
@@ -661,27 +666,42 @@ export async function getCategoryVolume() {
 }
 
 export async function getActionOwnerWorkload() {
-  const tickets = await prisma.ticket.findMany({
-    select: {
-      assignedTo: {
-        select: {
-          name: true,
-        },
-      },
+  const grouped = await prisma.ticket.groupBy({
+    by: ["assignedToId"],
+    _count: {
+      _all: true,
     },
   });
 
-  const owners: Record<string, number> = {};
+  const employeeIds = grouped
+    .map((item) => item.assignedToId)
+    .filter((id): id is string => Boolean(id));
 
-  tickets.forEach((ticket) => {
-    const owner = ticket.assignedTo?.name || "Unassigned";
-    owners[owner] = (owners[owner] || 0) + 1;
-  });
+  const employees =
+    employeeIds.length > 0
+      ? await prisma.employee.findMany({
+          where: {
+            id: {
+              in: employeeIds,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : [];
 
-  return Object.entries(owners)
-    .map(([name, tickets]) => ({
-      name,
-      tickets,
+  const employeeMap = new Map(
+    employees.map((employee) => [employee.id, employee.name]),
+  );
+
+  return grouped
+    .map((item) => ({
+      name: item.assignedToId
+        ? (employeeMap.get(item.assignedToId) ?? "Unknown")
+        : "Unassigned",
+      tickets: item._count._all,
     }))
     .sort((a, b) => b.tickets - a.tickets);
 }
@@ -693,4 +713,197 @@ interface TicketVolumeItem {
   open: number;
   inProgress: number;
   closed: number;
+}
+
+interface SlaComplianceItem {
+  month: string;
+  year: number;
+  monthIndex: number;
+  compliance: number;
+}
+
+function getSlaLimit(category: string) {
+  const categoryConfig = categories.find((item) => item.code === category);
+
+  return categoryConfig ?? null;
+}
+
+export async function getSlaCompliance(): Promise<SlaComplianceItem[]> {
+  const now = new Date();
+
+  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0, 0);
+
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      createdAt: {
+        gte: start,
+      },
+    },
+    select: {
+      createdAt: true,
+      category: true,
+      status: true,
+    },
+  });
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const result = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(start.getFullYear(), start.getMonth() + index, 1);
+
+    return {
+      year: date.getFullYear(),
+      monthIndex: date.getMonth(),
+      month: monthNames[date.getMonth()],
+      total: 0,
+      compliant: 0,
+    };
+  });
+
+  for (const ticket of tickets) {
+    const category = getSlaLimit(ticket.category);
+
+    if (!category) {
+      continue;
+    }
+
+    const month = result.find(
+      (item) =>
+        item.year === ticket.createdAt.getFullYear() &&
+        item.monthIndex === ticket.createdAt.getMonth(),
+    );
+
+    if (!month) {
+      continue;
+    }
+
+    month.total++;
+
+    const age = getAge(formatDateTime(ticket.createdAt), category.unit);
+
+    if (age <= category.sla) {
+      month.compliant++;
+    }
+  }
+
+  return result.map((item) => ({
+    year: item.year,
+    monthIndex: item.monthIndex,
+    month: item.month,
+    compliance:
+      item.total > 0 ? Math.round((item.compliant / item.total) * 100) : 0,
+  }));
+}
+
+export async function getScopeDistribution(month?: string) {
+  const now = new Date();
+
+  let year = now.getFullYear();
+  let monthIndex = now.getMonth();
+
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [selectedYear, selectedMonth] = month.split("-").map(Number);
+
+    year = selectedYear;
+    monthIndex = selectedMonth - 1;
+  }
+
+  const startDate = new Date(year, monthIndex, 1);
+
+  const endDate = new Date(year, monthIndex + 1, 1);
+
+  const grouped = await prisma.ticket.groupBy({
+    by: ["scope", "ticketType"],
+    where: {
+      createdAt: {
+        gte: startDate,
+        lt: endDate,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  const scopes: Record<
+    string,
+    {
+      complaints: number;
+      inquiries: number;
+    }
+  > = {};
+
+  for (const item of grouped) {
+    const scope = item.scope?.trim() || "Unspecified";
+
+    if (!scopes[scope]) {
+      scopes[scope] = {
+        complaints: 0,
+        inquiries: 0,
+      };
+    }
+
+    if (item.ticketType === "COM") {
+      scopes[scope].complaints += item._count._all;
+    }
+
+    if (item.ticketType === "INQ") {
+      scopes[scope].inquiries += item._count._all;
+    }
+  }
+
+  return Object.entries(scopes)
+    .map(([scope, values]) => {
+      const total = values.complaints + values.inquiries;
+
+      return {
+        scope,
+        complaints: values.complaints,
+        inquiries: values.inquiries,
+        total,
+        complaintPercentage:
+          total > 0
+            ? Number(((values.complaints / total) * 100).toFixed(1))
+            : 0,
+        inquiryPercentage:
+          total > 0 ? Number(((values.inquiries / total) * 100).toFixed(1)) : 0,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+}
+
+export async function getTicketMonths() {
+  const tickets = await prisma.ticket.findMany({
+    select: {
+      createdAt: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  const months = new Set<string>();
+
+  for (const ticket of tickets) {
+    const year = ticket.createdAt.getFullYear();
+
+    const month = String(ticket.createdAt.getMonth() + 1).padStart(2, "0");
+
+    months.add(`${year}-${month}`);
+  }
+
+  return Array.from(months).sort((a, b) => b.localeCompare(a));
 }

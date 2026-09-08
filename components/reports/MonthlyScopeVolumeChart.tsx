@@ -13,13 +13,6 @@ import {
 } from "recharts";
 import { Calendar, Info } from "lucide-react";
 
-interface Ticket {
-  id: string;
-  scope: string;
-  createdAt: string;
-  ticketType: string;
-}
-
 interface ChartData {
   scope: string;
   complaints: number;
@@ -30,110 +23,134 @@ interface ChartData {
 }
 
 export default function ScopeDistributionChart() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [months, setMonths] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [loadingMonths, setLoadingMonths] = useState(true);
+  const [loadingChart, setLoadingChart] = useState(false);
+  const [error, setError] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // =========================================================
+  // LOAD AVAILABLE MONTHS
+  // =========================================================
+
   useEffect(() => {
-    loadTickets();
+    async function loadMonths() {
+      try {
+        setLoadingMonths(true);
+        setError("");
+
+        const response = await fetch("/api/tickets?months=true");
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              data?.error ||
+              `Failed to load months: ${response.status}`,
+          );
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid month data received from server.");
+        }
+
+        setMonths(data);
+
+        if (data.length > 0) {
+          setSelectedMonth(data[0]);
+        } else {
+          setSelectedMonth("");
+        }
+      } catch (error) {
+        console.error("Failed to load ticket months:", error);
+
+        setMonths([]);
+        setSelectedMonth("");
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load ticket months.",
+        );
+      } finally {
+        setLoadingMonths(false);
+      }
+    }
+
+    loadMonths();
   }, []);
 
-  async function loadTickets() {
-    try {
-      const res = await fetch("/api/tickets");
+  // =========================================================
+  // LOAD SCOPE DISTRIBUTION
+  // =========================================================
 
-      if (!res.ok) {
-        throw new Error("Failed to load tickets");
-      }
-
-      const data = await res.json();
-
-      setTickets(data);
-
-      if (data.length > 0) {
-        const latest = data
-          .map((ticket: Ticket) => ticket.createdAt.substring(0, 7))
-          .sort()
-          .reverse()[0];
-
-        setSelectedMonth(latest);
-      }
-    } catch (error) {
-      console.error("Failed to load tickets:", error);
+  useEffect(() => {
+    if (!selectedMonth) {
+      setChartData([]);
+      return;
     }
-  }
 
-  // =========================================================
-  // AVAILABLE MONTHS
-  // =========================================================
+    const controller = new AbortController();
 
-  const months = useMemo(() => {
-    return [
-      ...new Set(tickets.map((ticket) => ticket.createdAt.substring(0, 7))),
-    ].sort((a, b) => b.localeCompare(a));
-  }, [tickets]);
+    async function loadScopeDistribution() {
+      try {
+        setLoadingChart(true);
+        setError("");
 
-  // =========================================================
-  // SCOPE + TICKET TYPE BREAKDOWN
-  // =========================================================
+        const response = await fetch(
+          `/api/tickets?scopeDistribution=true&month=${encodeURIComponent(
+            selectedMonth,
+          )}`,
+          {
+            signal: controller.signal,
+          },
+        );
 
-  const chartData = useMemo<ChartData[]>(() => {
-    const filtered = tickets.filter((ticket) =>
-      ticket.createdAt.startsWith(selectedMonth),
-    );
+        const data = await response.json().catch(() => null);
 
-    const grouped: Record<
-      string,
-      {
-        complaints: number;
-        inquiries: number;
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              data?.error ||
+              `Failed to load scope distribution: ${response.status}`,
+          );
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error(
+            "Invalid scope distribution data received from server.",
+          );
+        }
+
+        setChartData(data);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to load scope distribution:", error);
+
+        setChartData([]);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load scope distribution.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingChart(false);
+        }
       }
-    > = {};
+    }
 
-    filtered.forEach((ticket) => {
-      const scope = ticket.scope?.trim() || "Unspecified";
-      const type = ticket.ticketType?.trim().toUpperCase();
+    loadScopeDistribution();
 
-      if (!grouped[scope]) {
-        grouped[scope] = {
-          complaints: 0,
-          inquiries: 0,
-        };
-      }
-
-      if (type === "COM") {
-        grouped[scope].complaints++;
-      }
-
-      if (type === "INQ") {
-        grouped[scope].inquiries++;
-      }
-    });
-
-    return Object.entries(grouped)
-      .map(([scope, values]) => {
-        const total = values.complaints + values.inquiries;
-
-        return {
-          scope,
-          complaints: values.complaints,
-          inquiries: values.inquiries,
-          total,
-
-          complaintPercentage:
-            total === 0
-              ? 0
-              : Number(((values.complaints / total) * 100).toFixed(1)),
-
-          inquiryPercentage:
-            total === 0
-              ? 0
-              : Number(((values.inquiries / total) * 100).toFixed(1)),
-        };
-      })
-      .filter((item) => item.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [tickets, selectedMonth]);
+    return () => {
+      controller.abort();
+    };
+  }, [selectedMonth]);
 
   // =========================================================
   // OVERALL TOTALS
@@ -165,11 +182,15 @@ export default function ScopeDistributionChart() {
     active?: boolean;
     label?: string;
   }) {
-    if (!active) return null;
+    if (!active) {
+      return null;
+    }
 
     const row = chartData.find((item) => item.scope === label);
 
-    if (!row) return null;
+    if (!row) {
+      return null;
+    }
 
     return (
       <div className="min-w-[210px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
@@ -184,6 +205,7 @@ export default function ScopeDistributionChart() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-red-500" />
+
             <span className="text-xs font-medium text-slate-600">
               Complaints
             </span>
@@ -282,7 +304,9 @@ export default function ScopeDistributionChart() {
   function TotalLabel(props: any) {
     const { x, y, width, height, value } = props;
 
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
 
     return (
       <text
@@ -306,18 +330,18 @@ export default function ScopeDistributionChart() {
     <div ref={cardRef} className="w-full px-3 py-3">
       <div className="mb-4 flex items-center gap-2">
         <h2 className="section-heading">Monthly Volume & Data Profile</h2>
+
         <Info size={16} className="text-slate-500" />
       </div>
+
       {/* =====================================================
           TOP SECTION
       ====================================================== */}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        {/* LEFT - COMPACT SUMMARY */}
+        {/* LEFT - SUMMARY */}
 
-        <div className="flex items-center gap-2">
-          {/* TOTAL */}
-
+        <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-xl bg-slate-50 px-3 py-2">
             <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
               Total
@@ -331,8 +355,6 @@ export default function ScopeDistributionChart() {
               <span className="text-[9px] text-slate-400">tickets</span>
             </div>
           </div>
-
-          {/* COMPLAINTS */}
 
           <div className="rounded-xl border border-red-100 bg-red-50/50 px-3 py-2">
             <div className="flex items-center gap-1.5">
@@ -351,13 +373,11 @@ export default function ScopeDistributionChart() {
               <span className="text-[9px] text-slate-400">
                 {totals.total === 0
                   ? 0
-                  : ((totals.complaints / totals.total) * 100).toFixed(0)}
+                  : Math.round((totals.complaints / totals.total) * 100)}
                 %
               </span>
             </div>
           </div>
-
-          {/* INQUIRIES */}
 
           <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2">
             <div className="flex items-center gap-1.5">
@@ -376,7 +396,7 @@ export default function ScopeDistributionChart() {
               <span className="text-[9px] text-slate-400">
                 {totals.total === 0
                   ? 0
-                  : ((totals.inquiries / totals.total) * 100).toFixed(0)}
+                  : Math.round((totals.inquiries / totals.total) * 100)}
                 %
               </span>
             </div>
@@ -391,30 +411,18 @@ export default function ScopeDistributionChart() {
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="
-              h-9
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              pl-8
-              pr-3
-              text-xs
-              font-medium
-              text-slate-700
-              transition-all
-              hover:border-[#004737]
-              focus:border-[#004737]
-              focus:outline-none
-              focus:ring-2
-              focus:ring-[#004737]/10
-            "
+            disabled={loadingMonths || months.length === 0}
+            className="h-9 rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs font-medium text-slate-700 transition-all hover:border-[#004737] focus:border-[#004737] focus:outline-none focus:ring-2 focus:ring-[#004737]/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
           >
-            {months.map((month) => (
-              <option key={month} value={month}>
-                {month}
-              </option>
-            ))}
+            {months.length === 0 ? (
+              <option value="">No months available</option>
+            ) : (
+              months.map((month) => (
+                <option key={month} value={month}>
+                  {month}
+                </option>
+              ))
+            )}
           </select>
         </div>
       </div>
@@ -423,7 +431,7 @@ export default function ScopeDistributionChart() {
           TITLE / LEGEND
       ====================================================== */}
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-slate-800">
             Scope Distribution
@@ -434,7 +442,7 @@ export default function ScopeDistributionChart() {
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-red-500" />
 
@@ -459,7 +467,23 @@ export default function ScopeDistributionChart() {
           height: Math.max(260, chartData.length * 58),
         }}
       >
-        {chartData.length === 0 ? (
+        {loadingMonths || loadingChart ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-sm text-slate-500">
+              Loading scope distribution...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="flex h-full items-center justify-center px-4">
+            <div className="max-w-md text-center">
+              <p className="text-sm font-medium text-slate-600">
+                Scope distribution unavailable
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">{error}</p>
+            </div>
+          </div>
+        ) : chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-sm font-medium text-slate-500">
@@ -478,7 +502,7 @@ export default function ScopeDistributionChart() {
               layout="vertical"
               margin={{
                 top: 5,
-                right: 30,
+                right: 45,
                 left: 5,
                 bottom: 5,
               }}
@@ -512,31 +536,29 @@ export default function ScopeDistributionChart() {
                 content={<CustomTooltip />}
               />
 
-              {/* COMPLAINTS */}
               <Bar
                 dataKey="complaints"
                 name="Complaints"
                 stackId="tickets"
                 fill="#ef4444"
                 radius={[8, 0, 0, 8]}
-                isAnimationActive={true}
+                isAnimationActive
                 animationBegin={100}
-                animationDuration={1800}
+                animationDuration={1200}
                 animationEasing="ease-out"
               >
                 <LabelList dataKey="complaints" content={<ComplaintLabel />} />
               </Bar>
 
-              {/* INQUIRIES */}
               <Bar
                 dataKey="inquiries"
                 name="Inquiries"
                 stackId="tickets"
                 fill="#3b82f6"
                 radius={[0, 8, 8, 0]}
-                isAnimationActive={true}
+                isAnimationActive
                 animationBegin={100}
-                animationDuration={1800}
+                animationDuration={1200}
                 animationEasing="ease-out"
               >
                 <LabelList dataKey="inquiries" content={<InquiryLabel />} />

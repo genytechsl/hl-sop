@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 
@@ -10,7 +10,7 @@ const categoryRoleMap: Record<string, string[]> = {
   "CAT-D": ["Operations Executive"],
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getSession();
 
@@ -27,87 +27,116 @@ export async function GET() {
     }
 
     /*
-     * This endpoint is mainly required for ACTION OWNER.
-     *
-     * Admin/dataEntry can continue using the normal administrative
-     * endpoints if you prefer.
+     * ---------------------------------------------------------
+     * QUERY PARAMETERS
+     * ---------------------------------------------------------
      */
-    if (user.role === "actionOwner") {
-      const employee = await prisma.employee.findUnique({
-        where: {
-          id: user.id,
-        },
-        select: {
-          id: true,
-          name: true,
-          designation: true,
-          email: true,
-          active: true,
-          role: true,
-          department: true,
-          username: true,
-        },
-      });
 
-      if (!employee || !employee.active) {
-        return NextResponse.json(
-          { message: "Employee account is unavailable" },
-          { status: 403 },
-        );
-      }
+    const ticketType =
+      request.nextUrl.searchParams.get("ticketType")?.trim() || "";
 
-      /*
-       * Load categories.
-       *
-       * Change the Prisma model name below if your actual generated
-       * Prisma model uses a different name.
-       */
-      const allCategories = await prisma.ticketCategory.findMany({
-        orderBy: {
-          code: "asc",
-        },
-      });
+    /*
+     * ---------------------------------------------------------
+     * SCOPES
+     * ---------------------------------------------------------
+     *
+     * If ticketType is supplied:
+     *
+     * INQ -> only INQ scopes
+     * COM -> only COM scopes
+     *
+     * Otherwise return all scopes.
+     */
 
-      /*
-       * Only return categories that match the logged-in employee's
-       * designation.
-       */
-      const categories = allCategories.filter((category) => {
-        const allowedDesignations = categoryRoleMap[category.code] ?? [];
+    const scopes = await prisma.ticketTypeScope.findMany({
+      where: ticketType
+        ? {
+            ticketType,
+          }
+        : undefined,
 
-        return allowedDesignations.includes(employee.designation);
-      });
+      orderBy: {
+        scope: "asc",
+      },
+    });
 
-      /*
-       * Scopes are not administrative user records, so they can safely
-       * be returned as ticket-form metadata.
-       */
-      const scopes = await prisma.ticketTypeScope.findMany({
-        orderBy: [
-          {
-            ticketType: "asc",
-          },
-          {
-            scope: "asc",
-          },
-        ],
-      });
+    /*
+     * ---------------------------------------------------------
+     * ADMIN / DATA ENTRY
+     * ---------------------------------------------------------
+     */
 
+    if (user.role === "admin" || user.role === "dataEntry") {
       return NextResponse.json({
         role: user.role,
-
-        department: employee.department,
-
-        actionOwner: employee,
-
-        categories,
-
         scopes,
       });
     }
 
+    /*
+     * ---------------------------------------------------------
+     * ACTION OWNER
+     * ---------------------------------------------------------
+     */
+
+    const employee = await prisma.employee.findUnique({
+      where: {
+        id: user.id,
+      },
+
+      select: {
+        id: true,
+        name: true,
+        designation: true,
+        email: true,
+        active: true,
+        role: true,
+        department: true,
+        username: true,
+      },
+    });
+
+    if (!employee || !employee.active) {
+      return NextResponse.json(
+        {
+          message: "Employee account is unavailable",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * ACTION OWNER CATEGORIES
+     * ---------------------------------------------------------
+     */
+
+    const allCategories = await prisma.ticketCategory.findMany({
+      orderBy: {
+        code: "asc",
+      },
+    });
+
+    const categories = allCategories.filter((category) => {
+      const allowedDesignations = categoryRoleMap[category.code] ?? [];
+
+      return allowedDesignations.includes(employee.designation);
+    });
+
+    /*
+     * ---------------------------------------------------------
+     * RESPONSE
+     * ---------------------------------------------------------
+     */
+
     return NextResponse.json({
       role: user.role,
+      department: employee.department,
+      actionOwner: employee,
+      categories,
+      scopes,
     });
   } catch (error) {
     console.error("GET /api/tickets/form-options error:", error);
