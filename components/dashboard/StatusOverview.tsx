@@ -73,7 +73,18 @@ export default function StatusOverview() {
         const res = await fetch("/api/tickets?overview=true");
 
         if (!res.ok) {
-          throw new Error(`Failed to load ticket overview: ${res.status}`);
+          const errorData = await res.json().catch(() => null);
+
+          console.error("Ticket overview API failed:", {
+            status: res.status,
+            response: errorData,
+          });
+
+          throw new Error(
+            errorData?.message ||
+              errorData?.error ||
+              `Failed to load ticket overview: ${res.status}`,
+          );
         }
 
         const data = await res.json();

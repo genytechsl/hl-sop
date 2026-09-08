@@ -53,84 +53,13 @@ interface Employee {
   department: string;
 }
 
-// const getSlaTarget = (category: string) => {
-//   switch (category) {
-//     case "CAT-A":
-//       return "24";
-
-//     case "CAT-B":
-//       return "7 Working Days";
-
-//     case "CAT-B2":
-//       return "7 Days";
-
-//     case "CAT-C":
-//       return "5 Working Days";
-
-//     case "CAT-D":
-//       return "10 Working Days";
-
-//     default:
-//       return "24";
-//   }
-// };
-
-// const getPriority = (category: string) => {
-//   switch (category) {
-//     case "CAT-A":
-//       return "VERY HIGH";
-
-//     case "CAT-B":
-//       return "HIGH";
-
-//     case "CAT-B2":
-//       return "MEDIUM";
-
-//     case "CAT-C":
-//       return "LOW";
-
-//     case "CAT-D":
-//       return "VERY LOW";
-
-//     default:
-//       return "MEDIUM";
-//   }
-// };
-
-// const categoryOptions = [
-//   {
-//     code: "CAT-A",
-//     label: "Critical",
-//     sla: "24 h",
-//     priority: "Very High",
-//   },
-//   {
-//     code: "CAT-B",
-//     label: "Technical",
-//     sla: "7 wd",
-//     priority: "High",
-//   },
-//   {
-//     code: "CAT-B2",
-//     label: "SFM Facility",
-//     sla: "7 d",
-//     priority: "Medium",
-//   },
-//   {
-//     code: "CAT-C",
-//     label: "Admin / Pay",
-//     sla: "5 wd",
-//     priority: "Low",
-//   },
-//   {
-//     code: "CAT-D",
-//     label: "Legal",
-//     sla: "10 wd",
-//     priority: "Very Low",
-//   },
-// ];
-
-// const emailSuggestions = employees.filter((employee) => employee.active);
+interface TicketFormContext {
+  role: "admin" | "dataEntry" | "actionOwner" | "sys_admin";
+  department?: string | null;
+  actionOwner?: Employee;
+  categories?: TicketCategory[];
+  scopes?: TicketTypeScope[];
+}
 
 export default function NewTicketForm() {
   const [search, setSearch] = useState("");
@@ -172,7 +101,75 @@ export default function NewTicketForm() {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [category, setCategory] = useState("categoryOptions[0].code");
 
+  const [currentUserRole, setCurrentUserRole] = useState<
+    "admin" | "dataEntry" | "actionOwner" | "sys_admin" | ""
+  >("");
+
+  const isActionOwner = currentUserRole === "actionOwner";
+
   useEffect(() => {
+    async function loadTicketFormContext() {
+      try {
+        const response = await fetch("/api/tickets/form-options");
+
+        if (!response.ok) {
+          throw new Error("Failed to load ticket form options");
+        }
+
+        const data: TicketFormContext = await response.json();
+
+        setCurrentUserRole(data.role);
+
+        if (data.role === "actionOwner") {
+          /*
+           * Department is forced to their own.
+           */
+          setDepartment(data.department ?? "");
+
+          /*
+           * Action owner is forced to themselves.
+           */
+          if (data.actionOwner) {
+            setEmployees([data.actionOwner]);
+            setActionOwnerId(data.actionOwner.id);
+          }
+
+          /*
+           * Only categories permitted for their designation.
+           */
+          setCategoryOptions(data.categories ?? []);
+
+          /*
+           * Ticket-type scopes.
+           */
+          setScopes(data.scopes ?? []);
+        }
+      } catch (error) {
+        console.error("Failed to load ticket form context:", error);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load ticket creation information.",
+        });
+      }
+    }
+
+    loadTicketFormContext();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserRole) return;
+
+    /*
+     * Action owner's department was already supplied by
+     * /api/tickets/form-options.
+     */
+    if (currentUserRole === "actionOwner") {
+      return;
+    }
+
     async function loadDepartments() {
       try {
         setLoadingDepartments(true);
@@ -203,7 +200,7 @@ export default function NewTicketForm() {
     }
 
     loadDepartments();
-  }, []);
+  }, [currentUserRole]);
 
   useEffect(() => {
     async function loadScopes() {
@@ -217,27 +214,26 @@ export default function NewTicketForm() {
         setLoadingScopes(true);
 
         const response = await fetch(
-          `/api/settings/ticket-type-scopes?ticketType=${encodeURIComponent(ticketType)}`,
+          `/api/tickets/form-options?ticketType=${encodeURIComponent(ticketType)}`,
         );
 
         if (!response.ok) {
-          setToast({
-            open: true,
-            type: "error",
-            title: "Failed",
-            message: "Unable to load ticket scopes.",
-          });
+          throw new Error("Failed to load ticket scopes");
         }
 
         const data = await response.json();
 
-        setScopes(data);
+        const filteredScopes: TicketTypeScope[] = Array.isArray(data.scopes)
+          ? data.scopes.filter(
+              (item: TicketTypeScope) => item.ticketType === ticketType,
+            )
+          : [];
 
-        // Clear current scope if it doesn't exist
-        // under the newly selected ticket type.
+        setScopes(filteredScopes);
+
         setScope((currentScope) => {
-          const exists = data.some(
-            (item: TicketTypeScope) => item.scope === currentScope,
+          const exists = filteredScopes.some(
+            (item) => item.scope === currentScope,
           );
 
           return exists ? currentScope : "";
@@ -263,6 +259,15 @@ export default function NewTicketForm() {
   }, [ticketType]);
 
   useEffect(() => {
+    if (!currentUserRole) return;
+
+    /*
+     * Already loaded securely for actionOwner.
+     */
+    if (currentUserRole === "actionOwner") {
+      return;
+    }
+
     async function loadCategories() {
       try {
         setLoadingCategories(true);
@@ -270,12 +275,7 @@ export default function NewTicketForm() {
         const response = await fetch("/api/settings/ticket-type-categories");
 
         if (!response.ok) {
-          setToast({
-            open: true,
-            type: "error",
-            title: "Failed",
-            message: "Unable to load ticket categories.",
-          });
+          throw new Error("Failed to load categories");
         }
 
         const data = await response.json();
@@ -296,7 +296,7 @@ export default function NewTicketForm() {
     }
 
     loadCategories();
-  }, []);
+  }, [currentUserRole]);
 
   const getSlaTarget = (categoryCode: string) => {
     const selected = categoryOptions.find((item) => item.code === categoryCode);
@@ -352,16 +352,53 @@ export default function NewTicketForm() {
   );
 
   useEffect(() => {
-    async function loadCustomers() {
-      const response = await fetch("/api/customers");
+    const trimmedSearch = search.trim();
 
-      const data = await response.json();
-
-      setCustomers(data);
+    if (selectedCustomer) {
+      return;
     }
 
-    loadCustomers();
-  }, []);
+    if (trimmedSearch.length < 2) {
+      setCustomers([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/tickets/customer-search?search=${encodeURIComponent(
+            trimmedSearch,
+          )}`,
+          {
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to search customers");
+        }
+
+        const data = await response.json();
+
+        setCustomers(data);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to search customers:", error);
+
+        setCustomers([]);
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, selectedCustomer]);
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -370,18 +407,6 @@ export default function NewTicketForm() {
       customer.email.toLowerCase().includes(search) ||
       customer.mobile.includes(search),
   );
-
-  useEffect(() => {
-    async function searchCustomers() {
-      const response = await fetch(`/api/customers?search=${search}`);
-
-      const data = await response.json();
-
-      setCustomers(data);
-    }
-
-    searchCustomers();
-  }, [search]);
 
   const categoryRoleMap: Record<string, string[]> = {
     "CAT-A": ["MEP Engineer"],
@@ -414,6 +439,15 @@ export default function NewTicketForm() {
   ]);
 
   useEffect(() => {
+    if (!currentUserRole) return;
+
+    /*
+     * Action owner has already been loaded as the only employee.
+     */
+    if (currentUserRole === "actionOwner") {
+      return;
+    }
+
     async function loadEmployees() {
       try {
         const response = await fetch("/api/users?active=true");
@@ -438,7 +472,7 @@ export default function NewTicketForm() {
     }
 
     loadEmployees();
-  }, []);
+  }, [currentUserRole]);
 
   const availableEmployees = useMemo(() => {
     const allowedRoles = categoryRoleMap[category] || [];
@@ -908,36 +942,54 @@ export default function NewTicketForm() {
 
               <div className="grid md:grid-cols-4 gap-4">
                 <div className="md:col-span-1">
-                  <SelectField
-                    label="Department"
-                    value={department}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                      setDepartment(e.target.value);
-
-                      // Clear selected action owner when department changes
-                      setActionOwnerId("");
-                    }}
-                  >
-                    <option value="">
-                      {loadingDepartments
-                        ? "Loading departments..."
-                        : "Select Department"}
-                    </option>
-
-                    {departments.map((item) => (
-                      <option key={item.id} value={item.name}>
-                        {item.name}
+                  {isActionOwner ? (
+                    <InputField
+                      label="Department"
+                      value={department}
+                      readOnly
+                    />
+                  ) : (
+                    <SelectField
+                      label="Department"
+                      value={department}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        setDepartment(e.target.value);
+                        setActionOwnerId("");
+                      }}
+                    >
+                      <option value="">
+                        {loadingDepartments
+                          ? "Loading departments..."
+                          : "Select Department"}
                       </option>
-                    ))}
-                  </SelectField>
+
+                      {departments.map((item) => (
+                        <option key={item.id} value={item.name}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  )}
                 </div>
                 {/* Action Owner */}
                 <div className="md:col-span-1">
-                  <div className="col-span-2">
+                  {isActionOwner ? (
+                    <InputField
+                      label="Action Owner"
+                      value={
+                        selectedActionOwner
+                          ? `${selectedActionOwner.designation} - ${selectedActionOwner.name}`
+                          : ""
+                      }
+                      readOnly
+                    />
+                  ) : (
                     <SelectField
                       label="Action Owner"
                       value={actionOwnerId}
-                      onChange={(e: any) => setActionOwnerId(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setActionOwnerId(e.target.value)
+                      }
                     >
                       <option value="">Select Action Owner</option>
 
@@ -947,7 +999,7 @@ export default function NewTicketForm() {
                         </option>
                       ))}
                     </SelectField>
-                  </div>
+                  )}
                 </div>
                 {/* <InputField label="Scope *" placeholder="Required" /> */}
 
@@ -1053,12 +1105,14 @@ export default function NewTicketForm() {
                 </p>
               </div>
 
-              <Link href={"../settings/customers/new"}>
-                <button type="button" className="geny-theme-button-border">
-                  <User size={18} />
-                  New Customer
-                </button>
-              </Link>
+              {!isActionOwner && (
+                <Link href="/settings/customers/new">
+                  <button type="button" className="geny-theme-button-border">
+                    <User size={18} />
+                    New Customer
+                  </button>
+                </Link>
+              )}
             </div>
 
             <div className="mt-5 relative">

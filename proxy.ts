@@ -51,39 +51,20 @@ function getDefaultRoute(user: SessionUser) {
   return "/dashboard";
 }
 
+function redirectToAccessDenied(request: NextRequest) {
+  return NextResponse.redirect(new URL("/access-denied", request.url));
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // =========================================================
-  // NEXT.JS INTERNAL ROUTES
-  // =========================================================
 
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon.ico")) {
     return NextResponse.next();
   }
 
-  // =========================================================
-  // GET SESSION
-  // =========================================================
-
   const user = await getMiddlewareSession(request);
 
-  // =========================================================
-  // API ROUTES
-  // =========================================================
-
   if (pathname.startsWith("/api")) {
-    // ---------------------------------------------------------
-    // FORCED PASSWORD CHANGE API RESTRICTION
-    // ---------------------------------------------------------
-    //
-    // If the temporary password has not been changed,
-    // don't allow normal application API access.
-    //
-    // The password-change endpoint must remain available.
-    // Add your logout API here as well.
-    // ---------------------------------------------------------
-
     if (
       user?.mustChangePassword &&
       pathname !== "/api/profile/password" &&
@@ -99,10 +80,6 @@ export async function proxy(request: NextRequest) {
         },
       );
     }
-
-    // =========================================================
-    // ADMIN API ROUTES
-    // =========================================================
 
     if (
       pathname.startsWith("/api/settings") ||
@@ -135,16 +112,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // =========================================================
-  // LOGIN PAGE
-  // =========================================================
-
   if (pathname === "/") {
     if (!user) {
       return NextResponse.next();
     }
 
-    // First login takes priority over role.
     if (user.mustChangePassword) {
       return NextResponse.redirect(new URL("/change-password", request.url));
     }
@@ -152,83 +124,47 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
   }
 
-  // =========================================================
-  // AUTHENTICATION REQUIRED
-  // =========================================================
-
   if (!user) {
     return NextResponse.redirect(new URL("/", request.url));
   }
-
-  // =========================================================
-  // CHANGE PASSWORD PAGE
-  // =========================================================
 
   if (pathname === "/change-password") {
     if (user.mustChangePassword) {
       return NextResponse.next();
     }
 
-    // User already completed password setup.
     return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
   }
-
-  // =========================================================
-  // FORCE PASSWORD CHANGE
-  // =========================================================
-  //
-  // IMPORTANT:
-  // This must occur BEFORE any RBAC checks.
-  // =========================================================
 
   if (user.mustChangePassword) {
     return NextResponse.redirect(new URL("/change-password", request.url));
   }
 
-  // =========================================================
-  // SYSTEM ADMIN
-  // =========================================================
+  if (pathname === "/access-denied") {
+    return NextResponse.next();
+  }
 
   if (user.role === "sys_admin") {
     return NextResponse.next();
   }
 
-  // =========================================================
-  // SETTINGS
-  // ADMIN ONLY
-  // =========================================================
-
   if (pathname.startsWith("/settings")) {
     if (user.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return redirectToAccessDenied(request);
     }
   }
-
-  // =========================================================
-  // REPORTS
-  // ADMIN ONLY
-  // =========================================================
 
   if (pathname.startsWith("/reports")) {
     if (user.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return redirectToAccessDenied(request);
     }
   }
-
-  // =========================================================
-  // ASSIGNED
-  // ADMIN + ACTION OWNER
-  // =========================================================
 
   if (pathname.startsWith("/assigned")) {
     if (user.role !== "actionOwner" && user.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return redirectToAccessDenied(request);
     }
   }
-
-  // NEW TICKET
-  // ADMIN + DATA ENTRY + ACTION OWNER
-  // =========================================================
 
   if (pathname === "/tickets/new") {
     if (
@@ -236,31 +172,26 @@ export async function proxy(request: NextRequest) {
       user.role !== "dataEntry" &&
       user.role !== "actionOwner"
     ) {
-      return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
+      return redirectToAccessDenied(request);
     }
 
     return NextResponse.next();
   }
-
-  // =========================================================
-  // TICKETS LIST
-  // ADMIN + DATA ENTRY ONLY
-  // =========================================================
 
   if (pathname === "/tickets") {
     if (user.role !== "admin" && user.role !== "dataEntry") {
-      return NextResponse.redirect(new URL("/assigned", request.url));
+      return redirectToAccessDenied(request);
     }
 
     return NextResponse.next();
   }
 
-  // =========================================================
-  // TICKET DETAILS
-  // =========================================================
-
   if (pathname.startsWith("/tickets/view")) {
     return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/dashboard") && user.role === "actionOwner") {
+    return redirectToAccessDenied(request);
   }
 
   return NextResponse.next();

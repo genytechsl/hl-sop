@@ -60,6 +60,12 @@ export async function GET(request: NextRequest) {
 
     const user = await getSession();
 
+    console.log("GET /api/tickets session:", {
+      id: user?.id,
+      role: user?.role,
+      name: user?.name,
+    });
+
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -238,9 +244,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("GET /api/tickets error:", error);
 
+    const message =
+      error instanceof Error ? error.message : "Unknown ticket API error";
+
     return NextResponse.json(
       {
-        message: "Failed to load tickets",
+        message,
       },
       {
         status: 500,
@@ -255,82 +264,64 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    /*
-     * =====================================================
-     * AUTHENTICATION
-     * =====================================================
-     */
-
     const user = await getSession();
 
     if (!user) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
-
-    /*
-     * Only admin and data-entry users can create tickets.
-     *
-     * Action owners should not be able to create tickets
-     * directly through this API.
-     */
 
     if (
       user.role !== "admin" &&
       user.role !== "dataEntry" &&
       user.role !== "actionOwner"
     ) {
-      return NextResponse.json(
-        {
-          message: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-
-    /*
-     * =====================================================
-     * BASIC VALIDATION
-     * =====================================================
-     */
+    const isActionOwner = user.role === "actionOwner";
 
     if (!body.customerName) {
       return NextResponse.json(
-        {
-          message: "Customer is required",
-        },
-        {
-          status: 400,
-        },
+        { message: "Customer is required" },
+        { status: 400 },
       );
     }
 
     if (!body.property?.propertyName) {
       return NextResponse.json(
-        {
-          message: "Property is required",
-        },
-        {
-          status: 400,
-        },
+        { message: "Property is required" },
+        { status: 400 },
       );
     }
 
-    /*
-     * =====================================================
-     * FIND CUSTOMER
-     * =====================================================
-     */
+    if (!body.ticketType) {
+      return NextResponse.json(
+        { message: "Ticket type is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!body.category) {
+      return NextResponse.json(
+        { message: "Category is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!body.scope) {
+      return NextResponse.json(
+        { message: "Scope is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!body.title?.trim()) {
+      return NextResponse.json(
+        { message: "Ticket title is required" },
+        { status: 400 },
+      );
+    }
 
     const customer = await prisma.customer.findFirst({
       where: {
@@ -343,20 +334,10 @@ export async function POST(request: NextRequest) {
 
     if (!customer) {
       return NextResponse.json(
-        {
-          message: "Customer not found",
-        },
-        {
-          status: 404,
-        },
+        { message: "Customer not found" },
+        { status: 404 },
       );
     }
-
-    /*
-     * =====================================================
-     * FIND CUSTOMER PROPERTY
-     * =====================================================
-     */
 
     const property = customer.properties.find(
       (item) =>
@@ -366,88 +347,78 @@ export async function POST(request: NextRequest) {
 
     if (!property) {
       return NextResponse.json(
-        {
-          message: "Customer property not found",
-        },
-        {
-          status: 404,
-        },
+        { message: "Customer property not found" },
+        { status: 404 },
       );
     }
 
-    /*
-     * =====================================================
-     * VALIDATE ACTION OWNER
-     * =====================================================
-     */
+    let assignedToId: string | undefined = body.assignedToId || undefined;
 
-    if (body.assignedToId) {
-      const employee = await prisma.employee.findUnique({
-        where: {
-          id: body.assignedToId,
-        },
-      });
+    if (isActionOwner) {
+      assignedToId = user.id;
+    }
 
-      if (!employee) {
+    if (!assignedToId) {
+      return NextResponse.json(
+        { message: "Action owner is required" },
+        { status: 400 },
+      );
+    }
+
+    const employee = await prisma.employee.findUnique({
+      where: {
+        id: assignedToId,
+      },
+    });
+
+    if (!employee) {
+      return NextResponse.json(
+        { message: "Action owner not found" },
+        { status: 404 },
+      );
+    }
+
+    if (employee.role !== "actionOwner" && employee.role !== "admin") {
+      return NextResponse.json(
+        { message: "Selected employee is not a valid action owner" },
+        { status: 400 },
+      );
+    }
+
+    if (!employee.active) {
+      return NextResponse.json(
+        { message: "Selected action owner is inactive" },
+        { status: 400 },
+      );
+    }
+
+    if (isActionOwner) {
+      const categoryRoleMap: Record<string, string[]> = {
+        "CAT-A": ["MEP Engineer"],
+        "CAT-B": ["MEP Engineer", "Contractor"],
+        "CAT-B2": ["SFM Department"],
+        "CAT-C": ["CMU Manager"],
+        "CAT-D": ["Operations Executive"],
+      };
+
+      const allowedDesignations = categoryRoleMap[body.category] ?? [];
+
+      if (!allowedDesignations.includes(employee.designation)) {
         return NextResponse.json(
           {
-            message: "Action owner not found",
+            message:
+              "You are not authorized to create tickets under this category.",
           },
-          {
-            status: 404,
-          },
-        );
-      }
-
-      /*
-       * Make sure the selected employee is actually
-       * an action owner.
-       */
-
-      if (employee.role !== "actionOwner" && employee.role !== "admin") {
-        return NextResponse.json(
-          {
-            message: employee.role + " Selected employee is not a case owner",
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      /*
-       * Make sure the employee is active.
-       */
-
-      if (!employee.active) {
-        return NextResponse.json(
-          {
-            message: "Selected action owner is inactive",
-          },
-          {
-            status: 400,
-          },
+          { status: 403 },
         );
       }
     }
 
-    /*
-     * =====================================================
-     * GENERATE TICKET ID
-     * =====================================================
-     */
-
     const id = await generateTicketId(body);
-
-    /*
-     * =====================================================
-     * CREATE TICKET
-     * =====================================================
-     */
 
     const ticket = {
       id,
-      title: body.title,
+      title: body.title.trim(),
       description: body.description,
       ticketType: body.ticketType,
       category: body.category,
@@ -456,7 +427,7 @@ export async function POST(request: NextRequest) {
       priority: body.priority,
       customerId: customer.id,
       propertyId: property.id,
-      assignedToId: body.assignedToId || undefined,
+      assignedToId,
       slaTarget: body.slaTarget,
       complaintSource: body.complaintSource,
       scope: body.scope,
@@ -466,12 +437,6 @@ export async function POST(request: NextRequest) {
     };
 
     const createdTicket = await createTicket(ticket);
-
-    /*
-     * =====================================================
-     * EMAIL
-     * =====================================================
-     */
 
     let emailSent = false;
 
@@ -486,6 +451,9 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             ...body,
             ...createdTicket,
+            assignedToId,
+            actionOwnerEmail: employee.email,
+            actionOwnerName: employee.name,
             id,
           }),
         },
@@ -493,16 +461,14 @@ export async function POST(request: NextRequest) {
 
       if (emailResponse.ok) {
         const emailResult = await emailResponse.json();
-
         emailSent = emailResult.success;
+      } else {
+        console.error(
+          "Ticket created but email notification failed:",
+          await emailResponse.text(),
+        );
       }
     }
-
-    /*
-     * =====================================================
-     * RESPONSE
-     * =====================================================
-     */
 
     return NextResponse.json(
       {
@@ -510,9 +476,7 @@ export async function POST(request: NextRequest) {
         emailSent,
         ticketId: id,
       },
-      {
-        status: 201,
-      },
+      { status: 201 },
     );
   } catch (error) {
     console.error("POST /api/tickets error:", error);
@@ -522,9 +486,7 @@ export async function POST(request: NextRequest) {
         message:
           error instanceof Error ? error.message : "Failed to create ticket",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }

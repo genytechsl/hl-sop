@@ -33,38 +33,43 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
   const [toDate, setToDate] = useState("");
 
   useEffect(() => {
-    setisLoading(true);
     const loadTickets = async () => {
       try {
+        setisLoading(true);
+
         const response = await fetch("/api/tickets");
 
-        const data = await response.json();
-        console.log("All tickets: ", data);
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              data?.error ||
+              `Failed to load tickets: ${response.status}`,
+          );
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Ticket API returned invalid data.");
+        }
+
+        console.log("All tickets:", data);
+
         setTickets(data);
-        setisLoading(false);
       } catch (error) {
-        console.error(error);
+        console.error("Failed to load tickets:", error);
+        setTickets([]);
+      } finally {
         setisLoading(false);
       }
     };
 
     loadTickets();
   }, []);
+
   const ITEMS_PER_PAGE = 15;
 
   const [currentPage, setCurrentPage] = useState(1);
-
-  // const getHoursFromSla = (sla?: string) => {
-  //   if (!sla) return 24;
-
-  //   const value = parseInt(sla);
-
-  //   if (sla.includes("wd")) return value * 24 * 5;
-  //   if (sla.includes("d")) return value * 24;
-  //   if (sla.includes("h")) return value;
-
-  //   return 24;
-  // };
 
   const getHoursFromSla = (sla?: string) => {
     if (!sla) return 24;
@@ -195,26 +200,6 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
 
     return new Date(start.getTime() + 24 * 60 * 60 * 1000);
   };
-
-  // const getTicketMetrics = (ticket: any) => {
-  //   const createdAt = new Date(ticket.createdAt);
-  //   const now = new Date();
-  //   const ageHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-  //   const targetHours = getHoursFromSla(ticket.slaTarget);
-  //   const percent = Math.round((ageHours / targetHours) * 100);
-  //   const breached =
-  //     ageHours > targetHours && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-  //   const dueDate = new Date(
-  //     createdAt.getTime() + targetHours * 60 * 60 * 1000,
-  //   );
-  //   return {
-  //     ageHours,
-  //     targetHours,
-  //     percent,
-  //     breached,
-  //     dueDate,
-  //   };
-  // };
 
   const getWorkingHoursBetween = (startDate: Date, endDate: Date) => {
     if (endDate <= startDate) {

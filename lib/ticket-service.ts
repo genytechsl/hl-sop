@@ -113,7 +113,7 @@ const ticketInclude = {
       updatedBy: true,
     },
   },
-  slaNotification: true,
+  // slaNotification: true,
 } as const;
 
 export async function getTickets(): Promise<Ticket[]> {
@@ -345,147 +345,51 @@ export async function updateTicket(
 }
 
 export async function getTicketOverview() {
-  const [
-    open,
-    openComplaints,
-    openInquiries,
+  const grouped = await prisma.ticket.groupBy({
+    by: ["status", "ticketType"],
+    _count: {
+      _all: true,
+    },
+  });
 
-    inProgress,
-    inProgressComplaints,
-    inProgressInquiries,
+  const getCount = (status: string, ticketType?: string) => {
+    return grouped
+      .filter(
+        (item) =>
+          item.status === status &&
+          (!ticketType || item.ticketType === ticketType),
+      )
+      .reduce((total, item) => total + item._count._all, 0);
+  };
 
-    resolved,
-    resolvedComplaints,
-    resolvedInquiries,
+  const getTypeCount = (ticketType: string) => {
+    return grouped
+      .filter((item) => item.ticketType === ticketType)
+      .reduce((total, item) => total + item._count._all, 0);
+  };
 
-    closed,
-    closedComplaints,
-    closedInquiries,
-
-    total,
-    totalComplaints,
-    totalInquiries,
-  ] = await Promise.all([
-    // OPEN
-    prisma.ticket.count({
-      where: {
-        status: "OPEN",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "OPEN",
-        ticketType: "COM",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "OPEN",
-        ticketType: "INQ",
-      },
-    }),
-
-    // IN PROGRESS
-    prisma.ticket.count({
-      where: {
-        status: "IN_PROGRESS",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "IN_PROGRESS",
-        ticketType: "COM",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "IN_PROGRESS",
-        ticketType: "INQ",
-      },
-    }),
-
-    // RESOLVED
-    prisma.ticket.count({
-      where: {
-        status: "RESOLVED",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "RESOLVED",
-        ticketType: "COM",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "RESOLVED",
-        ticketType: "INQ",
-      },
-    }),
-
-    // CLOSED
-    prisma.ticket.count({
-      where: {
-        status: "CLOSED",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "CLOSED",
-        ticketType: "COM",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        status: "CLOSED",
-        ticketType: "INQ",
-      },
-    }),
-
-    // TOTAL
-    prisma.ticket.count(),
-
-    prisma.ticket.count({
-      where: {
-        ticketType: "COM",
-      },
-    }),
-
-    prisma.ticket.count({
-      where: {
-        ticketType: "INQ",
-      },
-    }),
-  ]);
+  const total = grouped.reduce((sum, item) => sum + item._count._all, 0);
 
   return {
-    open,
-    openComplaints,
-    openInquiries,
+    open: getCount("OPEN"),
+    openComplaints: getCount("OPEN", "COM"),
+    openInquiries: getCount("OPEN", "INQ"),
 
-    inProgress,
-    inProgressComplaints,
-    inProgressInquiries,
+    inProgress: getCount("IN_PROGRESS"),
+    inProgressComplaints: getCount("IN_PROGRESS", "COM"),
+    inProgressInquiries: getCount("IN_PROGRESS", "INQ"),
 
-    resolved,
-    resolvedComplaints,
-    resolvedInquiries,
+    resolved: getCount("RESOLVED"),
+    resolvedComplaints: getCount("RESOLVED", "COM"),
+    resolvedInquiries: getCount("RESOLVED", "INQ"),
 
-    closed,
-    closedComplaints,
-    closedInquiries,
+    closed: getCount("CLOSED"),
+    closedComplaints: getCount("CLOSED", "COM"),
+    closedInquiries: getCount("CLOSED", "INQ"),
 
     total,
-    totalComplaints,
-    totalInquiries,
+    totalComplaints: getTypeCount("COM"),
+    totalInquiries: getTypeCount("INQ"),
   };
 }
 
@@ -729,7 +633,12 @@ export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
 }
 
 export async function getCategoryVolume() {
-  const tickets = await getTickets();
+  const grouped = await prisma.ticket.groupBy({
+    by: ["category"],
+    _count: {
+      _all: true,
+    },
+  });
 
   const counts: Record<string, number> = {
     "CAT-A": 0,
@@ -739,9 +648,9 @@ export async function getCategoryVolume() {
     "CAT-D": 0,
   };
 
-  tickets.forEach((ticket) => {
-    if (counts[ticket.category] !== undefined) {
-      counts[ticket.category]++;
+  grouped.forEach((item) => {
+    if (counts[item.category] !== undefined) {
+      counts[item.category] = item._count._all;
     }
   });
 
