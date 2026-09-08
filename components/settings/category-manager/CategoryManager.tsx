@@ -406,8 +406,9 @@ export default function CategoryManager() {
             <button
               type="button"
               onClick={openAddForm}
-              disabled={saving}
-              className="geny-theme-button"
+              disabled
+              title="Adding new categories is currently disabled"
+              className="geny-theme-button disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus size={18} />
               Add Category
@@ -463,8 +464,8 @@ export default function CategoryManager() {
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="e.g. CAT-A"
-                  disabled={saving}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                  disabled={saving || editingId !== null}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                 />
               </div>
 

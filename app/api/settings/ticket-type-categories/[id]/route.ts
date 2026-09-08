@@ -34,7 +34,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const sla = String(body.sla || "").trim();
     const priority = String(body.priority || "").trim();
 
-    if (!code || !label || !sla || !priority) {
+    // if (!code || !label || !sla || !priority) {
+    if (!label || !sla || !priority) {
       return NextResponse.json(
         {
           message: "Code, label, SLA and priority are all required.",
@@ -70,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         id: categoryId,
       },
       data: {
-        code,
+        // code,
         label,
         sla,
         priority,
