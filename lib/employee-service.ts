@@ -13,6 +13,7 @@ export type Employee = {
   department?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
+  mustChangePassword: boolean;
 };
 
 /**
@@ -151,6 +152,7 @@ export async function createEmployee(employee: Employee): Promise<Employee> {
       username: employee.username,
       passwordHash: employee.passwordHash,
       department: employee.department,
+      mustChangePassword: employee.mustChangePassword,
     },
   });
 }

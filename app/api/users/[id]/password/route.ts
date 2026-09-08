@@ -110,6 +110,7 @@ export async function PUT(
       },
       data: {
         passwordHash,
+        mustChangePassword: true,
       },
     });
 

@@ -576,7 +576,7 @@ export default function NewUserForm() {
           type="button"
           onClick={handleRegisterUser}
           disabled={isSaving}
-          className="button-heading-special flex items-center gap-2 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+          className="geny-theme-button flex items-center gap-2 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? (
             <>

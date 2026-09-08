@@ -20,6 +20,8 @@ export interface SessionUser {
   designation: string;
   email: string;
   department?: string | null;
+
+  mustChangePassword: boolean;
 }
 
 interface SessionPayload extends JWTPayload {

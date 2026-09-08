@@ -2,10 +2,8 @@ interface Props {
   title: string;
   value: number;
   percentage: number;
-
   complaints: number;
   inquiries: number;
-
   icon: React.ReactNode;
   accentColor: string;
 }
@@ -25,57 +23,64 @@ export default function StatusCard({
         group
         relative
         overflow-hidden
-        rounded-3xl
+        rounded-2xl
         border
         border-slate-200
         bg-white
-        px-5 py-4
+        p-4
         shadow-sm
         transition-all
-        hover:-translate-y-1
-        hover:shadow-lg
+        duration-200
+        hover:-translate-y-0.5
+        hover:shadow-md
       "
     >
       {/* Accent */}
       <div
-        className="absolute left-0 right-0 top-0 h-1.5"
-        style={{
-          backgroundColor: accentColor,
-        }}
+        className="absolute inset-x-0 top-0 h-1"
+        style={{ backgroundColor: accentColor }}
       />
 
-      {/* Icon + Percentage */}
-      <div className="flex items-center justify-between">
-        {icon}
+      {/* Row 1 */}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50">
+          {icon}
+        </div>
 
-        <span className="text-sm font-semibold text-black/40">
-          {percentage}% of total
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-600">
+          {title}
+        </h3>
+
+        <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-slate-400">
+          {percentage}%
         </span>
       </div>
 
-      {/* Main content */}
-      <div className="mt-2 flex items-center justify-between gap-3">
-        {/* Left: Title + Main Value */}
-        <div>
-          <h3 className="text-xl font-semibold text-black/75">{title}</h3>
+      {/* Row 2 */}
+      <div className="mt-4 flex items-end justify-between gap-4">
+        {/* Left: COM + INQ */}
+        <div className="flex min-w-0 items-end gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-2.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-red-500">
+              COM
+            </span>
 
-          <p className="mt-1 text-4xl font-bold text-(--surface)">{value}</p>
-        </div>
-
-        {/* Right: Complaint / Inquiry */}
-        <div className="flex min-w-[120px] flex-col gap-2">
-          {/* Complaints */}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50 px-2">
-            <p className="text-xs font-medium text-red-500">Complaints</p>
-            <p className="text-normal font-bold text-red-700">{complaints}</p>
+            <span className="text-sm font-bold text-red-700">{complaints}</span>
           </div>
 
-          {/* Inquiries */}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-2">
-            <p className="text-xs font-medium text-blue-500">Inquiries</p>
-            <p className="text-normal font-bold text-blue-700">{inquiries}</p>
+          <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-2.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
+              INQ
+            </span>
+
+            <span className="text-sm font-bold text-blue-700">{inquiries}</span>
           </div>
         </div>
+
+        {/* Right: Main value */}
+        <p className="shrink-0 text-3xl font-bold tracking-tight text-slate-900">
+          {value}
+        </p>
       </div>
     </div>
   );

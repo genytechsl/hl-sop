@@ -23,6 +23,7 @@ export async function GET() {
         username: true,
         role: true,
         active: true,
+        mustChangePassword: true,
       },
     });
 
@@ -143,6 +144,7 @@ export async function PUT(request: NextRequest) {
         username: true,
         role: true,
         active: true,
+        mustChangePassword: true,
       },
     });
 
@@ -163,6 +165,7 @@ export async function PUT(request: NextRequest) {
       designation: updatedEmployee.designation,
       email: updatedEmployee.email,
       department: updatedEmployee.department,
+      mustChangePassword: updatedEmployee.mustChangePassword,
     });
 
     return NextResponse.json(updatedEmployee);

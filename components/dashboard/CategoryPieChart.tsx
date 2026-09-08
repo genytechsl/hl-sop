@@ -114,13 +114,15 @@ export default function CategoryPieChart() {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-      <div className="mb-4 flex items-center gap-2">
+    <div className="flex w-full min-w-0 flex-col">
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2">
         <h2 className="section-heading">Volume by Category</h2>
-        <Info size={16} className="text-slate-500" />
+        <Info size={16} className="shrink-0 text-slate-500" />
       </div>
+
       {/* Chart */}
-      <div className="min-h-0 flex-1">
+      <div className="h-[220px] w-full sm:h-[240px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -147,7 +149,6 @@ export default function CategoryPieChart() {
               ))}
             </Pie>
 
-            {/* Center total */}
             <text
               x="50%"
               y="47%"
@@ -176,7 +177,7 @@ export default function CategoryPieChart() {
       </div>
 
       {/* Legend */}
-      <div className="flex shrink-0 flex-wrap justify-center gap-1.5 pt-2">
+      <div className="flex flex-wrap justify-center gap-1.5 pt-2">
         {chartData.map((item) => (
           <div
             key={item.category}

@@ -281,7 +281,11 @@ export async function POST(request: NextRequest) {
      * directly through this API.
      */
 
-    if (user.role !== "admin" && user.role !== "dataEntry") {
+    if (
+      user.role !== "admin" &&
+      user.role !== "dataEntry" &&
+      user.role !== "actionOwner"
+    ) {
       return NextResponse.json(
         {
           message: "Forbidden",

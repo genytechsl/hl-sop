@@ -155,7 +155,7 @@ ${role}
 ">
 
 Please log in to the 
-<a href="http://localhost:3000/"
+<a href="https://cip.homelandsskyline.lk/"
    style="
       color:#2563eb;
       text-decoration:none;

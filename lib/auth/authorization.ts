@@ -24,7 +24,7 @@ export async function requireRole(
 }
 
 export async function requireAdmin(): Promise<SessionUser> {
-  return requireRole(["admin"]);
+  return requireRole(["admin", "sys_admin"]);
 }
 
 export function unauthorizedResponse() {

@@ -162,7 +162,7 @@ export default function StatusOverview() {
 
           {/* IN PROGRESS */}
           <StatusCard
-            title="In Progress"
+            title="In Prog"
             value={overview.inProgress}
             percentage={getPercentage(overview.inProgress)}
             complaints={overview.inProgressComplaints}
@@ -195,7 +195,7 @@ export default function StatusOverview() {
 
           {/* TOTAL */}
           <StatusCard
-            title="Total Tickets"
+            title="Total"
             value={overview.total}
             percentage={100}
             complaints={overview.totalComplaints}

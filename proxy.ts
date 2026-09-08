@@ -8,6 +8,7 @@ interface SessionUser {
   designation: string;
   email: string;
   department?: string | null;
+  mustChangePassword: boolean;
 }
 
 interface SessionPayload extends JWTPayload {
@@ -42,80 +43,161 @@ async function getMiddlewareSession(
   }
 }
 
+function getDefaultRoute(user: SessionUser) {
+  if (user.role === "actionOwner") {
+    return "/assigned";
+  }
+
+  return "/dashboard";
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // =========================================================
-  // PROTECTED ADMIN API ROUTES
+  // NEXT.JS INTERNAL ROUTES
   // =========================================================
-  if (
-    pathname.startsWith("/api/settings") ||
-    pathname.startsWith("/api/customers") ||
-    pathname.startsWith("/api/users")
-  ) {
-    const user = await getMiddlewareSession(request);
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (user.role !== "admin" && user.role !== "sys_admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon.ico")) {
     return NextResponse.next();
   }
 
   // =========================================================
-  // OTHER API / INTERNAL ROUTES
+  // GET SESSION
   // =========================================================
-  if (
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon.ico")
-  ) {
-    return NextResponse.next();
-  }
 
-  // =========================================================
-  // GET CURRENT SESSION
-  // =========================================================
   const user = await getMiddlewareSession(request);
+
+  // =========================================================
+  // API ROUTES
+  // =========================================================
+
+  if (pathname.startsWith("/api")) {
+    // ---------------------------------------------------------
+    // FORCED PASSWORD CHANGE API RESTRICTION
+    // ---------------------------------------------------------
+    //
+    // If the temporary password has not been changed,
+    // don't allow normal application API access.
+    //
+    // The password-change endpoint must remain available.
+    // Add your logout API here as well.
+    // ---------------------------------------------------------
+
+    if (
+      user?.mustChangePassword &&
+      pathname !== "/api/profile/password" &&
+      pathname !== "/api/logout"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Password change required",
+          code: "PASSWORD_CHANGE_REQUIRED",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =========================================================
+    // ADMIN API ROUTES
+    // =========================================================
+
+    if (
+      pathname.startsWith("/api/settings") ||
+      pathname.startsWith("/api/customers") ||
+      pathname.startsWith("/api/users")
+    ) {
+      if (!user) {
+        return NextResponse.json(
+          {
+            error: "Unauthorized",
+          },
+          {
+            status: 401,
+          },
+        );
+      }
+
+      if (user.role !== "admin" && user.role !== "sys_admin") {
+        return NextResponse.json(
+          {
+            error: "Forbidden",
+          },
+          {
+            status: 403,
+          },
+        );
+      }
+    }
+
+    return NextResponse.next();
+  }
 
   // =========================================================
   // LOGIN PAGE
   // =========================================================
+
   if (pathname === "/") {
-    if (user) {
-      return NextResponse.redirect(
-        new URL(
-          user.role === "actionOwner" ? "/assigned" : "/dashboard",
-          request.url,
-        ),
-      );
+    if (!user) {
+      return NextResponse.next();
     }
 
-    return NextResponse.next();
+    // First login takes priority over role.
+    if (user.mustChangePassword) {
+      return NextResponse.redirect(new URL("/change-password", request.url));
+    }
+
+    return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
   }
 
   // =========================================================
-  // PROTECTED PAGES
+  // AUTHENTICATION REQUIRED
   // =========================================================
+
   if (!user) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // =========================================================
-  // SYSTEM ADMIN
-  // Full access to all authenticated routes
+  // CHANGE PASSWORD PAGE
   // =========================================================
+
+  if (pathname === "/change-password") {
+    if (user.mustChangePassword) {
+      return NextResponse.next();
+    }
+
+    // User already completed password setup.
+    return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
+  }
+
+  // =========================================================
+  // FORCE PASSWORD CHANGE
+  // =========================================================
+  //
+  // IMPORTANT:
+  // This must occur BEFORE any RBAC checks.
+  // =========================================================
+
+  if (user.mustChangePassword) {
+    return NextResponse.redirect(new URL("/change-password", request.url));
+  }
+
+  // =========================================================
+  // SYSTEM ADMIN
+  // =========================================================
+
   if (user.role === "sys_admin") {
     return NextResponse.next();
   }
 
   // =========================================================
+  // SETTINGS
   // ADMIN ONLY
   // =========================================================
+
   if (pathname.startsWith("/settings")) {
     if (user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -123,8 +205,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // =========================================================
-  // REPORTS - ADMIN ONLY
+  // REPORTS
+  // ADMIN ONLY
   // =========================================================
+
   if (pathname.startsWith("/reports")) {
     if (user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -132,37 +216,49 @@ export async function proxy(request: NextRequest) {
   }
 
   // =========================================================
-  // ASSIGNED TICKETS
-  // Admin + Action Owner
+  // ASSIGNED
+  // ADMIN + ACTION OWNER
   // =========================================================
+
   if (pathname.startsWith("/assigned")) {
     if (user.role !== "actionOwner" && user.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
 
-  // =========================================================
-  // TICKET LIST
-  // Admin + Data Entry ONLY
-  // =========================================================
-  if (pathname === "/tickets") {
-    if (user.role !== "admin" && user.role !== "dataEntry") {
-      return NextResponse.redirect(new URL("/assigned", request.url));
-    }
-  }
-
-  // =========================================================
   // NEW TICKET
-  // All authenticated users allowed here
+  // ADMIN + DATA ENTRY + ACTION OWNER
   // =========================================================
+
   if (pathname === "/tickets/new") {
+    if (
+      user.role !== "admin" &&
+      user.role !== "dataEntry" &&
+      user.role !== "actionOwner"
+    ) {
+      return NextResponse.redirect(new URL(getDefaultRoute(user), request.url));
+    }
+
     return NextResponse.next();
   }
 
   // =========================================================
-  // INDIVIDUAL TICKET
-  // API performs ticket-specific authorization
+  // TICKETS LIST
+  // ADMIN + DATA ENTRY ONLY
   // =========================================================
+
+  if (pathname === "/tickets") {
+    if (user.role !== "admin" && user.role !== "dataEntry") {
+      return NextResponse.redirect(new URL("/assigned", request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  // =========================================================
+  // TICKET DETAILS
+  // =========================================================
+
   if (pathname.startsWith("/tickets/view")) {
     return NextResponse.next();
   }

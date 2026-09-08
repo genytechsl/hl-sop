@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { getEmployeeById } from "./employee-service";
 
 type SlaUnit = "hours" | "days" | "workingDays";
 
@@ -186,61 +185,6 @@ export async function getTicketsByAssignedTo(
   return tickets.map(formatTicket);
 }
 
-// export async function getTicketsByCustomerId(customerId: string) {
-//   return prisma.ticket.findMany({
-//     where: {
-//       customerId,
-//     },
-//     orderBy: {
-//       createdAt: "desc",
-//     },
-//     include: {
-//       customer: true,
-//       property: true,
-//       assignedTo: true,
-//     },
-//   });
-// }
-
-// export async function getTicketsByCustomerId(customerId: string) {
-//   return prisma.ticket.findMany({
-//     where: {
-//       customerId,
-//     },
-//     orderBy: {
-//       createdAt: "desc",
-//     },
-//   });
-// }
-
-// export async function getTicketsByCustomerId(customerId: string) {
-//   const tickets = await prisma.ticket.findMany({
-//     where: {
-//       customerId,
-//     },
-//     include: {
-//       remarks: {
-//         where: {
-//           statusChangedTo: "RESOLVED",
-//         },
-//         orderBy: {
-//           createdAt: "desc",
-//         },
-//         take: 1,
-//       },
-//     },
-//     orderBy: {
-//       createdAt: "desc",
-//     },
-//   });
-
-//   return tickets.map((ticket) => ({
-//     ...ticket,
-//     resolvedAt: ticket.remarks[0]?.createdAt ?? null,
-//     remarks: undefined,
-//   }));
-// }
-
 export async function getTicketsByCustomerId(customerId: string) {
   const tickets = await prisma.ticket.findMany({
     where: {
@@ -399,122 +343,6 @@ export async function updateTicket(
 
   return formatTicket(ticket);
 }
-
-// export async function getTicketOverview() {
-//   const [
-//     open,
-//     openComplaints,
-//     openInquiries,
-
-//     inProgress,
-//     inProgressComplaints,
-//     inProgressInquiries,
-
-//     closed,
-//     closedComplaints,
-//     closedInquiries,
-
-//     total,
-//     totalComplaints,
-//     totalInquiries,
-//   ] = await Promise.all([
-//     // OPEN
-//     prisma.ticket.count({
-//       where: {
-//         status: "OPEN",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "OPEN",
-//         ticketType: "COM",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "OPEN",
-//         ticketType: "INQ",
-//       },
-//     }),
-
-//     // IN PROGRESS
-//     prisma.ticket.count({
-//       where: {
-//         status: "IN_PROGRESS",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "IN_PROGRESS",
-//         ticketType: "COM",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "IN_PROGRESS",
-//         ticketType: "INQ",
-//       },
-//     }),
-
-//     // CLOSED
-//     prisma.ticket.count({
-//       where: {
-//         status: "CLOSED",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "CLOSED",
-//         ticketType: "COM",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         status: "CLOSED",
-//         ticketType: "INQ",
-//       },
-//     }),
-
-//     // TOTAL
-//     prisma.ticket.count(),
-
-//     prisma.ticket.count({
-//       where: {
-//         ticketType: "COM",
-//       },
-//     }),
-
-//     prisma.ticket.count({
-//       where: {
-//         ticketType: "INQ",
-//       },
-//     }),
-//   ]);
-
-//   return {
-//     open,
-//     openComplaints,
-//     openInquiries,
-
-//     inProgress,
-//     inProgressComplaints,
-//     inProgressInquiries,
-
-//     closed,
-//     closedComplaints,
-//     closedInquiries,
-
-//     total,
-//     totalComplaints,
-//     totalInquiries,
-//   };
-// }
 
 export async function getTicketOverview() {
   const [
@@ -763,60 +591,6 @@ const categories: Category[] = [
   },
 ];
 
-// export async function getAgingOverview() {
-//   const tickets = await getTickets();
-
-//   return categories.map((category) => {
-//     const rows = tickets.filter((ticket) => ticket.category === category.code);
-
-//     if (!rows.length) {
-//       return {
-//         ...category,
-//         target: "-",
-//         aging: "-",
-//         compliance: 100,
-//       };
-//     }
-
-//     const totalAge = rows.reduce(
-//       (sum, ticket) => sum + getAge(ticket.createdAt, category.unit),
-//       0,
-//     );
-
-//     const avg = Math.round(totalAge / rows.length);
-
-//     let averageAge = "";
-
-//     switch (category.code) {
-//       case "CAT-A":
-//         averageAge = `${avg} h`;
-//         break;
-
-//       case "CAT-B2":
-//         averageAge = `${avg} Days`;
-//         break;
-
-//       default:
-//         averageAge = `${avg} Working Days`;
-//     }
-
-//     const breached = rows.filter(
-//       (ticket) => getAge(ticket.createdAt, category.unit) > category.sla,
-//     ).length;
-
-//     const compliance = Math.round(
-//       ((rows.length - breached) / rows.length) * 100,
-//     );
-
-//     return {
-//       ...category,
-//       target: rows[0].slaTarget,
-//       averageAge,
-//       compliance,
-//     };
-//   });
-// }
-
 export async function getAgingOverview() {
   const tickets = await prisma.ticket.findMany({
     select: {
@@ -878,75 +652,6 @@ export async function getAgingOverview() {
     };
   });
 }
-
-// export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
-//   const tickets = await getTickets();
-
-//   const monthNames = [
-//     "Jan",
-//     "Feb",
-//     "Mar",
-//     "Apr",
-//     "May",
-//     "Jun",
-//     "Jul",
-//     "Aug",
-//     "Sep",
-//     "Oct",
-//     "Nov",
-//     "Dec",
-//   ];
-
-//   const now = new Date();
-
-//   const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-
-//   const result: TicketVolumeItem[] = [];
-
-//   for (let i = 0; i < 12; i++) {
-//     const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-
-//     result.push({
-//       year: d.getFullYear(),
-//       monthIndex: d.getMonth(),
-//       month: monthNames[d.getMonth()],
-//       open: 0,
-//       inProgress: 0,
-//       closed: 0,
-//     });
-//   }
-
-//   tickets.forEach((ticket) => {
-//     const created = parseDate(ticket.createdAt);
-
-//     const index = result.findIndex(
-//       (m) =>
-//         m.year === created.getFullYear() && m.monthIndex === created.getMonth(),
-//     );
-
-//     if (index === -1) {
-//       return;
-//     }
-
-//     switch (ticket.status) {
-//       case "OPEN":
-//         result[index].open++;
-//         break;
-
-//       case "IN_PROGRESS":
-//       case "BEING_PROCESSED":
-//         result[index].inProgress++;
-//         break;
-
-//       case "RESOLVED":
-//       case "CLOSED":
-//         result[index].closed++;
-//         break;
-//     }
-//   });
-
-//   return result;
-// }
 
 export async function getTicketVolume(): Promise<TicketVolumeItem[]> {
   const tickets = await prisma.ticket.findMany({
@@ -1045,25 +750,6 @@ export async function getCategoryVolume() {
     value,
   }));
 }
-
-// export async function getActionOwnerWorkload() {
-//   const tickets = await getTickets();
-
-//   const owners: Record<string, number> = {};
-
-//   tickets.forEach((ticket) => {
-//     const owner = ticket.actionOwnerName || "Unassigned";
-
-//     owners[owner] = (owners[owner] || 0) + 1;
-//   });
-
-//   return Object.entries(owners)
-//     .map(([name, count]) => ({
-//       name,
-//       tickets: count,
-//     }))
-//     .sort((a, b) => b.tickets - a.tickets);
-// }
 
 export async function getActionOwnerWorkload() {
   const tickets = await prisma.ticket.findMany({

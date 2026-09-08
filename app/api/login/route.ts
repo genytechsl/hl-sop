@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       designation: employee.designation,
       email: employee.email,
       department: employee.department,
+      mustChangePassword: employee.mustChangePassword,
     };
 
     await createSession(user);
@@ -94,21 +95,26 @@ export async function POST(request: NextRequest) {
     // REDIRECT
     // =========================================================
 
-    let redirectTo = "/dashboard";
+    let redirectTo: string;
 
-    switch (role) {
-      case "actionOwner":
-        redirectTo = "/assigned";
-        break;
+    if (employee.mustChangePassword) {
+      redirectTo = "/change-password";
+    } else {
+      switch (role) {
+        case "actionOwner":
+          redirectTo = "/assigned";
+          break;
 
-      case "admin":
-      case "dataEntry":
-        redirectTo = "/dashboard";
-        break;
+        case "admin":
+        case "dataEntry":
+        case "sys_admin":
+          redirectTo = "/dashboard";
+          break;
 
-      default:
-        redirectTo = "/";
-        break;
+        default:
+          redirectTo = "/";
+          break;
+      }
     }
 
     return NextResponse.json({
