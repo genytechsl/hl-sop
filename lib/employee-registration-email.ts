@@ -122,7 +122,22 @@ ${username}
 </td>
 </tr>
 
+<tr>
+<td style="
+    padding:12px;
+    font-size:13px;
+    font-weight:bold;
+">
+Security
+</td>
 
+<td style="
+    padding:12px;
+    font-size:13px;
+">
+Your username followed by 12345 is the initial login credentials. (Eg: if the username is john, then the password is john12345). You will prompt to change it during the first successful login.
+</td>
+</tr>
 
 
 
