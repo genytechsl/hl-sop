@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
       username: user.username,
       passwordHash,
       department: user.department || null,
+      mustChangePassword: true,
     });
 
     /*
