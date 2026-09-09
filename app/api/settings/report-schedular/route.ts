@@ -6,9 +6,16 @@ import {
   updateScheduler,
   deleteScheduler,
 } from "@/lib/scheduler-service";
+import { ADMIN_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET() {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const schedules = await getSchedulers();
 
     return NextResponse.json(schedules);
@@ -26,6 +33,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     if (!body.email || !body.report || !body.frequency || !body.time) {
@@ -67,6 +80,12 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     const scheduler = await updateScheduler(body);
@@ -86,6 +105,12 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { searchParams } = new URL(request.url);
 
     const id = searchParams.get("id");

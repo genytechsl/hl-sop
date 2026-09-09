@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ADMIN_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 interface RouteContext {
   params: Promise<{
@@ -9,6 +10,12 @@ interface RouteContext {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
 
     const departmentId = Number(id);
@@ -58,6 +65,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
 
     const departmentId = Number(id);
@@ -192,6 +205,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
 
     const departmentId = Number(id);

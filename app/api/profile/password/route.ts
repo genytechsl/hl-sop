@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
-import { createSession, getSession, type UserRole } from "@/lib/auth/session";
+import { createSession, type UserRole } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function PUT(request: NextRequest) {
   try {
@@ -10,18 +11,13 @@ export async function PUT(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const session = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!session) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const session = auth.user;
 
     // =========================================================
     // REQUEST BODY
@@ -206,13 +202,12 @@ export async function PUT(request: NextRequest) {
         break;
 
       case "admin":
-      case "dataEntry":
       case "sys_admin":
         redirectTo = "/dashboard";
         break;
 
       default:
-        redirectTo = "/";
+        redirectTo = "/access-denied";
         break;
     }
 

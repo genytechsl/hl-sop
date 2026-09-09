@@ -4,9 +4,16 @@ import { getTickets, updateTicket } from "@/lib/ticket-service";
 import { sendEmail } from "@/lib/mailer";
 import { slaWarningEmail } from "@/lib/sla-warning-email";
 import { getSlaDueDate, getSlaPercent } from "@/lib/sla";
+import { ADMIN_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET() {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const tickets = await getTickets();
 
     let checked = 0;

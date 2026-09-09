@@ -106,13 +106,12 @@ export async function POST(request: NextRequest) {
           break;
 
         case "admin":
-        case "dataEntry":
         case "sys_admin":
           redirectTo = "/dashboard";
           break;
 
         default:
-          redirectTo = "/";
+          redirectTo = "/access-denied";
           break;
       }
     }

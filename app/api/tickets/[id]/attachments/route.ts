@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 import fs from "fs/promises";
 import path from "path";
@@ -29,11 +29,13 @@ export async function POST(
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     const { id: ticketId } = await params;
 
@@ -59,31 +61,9 @@ export async function POST(
     }
 
     /*
-     * Action owners may only upload attachments
-     * to tickets assigned to themselves.
-     */
-
-    if (
-      sessionUser.role === "actionOwner" &&
-      ticket.assignedToId !== sessionUser.id
-    ) {
-      return NextResponse.json(
-        { message: "Ticket not found." },
-        { status: 404 },
-      );
-    }
-
-    /*
      * Only known authorized roles may upload.
      */
 
-    if (
-      sessionUser.role !== "admin" &&
-      sessionUser.role !== "dataEntry" &&
-      sessionUser.role !== "actionOwner"
-    ) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
 
     // =========================================================
     // FORM DATA
@@ -202,11 +182,13 @@ export async function GET(
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     const { id: ticketId } = await params;
 
@@ -246,13 +228,6 @@ export async function GET(
       );
     }
 
-    if (
-      sessionUser.role !== "admin" &&
-      sessionUser.role !== "dataEntry" &&
-      sessionUser.role !== "actionOwner"
-    ) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
 
     // =========================================================
     // GET ATTACHMENTS

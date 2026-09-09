@@ -66,7 +66,11 @@ export async function GET(request: NextRequest) {
      * ---------------------------------------------------------
      */
 
-    if (user.role === "admin" || user.role === "dataEntry") {
+    if (
+      user.role === "admin" ||
+      user.role === "dataEntry" ||
+      user.role === "actionOwner"
+    ) {
       return NextResponse.json({
         role: user.role,
         scopes,

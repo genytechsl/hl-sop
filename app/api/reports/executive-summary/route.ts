@@ -1,46 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { getSession } from "@/lib/auth/session";
+import { ADMIN_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 import { getExecutiveSummaryReport } from "@/lib/executive-report-service";
 
 export async function GET() {
   try {
-    /* =====================================================
-       AUTHENTICATION
-    ===================================================== */
+    const auth = await authorizeRoles(ADMIN_ROLES);
 
-    const user = await getSession();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    /* =====================================================
-       AUTHORIZATION
-    ===================================================== */
-
-    const isAdmin = user.role === "admin";
-    const isDataEntry = user.role === "dataEntry";
-
-    if (!isAdmin && !isDataEntry) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
 
     /* =====================================================

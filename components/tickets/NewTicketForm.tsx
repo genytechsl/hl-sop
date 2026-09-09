@@ -53,14 +53,6 @@ interface Employee {
   department: string;
 }
 
-interface TicketFormContext {
-  role: "admin" | "dataEntry" | "actionOwner" | "sys_admin";
-  department?: string | null;
-  actionOwner?: Employee;
-  categories?: TicketCategory[];
-  scopes?: TicketTypeScope[];
-}
-
 export default function NewTicketForm() {
   const [search, setSearch] = useState("");
   // const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -71,6 +63,7 @@ export default function NewTicketForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<{
     propertyName: string;
     address: string;
@@ -88,221 +81,22 @@ export default function NewTicketForm() {
   const [complaintSource, setComplaintSource] = useState("Customer Call");
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setisSaving] = useState<boolean>(false);
+
   const [employees, setEmployees] = useState<Employee[]>([]);
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [department, setDepartment] = useState("");
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  const [scopes, setScopes] = useState<TicketTypeScope[]>([]);
+  const [allScopes, setAllScopes] = useState<TicketTypeScope[]>([]);
   const [loadingScopes, setLoadingScopes] = useState(false);
 
   const [categoryOptions, setCategoryOptions] = useState<TicketCategory[]>([]);
-
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [category, setCategory] = useState("categoryOptions[0].code");
 
-  const [currentUserRole, setCurrentUserRole] = useState<
-    "admin" | "dataEntry" | "actionOwner" | "sys_admin" | ""
-  >("");
+  const [category, setCategory] = useState("");
 
-  const isActionOwner = currentUserRole === "actionOwner";
-
-  useEffect(() => {
-    async function loadTicketFormContext() {
-      try {
-        const response = await fetch("/api/tickets/form-options");
-
-        if (!response.ok) {
-          throw new Error("Failed to load ticket form options");
-        }
-
-        const data: TicketFormContext = await response.json();
-
-        setCurrentUserRole(data.role);
-
-        if (data.role === "actionOwner") {
-          /*
-           * Department is forced to their own.
-           */
-          setDepartment(data.department ?? "");
-
-          /*
-           * Action owner is forced to themselves.
-           */
-          if (data.actionOwner) {
-            setEmployees([data.actionOwner]);
-            setActionOwnerId(data.actionOwner.id);
-          }
-
-          /*
-           * Only categories permitted for their designation.
-           */
-          setCategoryOptions(data.categories ?? []);
-
-          /*
-           * Ticket-type scopes.
-           */
-          setScopes(data.scopes ?? []);
-        }
-      } catch (error) {
-        console.error("Failed to load ticket form context:", error);
-
-        setToast({
-          open: true,
-          type: "error",
-          title: "Failed",
-          message: "Unable to load ticket creation information.",
-        });
-      }
-    }
-
-    loadTicketFormContext();
-  }, []);
-
-  useEffect(() => {
-    if (!currentUserRole) return;
-
-    /*
-     * Action owner's department was already supplied by
-     * /api/tickets/form-options.
-     */
-    if (currentUserRole === "actionOwner") {
-      return;
-    }
-
-    async function loadDepartments() {
-      try {
-        setLoadingDepartments(true);
-
-        const response = await fetch("/api/settings/departments");
-
-        if (!response.ok) {
-          throw new Error("Failed to load departments");
-        }
-
-        const data = await response.json();
-
-        setDepartments(data);
-      } catch (error) {
-        console.error("Failed to load departments:", error);
-
-        setDepartments([]);
-
-        setToast({
-          open: true,
-          type: "error",
-          title: "Failed",
-          message: "Unable to load departments.",
-        });
-      } finally {
-        setLoadingDepartments(false);
-      }
-    }
-
-    loadDepartments();
-  }, [currentUserRole]);
-
-  useEffect(() => {
-    async function loadScopes() {
-      if (!ticketType) {
-        setScopes([]);
-        setScope("");
-        return;
-      }
-
-      try {
-        setLoadingScopes(true);
-
-        const response = await fetch(
-          `/api/tickets/form-options?ticketType=${encodeURIComponent(ticketType)}`,
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load ticket scopes");
-        }
-
-        const data = await response.json();
-
-        const filteredScopes: TicketTypeScope[] = Array.isArray(data.scopes)
-          ? data.scopes.filter(
-              (item: TicketTypeScope) => item.ticketType === ticketType,
-            )
-          : [];
-
-        setScopes(filteredScopes);
-
-        setScope((currentScope) => {
-          const exists = filteredScopes.some(
-            (item) => item.scope === currentScope,
-          );
-
-          return exists ? currentScope : "";
-        });
-      } catch (error) {
-        console.error("Failed to load scopes:", error);
-
-        setScopes([]);
-        setScope("");
-
-        setToast({
-          open: true,
-          type: "error",
-          title: "Failed",
-          message: "Unable to load ticket scopes.",
-        });
-      } finally {
-        setLoadingScopes(false);
-      }
-    }
-
-    loadScopes();
-  }, [ticketType]);
-
-  useEffect(() => {
-    if (!currentUserRole) return;
-
-    /*
-     * Already loaded securely for actionOwner.
-     */
-    if (currentUserRole === "actionOwner") {
-      return;
-    }
-
-    async function loadCategories() {
-      try {
-        setLoadingCategories(true);
-
-        const response = await fetch("/api/settings/ticket-type-categories");
-
-        if (!response.ok) {
-          throw new Error("Failed to load categories");
-        }
-
-        const data = await response.json();
-
-        setCategoryOptions(data);
-      } catch (error) {
-        console.error("Failed to load categories:", error);
-
-        setToast({
-          open: true,
-          type: "error",
-          title: "Failed",
-          message: "Unable to load ticket categories.",
-        });
-      } finally {
-        setLoadingCategories(false);
-      }
-    }
-
-    loadCategories();
-  }, [currentUserRole]);
-
-  const getSlaTarget = (categoryCode: string) => {
-    const selected = categoryOptions.find((item) => item.code === categoryCode);
-
-    return selected?.sla || "";
-  };
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
 
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -331,6 +125,115 @@ export default function NewTicketForm() {
     message: "",
   });
 
+  const getSlaTarget = (categoryCode: string) => {
+    const selected = categoryOptions.find((item) => item.code === categoryCode);
+
+    return selected?.sla || "";
+  };
+
+  // Department Load Hook
+  useEffect(() => {
+    async function loadDepartments() {
+      try {
+        setLoadingDepartments(true);
+
+        const response = await fetch("/api/settings/departments");
+
+        if (!response.ok) {
+          throw new Error("Failed to load departments");
+        }
+
+        const data: Department[] = await response.json();
+
+        setDepartments(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load departments:", error);
+
+        setDepartments([]);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load departments.",
+        });
+      } finally {
+        setLoadingDepartments(false);
+      }
+    }
+
+    loadDepartments();
+  }, []);
+
+  // scope load hook
+  useEffect(() => {
+    async function loadScopes() {
+      try {
+        setLoadingScopes(true);
+
+        const response = await fetch("/api/settings/ticket-type-scopes");
+
+        if (!response.ok) {
+          throw new Error("Failed to load ticket scopes");
+        }
+
+        const data: TicketTypeScope[] = await response.json();
+
+        setAllScopes(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load scopes:", error);
+
+        setAllScopes([]);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load ticket scopes.",
+        });
+      } finally {
+        setLoadingScopes(false);
+      }
+    }
+
+    loadScopes();
+  }, []);
+
+  // categories load hook
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setLoadingCategories(true);
+
+        const response = await fetch("/api/settings/ticket-type-categories");
+
+        if (!response.ok) {
+          throw new Error("Failed to load categories");
+        }
+
+        const data: TicketCategory[] = await response.json();
+
+        setCategoryOptions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+
+        setCategoryOptions([]);
+
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed",
+          message: "Unable to load ticket categories.",
+        });
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  // bottom right toast hook
   useEffect(() => {
     if (!toast.open) return;
 
@@ -344,26 +247,42 @@ export default function NewTicketForm() {
     return () => clearTimeout(timer);
   }, [toast.open]);
 
-  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
+  const scopes = useMemo(() => {
+    return allScopes.filter((item) => item.ticketType === ticketType);
+  }, [allScopes, ticketType]);
 
   const selectedCategory = useMemo(
     () => categoryOptions.find((c) => c.code === category),
-    [category],
+    [category, categoryOptions],
   );
+
+  // reset the currently selected scope if the user changes from Inquiry to Complaint
+  useEffect(() => {
+    setScope((currentScope) => {
+      const stillValid = scopes.some((item) => item.scope === currentScope);
+
+      return stillValid ? currentScope : "";
+    });
+  }, [scopes]);
 
   useEffect(() => {
     const trimmedSearch = search.trim();
 
     if (selectedCustomer) {
+      setSearchingCustomers(false);
       return;
     }
 
     if (trimmedSearch.length < 2) {
       setCustomers([]);
+      setSearchingCustomers(false);
       return;
     }
 
     const controller = new AbortController();
+
+    // Start showing loading immediately, including during debounce.
+    setSearchingCustomers(true);
 
     const timer = setTimeout(async () => {
       try {
@@ -382,15 +301,18 @@ export default function NewTicketForm() {
 
         const data = await response.json();
 
-        setCustomers(data);
+        setCustomers(Array.isArray(data) ? data : []);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
         console.error("Failed to search customers:", error);
-
         setCustomers([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setSearchingCustomers(false);
+        }
       }
     }, 300);
 
@@ -407,14 +329,6 @@ export default function NewTicketForm() {
       customer.email.toLowerCase().includes(search) ||
       customer.mobile.includes(search),
   );
-
-  const categoryRoleMap: Record<string, string[]> = {
-    "CAT-A": ["MEP Engineer"],
-    "CAT-B": ["MEP Engineer", "Contractor"],
-    "CAT-B2": ["SFM Department"],
-    "CAT-C": ["CMU Manager"],
-    "CAT-D": ["Operations Executive"],
-  };
 
   const ALLOWED_FILE_TYPES = new Set([
     "application/pdf",
@@ -438,16 +352,8 @@ export default function NewTicketForm() {
     ".msg",
   ]);
 
+  // employee loading hook
   useEffect(() => {
-    if (!currentUserRole) return;
-
-    /*
-     * Action owner has already been loaded as the only employee.
-     */
-    if (currentUserRole === "actionOwner") {
-      return;
-    }
-
     async function loadEmployees() {
       try {
         const response = await fetch("/api/users?active=true");
@@ -456,11 +362,13 @@ export default function NewTicketForm() {
           throw new Error("Failed to load employees");
         }
 
-        const data = await response.json();
+        const data: Employee[] = await response.json();
 
-        setEmployees(data);
+        setEmployees(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to load employees:", error);
+
+        setEmployees([]);
 
         setToast({
           open: true,
@@ -472,25 +380,19 @@ export default function NewTicketForm() {
     }
 
     loadEmployees();
-  }, [currentUserRole]);
+  }, []);
 
   const availableEmployees = useMemo(() => {
-    const allowedRoles = categoryRoleMap[category] || [];
-
     return employees.filter((employee) => {
-      const matchesCategory = allowedRoles.includes(employee.designation);
-
       const matchesRole =
         employee.role === "admin" || employee.role === "actionOwner";
 
       const matchesDepartment =
         !department || employee.department === department;
 
-      return (
-        employee.active && matchesCategory && matchesRole && matchesDepartment
-      );
+      return employee.active && matchesRole && matchesDepartment;
     });
-  }, [category, department, employees]);
+  }, [department, employees]);
 
   const emailSuggestions = useMemo(() => {
     return employees.filter((employee) => employee.active);
@@ -546,6 +448,7 @@ export default function NewTicketForm() {
   };
 
   // attachment upload logic start
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
 
@@ -593,7 +496,10 @@ export default function NewTicketForm() {
     // setAttachments((prev) => [...prev, ...Array.from(files)]);
     addFiles(Array.from(files));
   };
+
   // attachment upload logic end
+
+  // cclist logic begin
 
   const addEmail = (email: string) => {
     if (!selectedEmails.includes(email)) {
@@ -606,6 +512,8 @@ export default function NewTicketForm() {
   const removeEmail = (email: string) => {
     setSelectedEmails((prev) => prev.filter((x) => x !== email));
   };
+
+  // cclist end
 
   const openSubmitConfirmation = () => {
     if (!selectedCustomer) {
@@ -784,6 +692,7 @@ export default function NewTicketForm() {
 
     return () => clearTimeout(timer);
   }, [newTicketToast.open]);
+
   if (isSaving) {
     return (
       <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
@@ -942,7 +851,7 @@ export default function NewTicketForm() {
 
               <div className="grid md:grid-cols-4 gap-4">
                 <div className="md:col-span-1">
-                  {isActionOwner ? (
+                  {/* {isActionOwner ? (
                     <InputField
                       label="Department"
                       value={department}
@@ -969,11 +878,31 @@ export default function NewTicketForm() {
                         </option>
                       ))}
                     </SelectField>
-                  )}
+                  )} */}
+                  <SelectField
+                    label="Department"
+                    value={department}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                      setDepartment(e.target.value);
+                      setActionOwnerId("");
+                    }}
+                  >
+                    <option value="">
+                      {loadingDepartments
+                        ? "Loading departments..."
+                        : "Select Department"}
+                    </option>
+
+                    {departments.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </SelectField>
                 </div>
                 {/* Action Owner */}
                 <div className="md:col-span-1">
-                  {isActionOwner ? (
+                  {/* {isActionOwner ? (
                     <InputField
                       label="Action Owner"
                       value={
@@ -999,7 +928,22 @@ export default function NewTicketForm() {
                         </option>
                       ))}
                     </SelectField>
-                  )}
+                  )} */}
+                  <SelectField
+                    label="Action Owner"
+                    value={actionOwnerId}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      setActionOwnerId(e.target.value)
+                    }
+                  >
+                    <option value="">Select Action Owner</option>
+
+                    {availableEmployees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.designation} - {employee.name}
+                      </option>
+                    ))}
+                  </SelectField>
                 </div>
                 {/* <InputField label="Scope *" placeholder="Required" /> */}
 
@@ -1105,14 +1049,12 @@ export default function NewTicketForm() {
                 </p>
               </div>
 
-              {!isActionOwner && (
-                <Link href="/settings/customers/new">
-                  <button type="button" className="geny-theme-button-border">
-                    <User size={18} />
-                    New Customer
-                  </button>
-                </Link>
-              )}
+              <Link href="/settings/customers/new">
+                <button type="button" className="geny-theme-button-border">
+                  <User size={18} />
+                  New Customer
+                </button>
+              </Link>
             </div>
 
             <div className="mt-5 relative">
@@ -1144,48 +1086,62 @@ export default function NewTicketForm() {
                         "
               />
 
-              {search.length > 0 && !selectedCustomer && (
-                <div
-                  className="
-                    absolute
-                    top-full
-                    left-0
-                    right-0
-                    mt-2
-                    bg-white
-                    border
-                    border-slate-200
-                    rounded-2xl
-                    shadow-xl
-                    z-20
-                    max-h-64
-                    overflow-y-auto
-                  "
-                >
-                  {filteredCustomers.map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCustomer(customer);
-                        setSelectedProperty(null);
-                        setSearch(customer.name);
-                      }}
-                      className="
-                          w-full
-                          text-left
-                          px-4
-                          py-3
-                          hover:bg-slate-50
-                        "
-                    >
-                      <div className="font-medium">{customer.name}</div>
+              {search.trim().length >= 2 && !selectedCustomer && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  {searchingCustomers ? (
+                    <div className="flex items-center gap-3 px-4 py-4">
+                      <LoaderCircle
+                        size={18}
+                        className="animate-spin text-blue-600"
+                      />
 
-                      <div className="text-xs text-slate-500">
-                        {customer.mobile}
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">
+                          Searching customers...
+                        </p>
+
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          Finding matches for &quot;{search.trim()}&quot;
+                        </p>
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  ) : filteredCustomers.length > 0 ? (
+                    filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setSelectedProperty(null);
+                          setSearch(customer.name);
+                          setCustomers([]);
+                        }}
+                        className="w-full border-b border-slate-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-slate-50"
+                      >
+                        <div className="font-medium text-slate-800">
+                          {customer.name}
+                        </div>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          {customer.mobile && <span>{customer.mobile}</span>}
+
+                          {customer.NIC && <span>{customer.NIC}</span>}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-5 text-center">
+                      <User size={22} className="mx-auto text-slate-300" />
+
+                      <p className="mt-2 text-sm font-medium text-slate-600">
+                        No customers found
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        Try searching by name, NIC, email or mobile.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

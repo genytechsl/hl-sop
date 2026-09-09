@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,38 +9,12 @@ export async function POST(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
 
-    // =========================================================
-    // AUTHORIZATION
-    // =========================================================
-
-    /*
-     * Ticket reassignment changes ownership of a case.
-     * Restrict this operation to administrators only.
-     */
-
-    if (sessionUser.role !== "admin" && sessionUser.role !== "dataEntry") {
-      return NextResponse.json(
-        {
-          message: "You are not authorized to reassign tickets.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
 
     // =========================================================
     // REQUEST BODY

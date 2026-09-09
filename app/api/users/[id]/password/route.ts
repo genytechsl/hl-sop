@@ -33,14 +33,11 @@ export async function PUT(
     // =========================================================
 
     /*
-     * Admin:
-     *   Can change any user's password.
-     *
-     * Other authenticated users:
-     *   Can only change their own password.
+     * Administrative password reset endpoint.
+     * Self-service password changes belong to /api/profile/password.
      */
 
-    if (sessionUser.role !== "admin" && sessionUser.id !== id) {
+    if (sessionUser.role !== "admin" && sessionUser.role !== "sys_admin") {
       return NextResponse.json(
         {
           error: "Forbidden",

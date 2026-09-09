@@ -73,17 +73,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = user.role === "admin";
-    const isDataEntry = user.role === "dataEntry";
+    const isAdmin = user.role === "admin" || user.role === "sys_admin";
     const isActionOwner = user.role === "actionOwner";
+
+    if (!isAdmin && !isActionOwner) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     // =====================================================
     // DASHBOARD OVERVIEW
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("overview") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -92,11 +95,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // AGING
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("aging") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -105,11 +108,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // VOLUME
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("volume") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -118,11 +121,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // ACTION OWNER WORKLOAD
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("ownerWorkload") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -131,11 +134,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // CATEGORY VOLUME
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("categoryVolume") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -144,11 +147,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // SLA COMPLIANCE
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("slaCompliance") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -157,11 +160,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // AVAILABLE TICKET MONTHS
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("months") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -170,11 +173,11 @@ export async function GET(request: NextRequest) {
 
     // =====================================================
     // SCOPE DISTRIBUTION
-    // Admin + Data Entry ONLY
+    // Admin + System Admin + Action Owner
     // =====================================================
 
     if (searchParams.get("scopeDistribution") === "true") {
-      if (!isAdmin && !isDataEntry) {
+      if (!isAdmin && !isActionOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
 
@@ -227,12 +230,12 @@ export async function GET(request: NextRequest) {
 
     if (customerId) {
       /*
-       * ADMIN / DATA ENTRY
+       * ADMIN / SYSTEM ADMIN
        *
        * Can see every ticket belonging to the customer.
        */
 
-      if (isAdmin || isDataEntry) {
+      if (isAdmin) {
         return NextResponse.json(await getTicketsByCustomerId(customerId));
       }
 
@@ -281,7 +284,7 @@ export async function GET(request: NextRequest) {
     }
 
     // =====================================================
-    // ADMIN / DATA ENTRY
+    // ADMIN / SYSTEM ADMIN
     // =====================================================
 
     return NextResponse.json(await getTickets());
@@ -316,14 +319,13 @@ export async function POST(request: NextRequest) {
 
     if (
       user.role !== "admin" &&
-      user.role !== "dataEntry" &&
+      user.role !== "sys_admin" &&
       user.role !== "actionOwner"
     ) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-    const isActionOwner = user.role === "actionOwner";
 
     if (!body.customerName) {
       return NextResponse.json(
@@ -396,11 +398,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let assignedToId: string | undefined = body.assignedToId || undefined;
-
-    if (isActionOwner) {
-      assignedToId = user.id;
-    }
+    const assignedToId: string | undefined = body.assignedToId || undefined;
 
     if (!assignedToId) {
       return NextResponse.json(
@@ -434,28 +432,6 @@ export async function POST(request: NextRequest) {
         { message: "Selected action owner is inactive" },
         { status: 400 },
       );
-    }
-
-    if (isActionOwner) {
-      const categoryRoleMap: Record<string, string[]> = {
-        "CAT-A": ["MEP Engineer"],
-        "CAT-B": ["MEP Engineer", "Contractor"],
-        "CAT-B2": ["SFM Department"],
-        "CAT-C": ["CMU Manager"],
-        "CAT-D": ["Operations Executive"],
-      };
-
-      const allowedDesignations = categoryRoleMap[body.category] ?? [];
-
-      if (!allowedDesignations.includes(employee.designation)) {
-        return NextResponse.json(
-          {
-            message:
-              "You are not authorized to create tickets under this category.",
-          },
-          { status: 403 },
-        );
-      }
     }
 
     const id = await generateTicketId(body);

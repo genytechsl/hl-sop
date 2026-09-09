@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 
 import { updateTicketStatus } from "@/lib/ticket-service";
 import { customerTicketResolvedEmail } from "@/lib/customer-email";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -12,18 +12,13 @@ export async function POST(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     // =========================================================
     // REQUEST BODY
@@ -102,20 +97,6 @@ export async function POST(request: NextRequest) {
      * Reject any unknown role.
      */
 
-    if (
-      sessionUser.role !== "admin" &&
-      sessionUser.role !== "dataEntry" &&
-      sessionUser.role !== "actionOwner"
-    ) {
-      return NextResponse.json(
-        {
-          message: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
 
     // =========================================================
     // UPDATE TICKET STATUS

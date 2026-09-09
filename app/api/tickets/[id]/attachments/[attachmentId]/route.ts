@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 import fs from "fs/promises";
 import path from "path";
@@ -22,18 +22,13 @@ export async function GET(
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     const { id: ticketId, attachmentId } = await params;
 
@@ -74,22 +69,6 @@ export async function GET(
         },
         {
           status: 404,
-        },
-      );
-    }
-
-    // Only approved system roles may access attachments.
-    if (
-      sessionUser.role !== "admin" &&
-      sessionUser.role !== "dataEntry" &&
-      sessionUser.role !== "actionOwner"
-    ) {
-      return NextResponse.json(
-        {
-          message: "Forbidden",
-        },
-        {
-          status: 403,
         },
       );
     }

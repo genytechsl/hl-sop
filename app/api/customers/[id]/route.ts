@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCustomerById } from "@/lib/customer-service";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const auth = await authorizeRoles(TICKET_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await params;
 
     const customer = await getCustomerById(id);

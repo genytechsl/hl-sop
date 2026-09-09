@@ -7,7 +7,7 @@ import {
   createRemark,
 } from "@/lib/remarks-service";
 
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -16,11 +16,13 @@ export async function GET(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     // =========================================================
     // QUERY PARAMETERS
@@ -111,10 +113,10 @@ export async function GET(request: NextRequest) {
 
     // =========================================================
     // GET ALL REMARKS
-    // Admin + Data Entry only
+    // Admin + System Admin only
     // =========================================================
 
-    if (sessionUser.role !== "admin" && sessionUser.role !== "dataEntry") {
+    if (sessionUser.role !== "admin" && sessionUser.role !== "sys_admin") {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -137,11 +139,13 @@ export async function POST(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const sessionUser = auth.user;
 
     // =========================================================
     // REQUEST BODY
@@ -184,23 +188,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      sessionUser.role === "actionOwner" &&
-      ticket.assignedToId !== sessionUser.id
-    ) {
-      return NextResponse.json(
-        { message: "Ticket not found" },
-        { status: 404 },
-      );
-    }
 
-    if (
-      sessionUser.role !== "admin" &&
-      sessionUser.role !== "dataEntry" &&
-      sessionUser.role !== "actionOwner"
-    ) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
 
     // =========================================================
     // CREATE REMARK

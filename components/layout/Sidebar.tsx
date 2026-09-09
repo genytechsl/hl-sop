@@ -50,25 +50,27 @@ export default function Sidebar({
       name: "Dashboard",
       href: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["dataEntry", "admin"],
+      roles: ["admin", "sys_admin", "actionOwner"],
     },
     {
       name: "Tickets",
       href: "/tickets",
       icon: Ticket,
-      roles: ["dataEntry", "admin"],
+      roles: ["admin", "sys_admin"],
     },
     {
       name: "Assigned To Me",
       href: "/assigned",
       icon: BookOpen,
-      roles: ["actionOwner"],
+      roles: ["admin", "sys_admin", "actionOwner"],
     },
+
+    // Enable later if you want Reports in the sidebar
     // {
     //   name: "Reports",
     //   href: "/reports",
     //   icon: FileText,
-    //   roles: ["admin"],
+    //   roles: ["admin", "sys_admin"],
     // },
   ];
 
@@ -394,7 +396,9 @@ export default function Sidebar({
             {/* =================================================
                 QUICK ACTIONS
             ================================================== */}
-            {(user.role === "admin" || user.role === "dataEntry") && (
+            {(user.role === "admin" ||
+              user.role === "sys_admin" ||
+              user.role === "actionOwner") && (
               <div className="mt-6">
                 {!collapsed && (
                   <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">

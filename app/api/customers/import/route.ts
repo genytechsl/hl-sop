@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { generateCustomerId } from "@/lib/customer-service";
+import { ADMIN_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 interface ImportResult {
   row: number;
@@ -86,6 +87,12 @@ function normalizeOtherMobiles(
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 

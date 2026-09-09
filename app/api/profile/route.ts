@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, createSession, type UserRole } from "@/lib/auth/session";
+import { createSession, type UserRole } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const session = auth.user;
 
     const employee = await prisma.employee.findUnique({
       where: {
@@ -44,11 +47,13 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth.ok) {
+      return auth.response;
     }
+
+    const session = auth.user;
 
     const body = await request.json();
 

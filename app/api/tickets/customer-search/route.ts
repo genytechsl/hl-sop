@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    if (
-      user.role !== "admin" &&
-      user.role !== "dataEntry" &&
-      user.role !== "actionOwner"
-    ) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (!auth.ok) {
+      return auth.response;
     }
 
     const { searchParams } = new URL(request.url);

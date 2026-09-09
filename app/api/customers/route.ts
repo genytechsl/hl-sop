@@ -9,6 +9,7 @@ import {
 } from "@/lib/customer-service";
 
 import { Customer } from "@/types/customer";
+import { ADMIN_ROLES, TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 /**
  * Converts:
@@ -77,6 +78,12 @@ function normalizeOtherMobiles(
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(TICKET_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const search = request.nextUrl.searchParams.get("search");
 
     const customers = search
@@ -100,6 +107,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(TICKET_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     const email = body.email?.trim() ?? "";
@@ -152,6 +165,12 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     const email = body.email?.trim() ?? "";

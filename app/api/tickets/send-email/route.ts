@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 
 import { customerTicketCreatedEmail } from "@/lib/customer-email";
 import { actionOwnerTicketCreatedEmail } from "@/lib/action-owner-email";
-import { getSession } from "@/lib/auth/session";
+import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 import { ticketData } from "@/components/tickets/ticket-data";
 
 export async function POST(request: NextRequest) {
@@ -12,37 +12,10 @@ export async function POST(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const sessionUser = await getSession();
+    const auth = await authorizeRoles(TICKET_ROLES);
 
-    if (!sessionUser) {
-      return NextResponse.json(
-        {
-          message: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    // =========================================================
-    // AUTHORIZATION
-    // =========================================================
-
-    /*
-     * Ticket creation emails should only be triggered by users
-     * who are authorized to create/manage tickets.
-     */
-
-    if (sessionUser.role !== "admin" && sessionUser.role !== "dataEntry") {
-      return NextResponse.json(
-        {
-          message: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
+    if (!auth.ok) {
+      return auth.response;
     }
 
     // =========================================================

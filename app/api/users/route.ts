@@ -65,10 +65,14 @@ export async function GET(request: NextRequest) {
     }
 
     // =====================================================
-    // ADMIN / SYS ADMIN ONLY
+    // AUTHORIZATION
     // =====================================================
 
-    if (sessionUser.role !== "admin" && sessionUser.role !== "sys_admin") {
+    const isSysAdmin = sessionUser.role === "sys_admin";
+    const isAdmin = sessionUser.role === "admin";
+    const isActionOwner = sessionUser.role === "actionOwner";
+
+    if (!isAdmin && !isSysAdmin && !isActionOwner) {
       return NextResponse.json(
         {
           message: "Forbidden",
@@ -78,8 +82,6 @@ export async function GET(request: NextRequest) {
         },
       );
     }
-
-    const isSysAdmin = sessionUser.role === "sys_admin";
 
     // =====================================================
     // QUERY PARAMETERS
@@ -92,6 +94,28 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get("active");
     const designation = searchParams.get("designation");
     const username = searchParams.get("username");
+
+    /*
+     * Action Owners only need the active employee list for
+     * ticket assignment. Do not expose the administrative
+     * user-query surface to them.
+     */
+    if (isActionOwner) {
+      if (active !== "true" || id || role || designation || username) {
+        return NextResponse.json(
+          {
+            message: "Forbidden",
+          },
+          {
+            status: 403,
+          },
+        );
+      }
+
+      const users = await getActiveEmployees();
+
+      return NextResponse.json(filterProtectedUsers(users, false));
+    }
 
     // =====================================================
     // GET USER BY ID

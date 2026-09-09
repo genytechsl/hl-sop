@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ADMIN_ROLES, TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
 
 export async function GET() {
   try {
+    const auth = await authorizeRoles(TICKET_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const categories = await prisma.ticketCategory.findMany({
       orderBy: {
         code: "asc",
@@ -26,6 +33,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authorizeRoles(ADMIN_ROLES);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     const code = String(body.code || "")
