@@ -31,7 +31,7 @@ const roleLabels: Record<string, string> = {
   admin: "Administrator",
   manager: "Manager",
   actionOwner: "Action Owner",
-  dataEntry: "Agent/Data Entry",
+  // dataEntry: "Agent/Data Entry",
 };
 
 export default function EditUserPage() {
