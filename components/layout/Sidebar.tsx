@@ -50,7 +50,7 @@ export default function Sidebar({
       name: "Dashboard",
       href: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["admin", "sys_admin", "actionOwner"],
+      roles: ["admin", "sys_admin"],
     },
     {
       name: "Tickets",
@@ -62,7 +62,7 @@ export default function Sidebar({
       name: "Assigned To Me",
       href: "/assigned",
       icon: BookOpen,
-      roles: ["admin", "sys_admin", "actionOwner"],
+      roles: ["actionOwner"],
     },
 
     // Enable later if you want Reports in the sidebar
