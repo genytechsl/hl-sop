@@ -472,7 +472,7 @@ export default function NewUserForm() {
             <option value="actionOwner">Action Owner</option>
             <option value="admin">Administrator</option>
             <option value="manager">Manager</option>
-            <option value="dataEntry">Agent/Data Entry</option>
+            {/* <option value="dataEntry">Agent/Data Entry</option> */}
           </SelectField>
         </div>
       </div>
