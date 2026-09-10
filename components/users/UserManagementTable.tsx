@@ -23,7 +23,7 @@ interface User {
   username: string;
 }
 
-const roles = ["admin", "manager", "actionOwner", "dataEntry"];
+const roles = ["admin", "actionOwner"];
 
 export default function UserManagementTable() {
   const ITEMS_PER_PAGE = 10;
@@ -53,9 +53,7 @@ export default function UserManagementTable() {
 
   const roleLabels = {
     admin: "Administrator",
-    manager: "Manager",
     actionOwner: "Action Owner",
-    viewer: "Viewer",
   };
 
   const filteredUsers = users
