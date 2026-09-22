@@ -56,6 +56,14 @@ export default function LoginPage() {
       return;
     }
 
+    /*
+     * Preserve the non-null narrowing for the async function below.
+     * TypeScript does not reliably carry ref.current narrowing into
+     * nested async closures.
+     */
+    const introLogoEl = introLogo;
+    const logoTargetEl = logoTarget;
+
     let cancelled = false;
 
     async function runIntro() {
@@ -66,7 +74,7 @@ export default function LoginPage() {
 
       if (cancelled) return;
 
-      const targetRect = logoTarget.getBoundingClientRect();
+      const targetRect = logoTargetEl.getBoundingClientRect();
 
       if (targetRect.width === 0 || targetRect.height === 0) {
         setIntroComplete(true);
@@ -80,10 +88,10 @@ export default function LoginPage() {
        * We then offset it back to the viewport centre for the intro.
        * This keeps the movement accurate at every screen size.
        */
-      introLogo.style.left = `${targetRect.left}px`;
-      introLogo.style.top = `${targetRect.top}px`;
-      introLogo.style.width = `${targetRect.width}px`;
-      introLogo.style.height = `${targetRect.height}px`;
+      introLogoEl.style.left = `${targetRect.left}px`;
+      introLogoEl.style.top = `${targetRect.top}px`;
+      introLogoEl.style.width = `${targetRect.width}px`;
+      introLogoEl.style.height = `${targetRect.height}px`;
 
       const targetCenterX = targetRect.left + targetRect.width / 2;
       const targetCenterY = targetRect.top + targetRect.height / 2;
@@ -98,10 +106,10 @@ export default function LoginPage() {
        * Apply the initial SMALL state before the element is ever visible.
        * This prevents one browser paint at full target size.
        */
-      introLogo.style.opacity = "0";
-      introLogo.style.transform = `${centred} scale(0.42)`;
-      introLogo.style.filter = "blur(6px)";
-      introLogo.style.visibility = "hidden";
+      introLogoEl.style.opacity = "0";
+      introLogoEl.style.transform = `${centred} scale(0.42)`;
+      introLogoEl.style.filter = "blur(6px)";
+      introLogoEl.style.visibility = "hidden";
 
       /*
        * Commit the small starting state first, then expose the element.
@@ -115,11 +123,11 @@ export default function LoginPage() {
 
       if (cancelled) return;
 
-      introLogo.style.visibility = "visible";
+      introLogoEl.style.visibility = "visible";
 
       // Phase 1: SolvY360 starts smaller in the centre and gently zooms in.
       // There is no overshoot / zoom-out phase.
-      const appear = introLogo.animate(
+      const appear = introLogoEl.animate(
         [
           {
             opacity: 0,
@@ -155,7 +163,7 @@ export default function LoginPage() {
       if (cancelled) return;
 
       // Phase 2: slide to the final location while continuing to zoom in.
-      const dock = introLogo.animate(
+      const dock = introLogoEl.animate(
         [
           {
             opacity: 1,
@@ -218,7 +226,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
 
-      introLogo.getAnimations().forEach((animation) => {
+      introLogoEl.getAnimations().forEach((animation) => {
         animation.cancel();
       });
     };
