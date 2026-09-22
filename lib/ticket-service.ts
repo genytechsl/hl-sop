@@ -74,7 +74,8 @@ function formatTicket(ticket: any): Ticket {
     status: ticket.status,
     priority: ticket.priority,
     assignedToId: ticket.assignedToId ?? "",
-    createdAt: formatDateTime(ticket.createdAt),
+    createdAt: ticket.createdAt,
+    // createdAt: formatDateTime(ticket.createdAt),
 
     customerName: ticket.customer?.name ?? "",
     customerEmail: ticket.customer?.email ?? "",

@@ -15,7 +15,7 @@ import {
 import TicketDetailsTabs from "./TicketDetailsTabs";
 import { useEffect, useState } from "react";
 import Toast from "../BottomRIghtToast";
-// import { parseTicketDate, formatSriLankaDateTime } from "@/lib/date-time";
+import { parseTicketDate, formatSriLankaDateTime } from "@/lib/date-time";
 
 interface User {
   id: string;
@@ -47,15 +47,15 @@ interface Props {
  * it as local server/browser time.
  */
 
-const parseTicketDate = (value: string): Date => {
-  if (!value) {
-    return new Date();
-  }
+// const parseTicketDate = (value: string): Date => {
+//   if (!value) {
+//     return new Date();
+//   }
 
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+//   const normalized = value.includes("T") ? value : value.replace(" ", "T");
 
-  return new Date(normalized);
-};
+//   return new Date(normalized);
+// };
 // const parseTicketDate = (value: string): Date => {
 //   if (!value) {
 //     return new Date();
