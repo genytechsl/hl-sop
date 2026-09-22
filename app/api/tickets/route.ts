@@ -453,7 +453,7 @@ export async function POST(request: NextRequest) {
       scope: body.scope,
       cctoList: body.cctoList ?? [],
       sendEmail: body.sendEmail ?? false,
-      createdAt: body.createdAt,
+      // createdAt: body.createdAt,
     };
 
     const createdTicket = await createTicket(ticket);

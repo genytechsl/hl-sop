@@ -86,6 +86,7 @@ export default async function Page({ searchParams }: PageProps) {
    */
 
   const ticket = await getTicketById(id);
+  console.log("now check ticket here: ", ticket);
 
   if (!ticket) {
     return (

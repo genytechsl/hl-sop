@@ -15,6 +15,7 @@ import {
 import TicketDetailsTabs from "./TicketDetailsTabs";
 import { useEffect, useState } from "react";
 import Toast from "../BottomRIghtToast";
+// import { parseTicketDate, formatSriLankaDateTime } from "@/lib/date-time";
 
 interface User {
   id: string;
@@ -45,6 +46,7 @@ interface Props {
  * The database value does not contain a timezone, so we treat
  * it as local server/browser time.
  */
+
 const parseTicketDate = (value: string): Date => {
   if (!value) {
     return new Date();
@@ -54,7 +56,24 @@ const parseTicketDate = (value: string): Date => {
 
   return new Date(normalized);
 };
+// const parseTicketDate = (value: string): Date => {
+//   if (!value) {
+//     return new Date();
+//   }
 
+//   // Already contains timezone information, e.g.
+//   // 2026-09-21T11:31:00.000Z
+//   // 2026-09-21T11:31:00+00:00
+//   if (/Z$|[+-]\d{2}:\d{2}$/.test(value)) {
+//     return new Date(value);
+//   }
+
+//   // DB/API timestamp without timezone.
+//   // Treat it as UTC explicitly.
+//   const normalized = value.replace(" ", "T");
+
+//   return new Date(`${normalized}Z`);
+// };
 /**
  * Parse an SLA string.
  *
@@ -292,6 +311,10 @@ export default function TicketHeader({ ticket, user }: Props) {
   const [employees, setEmployees] = useState<User[]>([]);
   const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
   const [reassigning, setReassigning] = useState(false);
+
+  useEffect(() => {
+    console.log("third check here: ", ticket);
+  }, []);
 
   /*
    * ---------------------------------------------------------
@@ -662,7 +685,16 @@ export default function TicketHeader({ ticket, user }: Props) {
                 >
                   <Clock3 size={18} />
 
+                  {/* {slaDueDate.toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })} */}
                   {slaDueDate.toLocaleString("en-GB", {
+                    timeZone: "Asia/Colombo",
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
@@ -786,7 +818,18 @@ export default function TicketHeader({ ticket, user }: Props) {
               </div>
 
               <span className="font-semibold text-slate-700 text-right">
+                {/* {parseTicketDate(ticket.createdAt).toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}  */}
+
                 {parseTicketDate(ticket.createdAt).toLocaleString("en-GB", {
+                  timeZone: "Asia/Colombo",
                   day: "2-digit",
                   month: "short",
                   year: "numeric",

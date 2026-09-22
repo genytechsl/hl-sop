@@ -57,7 +57,7 @@ export type CreateTicketInput = {
   scope: string;
   cctoList: string[];
   sendEmail: boolean;
-  createdAt: string;
+  // createdAt: string;
 };
 
 function formatTicket(ticket: any): Ticket {
@@ -138,6 +138,7 @@ export async function getTicketById(id: string): Promise<Ticket | undefined> {
   if (!ticket) {
     return undefined;
   }
+  console.log("check tickere here first: ", ticket);
 
   return formatTicket(ticket);
 }
