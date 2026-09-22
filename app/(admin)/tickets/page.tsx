@@ -1,22 +1,20 @@
-"use client";
-import DashboardHeader from "@/components/DashboardHeader";
-import TicketTable, { TicketTableRef } from "@/components/tickets/TicketTable";
+import { getSession } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import TicketsPageClient from "./TicketsPageClient";
 
-import { useRef } from "react";
+export default async function TicketsPage() {
+  const user = await getSession();
 
-export default function TicketsPage() {
-  const tableRef = useRef<TicketTableRef>(null);
+  if (!user) {
+    redirect("/login");
+  }
 
   return (
-    <div className="space-y-8">
-      <DashboardHeader
-        header="Ticket Management"
-        page={2}
-        onExport={() => tableRef.current?.exportPdf()}
-        onExportCsv={() => tableRef.current?.exportCsv()}
-      />
-
-      <TicketTable ref={tableRef} />
-    </div>
+    <TicketsPageClient
+      user={{
+        id: user.id,
+        role: user.role,
+      }}
+    />
   );
 }

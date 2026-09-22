@@ -20,427 +20,488 @@ export interface TicketTableRef {
   exportCsv: () => void;
 }
 
-const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [isLoading, setisLoading] = useState<boolean>(false);
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [ticketTypeFilter, setTicketTypeFilter] = useState("ALL");
+interface TicketTableProps {
+  user: {
+    id: string;
+    role: string;
+  };
+  assignedOnly?: boolean;
+}
 
-  const [fromDate, setFromDate] = useState("");
+const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
+  ({ user, assignedOnly = false }, ref) => {
+    const [tickets, setTickets] = useState<any[]>([]);
+    const [isLoading, setisLoading] = useState<boolean>(false);
+    const [statusFilter, setStatusFilter] = useState("ALL");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [ticketTypeFilter, setTicketTypeFilter] = useState("ALL");
+    const [myTicketsOnly, setMyTicketsOnly] = useState(assignedOnly);
 
-  const [toDate, setToDate] = useState("");
+    const [fromDate, setFromDate] = useState("");
 
-  useEffect(() => {
-    const loadTickets = async () => {
-      try {
-        setisLoading(true);
+    const [toDate, setToDate] = useState("");
 
-        const response = await fetch("/api/tickets");
+    useEffect(() => {
+      const loadTickets = async () => {
+        try {
+          setisLoading(true);
 
-        const data = await response.json().catch(() => null);
+          const response = await fetch("/api/tickets");
 
-        if (!response.ok) {
-          throw new Error(
-            data?.message ||
-              data?.error ||
-              `Failed to load tickets: ${response.status}`,
-          );
+          const data = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            throw new Error(
+              data?.message ||
+                data?.error ||
+                `Failed to load tickets: ${response.status}`,
+            );
+          }
+
+          if (!Array.isArray(data)) {
+            throw new Error("Ticket API returned invalid data.");
+          }
+
+          console.log("All tickets:", data);
+
+          setTickets(data);
+        } catch (error) {
+          console.error("Failed to load tickets:", error);
+          setTickets([]);
+        } finally {
+          setisLoading(false);
         }
+      };
 
-        if (!Array.isArray(data)) {
-          throw new Error("Ticket API returned invalid data.");
-        }
+      loadTickets();
+    }, []);
 
-        console.log("All tickets:", data);
+    const ITEMS_PER_PAGE = 15;
 
-        setTickets(data);
-      } catch (error) {
-        console.error("Failed to load tickets:", error);
-        setTickets([]);
-      } finally {
-        setisLoading(false);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const getHoursFromSla = (sla?: string) => {
+      if (!sla) return 24;
+
+      const normalized = sla.trim().toLowerCase();
+
+      const match = normalized.match(
+        /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
+      );
+
+      if (!match) {
+        return 24;
       }
-    };
 
-    loadTickets();
-  }, []);
+      const value = Number(match[1]);
+      const unit = match[2];
 
-  const ITEMS_PER_PAGE = 15;
+      if (unit.startsWith("minute")) {
+        return value / 60;
+      }
 
-  const [currentPage, setCurrentPage] = useState(1);
+      if (unit.startsWith("hour")) {
+        return value;
+      }
 
-  const getHoursFromSla = (sla?: string) => {
-    if (!sla) return 24;
+      if (unit.startsWith("working")) {
+        return value * 24;
+      }
 
-    const normalized = sla.trim().toLowerCase();
+      if (unit.startsWith("day")) {
+        return value * 24;
+      }
 
-    const match = normalized.match(
-      /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
-    );
-
-    if (!match) {
       return 24;
-    }
+    };
 
-    const value = Number(match[1]);
-    const unit = match[2];
+    const calculateSlaDueDate = (
+      createdAt: string | Date,
+      sla?: string,
+    ): Date => {
+      const start = new Date(createdAt);
 
-    if (unit.startsWith("minute")) {
-      return value / 60;
-    }
+      if (Number.isNaN(start.getTime())) {
+        return new Date();
+      }
 
-    if (unit.startsWith("hour")) {
-      return value;
-    }
+      if (!sla) {
+        return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      }
 
-    if (unit.startsWith("working")) {
-      return value * 24;
-    }
+      const normalized = sla.trim().toLowerCase();
 
-    if (unit.startsWith("day")) {
-      return value * 24;
-    }
+      const match = normalized.match(
+        /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
+      );
 
-    return 24;
-  };
+      if (!match) {
+        return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      }
 
-  const calculateSlaDueDate = (
-    createdAt: string | Date,
-    sla?: string,
-  ): Date => {
-    const start = new Date(createdAt);
+      const value = Number(match[1]);
+      const unit = match[2];
 
-    if (Number.isNaN(start.getTime())) {
-      return new Date();
-    }
+      // -----------------------------------------
+      // MINUTES
+      // -----------------------------------------
 
-    if (!sla) {
+      if (unit.startsWith("minute")) {
+        return new Date(start.getTime() + value * 60 * 1000);
+      }
+
+      // -----------------------------------------
+      // HOURS
+      // -----------------------------------------
+
+      if (unit.startsWith("hour")) {
+        return new Date(start.getTime() + value * 60 * 60 * 1000);
+      }
+
+      // -----------------------------------------
+      // CALENDAR DAYS
+      // -----------------------------------------
+
+      if (unit.startsWith("day")) {
+        const dueDate = new Date(start);
+
+        dueDate.setDate(dueDate.getDate() + value);
+
+        return dueDate;
+      }
+
+      // -----------------------------------------
+      // WORKING DAYS
+      // Monday - Friday
+      // -----------------------------------------
+
+      if (unit.startsWith("working")) {
+        const dueDate = new Date(start);
+
+        let remainingDays = Math.floor(value);
+
+        while (remainingDays > 0) {
+          dueDate.setDate(dueDate.getDate() + 1);
+
+          const day = dueDate.getDay();
+
+          // Sunday = 0
+          // Saturday = 6
+
+          if (day !== 0 && day !== 6) {
+            remainingDays--;
+          }
+        }
+
+        // Handle fractional working days if ever needed
+        const fraction = value % 1;
+
+        if (fraction > 0) {
+          dueDate.setHours(dueDate.getHours() + fraction * 24);
+        }
+
+        return dueDate;
+      }
+
+      // -----------------------------------------
+      // DEFAULT
+      // -----------------------------------------
+
       return new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    }
+    };
 
-    const normalized = sla.trim().toLowerCase();
+    const getWorkingHoursBetween = (startDate: Date, endDate: Date) => {
+      if (endDate <= startDate) {
+        return 0;
+      }
 
-    const match = normalized.match(
-      /^(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|working\s+days?)$/,
-    );
+      let current = new Date(startDate);
+      let totalHours = 0;
 
-    if (!match) {
-      return new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    }
+      while (current < endDate) {
+        const day = current.getDay();
 
-    const value = Number(match[1]);
-    const unit = match[2];
-
-    // -----------------------------------------
-    // MINUTES
-    // -----------------------------------------
-
-    if (unit.startsWith("minute")) {
-      return new Date(start.getTime() + value * 60 * 1000);
-    }
-
-    // -----------------------------------------
-    // HOURS
-    // -----------------------------------------
-
-    if (unit.startsWith("hour")) {
-      return new Date(start.getTime() + value * 60 * 60 * 1000);
-    }
-
-    // -----------------------------------------
-    // CALENDAR DAYS
-    // -----------------------------------------
-
-    if (unit.startsWith("day")) {
-      const dueDate = new Date(start);
-
-      dueDate.setDate(dueDate.getDate() + value);
-
-      return dueDate;
-    }
-
-    // -----------------------------------------
-    // WORKING DAYS
-    // Monday - Friday
-    // -----------------------------------------
-
-    if (unit.startsWith("working")) {
-      const dueDate = new Date(start);
-
-      let remainingDays = Math.floor(value);
-
-      while (remainingDays > 0) {
-        dueDate.setDate(dueDate.getDate() + 1);
-
-        const day = dueDate.getDay();
-
-        // Sunday = 0
-        // Saturday = 6
-
+        // Skip Saturday and Sunday
         if (day !== 0 && day !== 6) {
-          remainingDays--;
+          const nextDay = new Date(current);
+
+          nextDay.setDate(nextDay.getDate() + 1);
+
+          // Don't go beyond the requested end date
+          const segmentEnd = nextDay < endDate ? nextDay : endDate;
+
+          const hours =
+            (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
+
+          totalHours += hours;
+        }
+
+        current.setDate(current.getDate() + 1);
+        current.setHours(0, 0, 0, 0);
+      }
+
+      return totalHours;
+    };
+
+    const isWorkingDaySla = (sla?: string) => {
+      return sla?.toLowerCase().includes("working day") ?? false;
+    };
+
+    const getTicketMetrics = (ticket: any) => {
+      const createdAt = new Date(ticket.createdAt);
+      const now = new Date();
+
+      const targetHours = getHoursFromSla(ticket.slaTarget);
+
+      const workingDaySla = isWorkingDaySla(ticket.slaTarget);
+
+      const ageHours = workingDaySla
+        ? getWorkingHoursBetween(createdAt, now)
+        : (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+      const percent = Math.round((ageHours / targetHours) * 100);
+
+      const breached =
+        ageHours > targetHours &&
+        ["OPEN", "IN_PROGRESS"].includes(ticket.status);
+
+      const dueDate = calculateSlaDueDate(ticket.createdAt, ticket.slaTarget);
+
+      return {
+        ageHours,
+        targetHours,
+        percent,
+        breached,
+        dueDate,
+      };
+    };
+
+    const sortedTickets = [...tickets].sort((a, b) => {
+      return getTicketMetrics(b).percent - getTicketMetrics(a).percent;
+    });
+
+    const scopeTickets =
+      myTicketsOnly && (user.role === "admin" || user.role === "sys_admin")
+        ? sortedTickets.filter((ticket) => ticket.assignedToId === user.id)
+        : sortedTickets;
+
+    const filteredTickets = scopeTickets.filter((ticket) => {
+      // // Admin: optionally show only tickets assigned to themselves
+      // if (
+      //   myTicketsOnly &&
+      //   (user.role === "admin" || user.role === "sys_admin") &&
+      //   ticket.assignedToId !== user.id
+      // ) {
+      //   return false;
+      // }
+
+      // Search
+      const search = searchTerm.trim().toLowerCase();
+
+      if (
+        search &&
+        !ticket.customerName?.toLowerCase().includes(search) &&
+        !ticket.title?.toLowerCase().includes(search) &&
+        !ticket.customerEmail?.toLowerCase().includes(search) &&
+        !ticket.customerNic?.toLowerCase().includes(search)
+      ) {
+        return false;
+      }
+
+      if (statusFilter !== "ALL" && ticket.status !== statusFilter) {
+        return false;
+      }
+
+      if (categoryFilter !== "ALL" && ticket.category !== categoryFilter) {
+        return false;
+      }
+
+      if (
+        ticketTypeFilter !== "ALL" &&
+        ticket.ticketType !== ticketTypeFilter
+      ) {
+        return false;
+      }
+
+      const ticketDate = new Date(ticket.createdAt);
+
+      if (fromDate) {
+        const start = new Date(fromDate);
+
+        if (ticketDate < start) {
+          return false;
         }
       }
 
-      // Handle fractional working days if ever needed
-      const fraction = value % 1;
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
 
-      if (fraction > 0) {
-        dueDate.setHours(dueDate.getHours() + fraction * 24);
+        if (ticketDate > end) {
+          return false;
+        }
       }
 
-      return dueDate;
-    }
+      return true;
+    });
 
-    // -----------------------------------------
-    // DEFAULT
-    // -----------------------------------------
+    const totalPages = Math.ceil(filteredTickets.length / ITEMS_PER_PAGE);
 
-    return new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  };
+    const paginatedTickets = filteredTickets.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE,
+    );
 
-  const getWorkingHoursBetween = (startDate: Date, endDate: Date) => {
-    if (endDate <= startDate) {
-      return 0;
-    }
+    const formatAge = (hours: number) => {
+      const days = Math.floor(hours / 24);
 
-    let current = new Date(startDate);
-    let totalHours = 0;
-
-    while (current < endDate) {
-      const day = current.getDay();
-
-      // Skip Saturday and Sunday
-      if (day !== 0 && day !== 6) {
-        const nextDay = new Date(current);
-
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        // Don't go beyond the requested end date
-        const segmentEnd = nextDay < endDate ? nextDay : endDate;
-
-        const hours =
-          (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
-
-        totalHours += hours;
+      if (days > 0) {
+        return `${days}d ${Math.floor(hours % 24)}h`;
       }
 
-      current.setDate(current.getDate() + 1);
-      current.setHours(0, 0, 0, 0);
-    }
-
-    return totalHours;
-  };
-
-  const isWorkingDaySla = (sla?: string) => {
-    return sla?.toLowerCase().includes("working day") ?? false;
-  };
-
-  const getTicketMetrics = (ticket: any) => {
-    const createdAt = new Date(ticket.createdAt);
-    const now = new Date();
-
-    const targetHours = getHoursFromSla(ticket.slaTarget);
-
-    const workingDaySla = isWorkingDaySla(ticket.slaTarget);
-
-    const ageHours = workingDaySla
-      ? getWorkingHoursBetween(createdAt, now)
-      : (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-
-    const percent = Math.round((ageHours / targetHours) * 100);
-
-    const breached =
-      ageHours > targetHours && ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-
-    const dueDate = calculateSlaDueDate(ticket.createdAt, ticket.slaTarget);
-
-    return {
-      ageHours,
-      targetHours,
-      percent,
-      breached,
-      dueDate,
+      return `${Math.floor(hours)}h`;
     };
-  };
 
-  const sortedTickets = [...tickets].sort((a, b) => {
-    return getTicketMetrics(b).percent - getTicketMetrics(a).percent;
-  });
-
-  const filteredTickets = sortedTickets.filter((ticket) => {
-    // Search by customer name or title
-    const search = searchTerm.trim().toLowerCase();
-
-    if (
-      search &&
-      !ticket.customerName?.toLowerCase().includes(search) &&
-      !ticket.title?.toLowerCase().includes(search) &&
-      !ticket.customerEmail?.toLowerCase().includes(search) &&
-      !ticket.customerNic?.toLowerCase().includes(search)
-    ) {
-      return false;
-    }
-
-    // Status
-    if (statusFilter !== "ALL" && ticket.status !== statusFilter) {
-      return false;
-    }
-
-    // Category
-    if (categoryFilter !== "ALL" && ticket.category !== categoryFilter) {
-      return false;
-    }
-
-    // Ticket Type
-    if (ticketTypeFilter !== "ALL" && ticket.ticketType !== ticketTypeFilter) {
-      return false;
-    }
-
-    // Date From
-    const ticketDate = new Date(ticket.createdAt);
-
-    if (fromDate) {
-      const start = new Date(fromDate);
-      if (ticketDate < start) {
-        return false;
-      }
-    }
-
-    // Date To
-    if (toDate) {
-      const end = new Date(toDate);
-      end.setHours(23, 59, 59, 999);
-      if (ticketDate > end) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredTickets.length / ITEMS_PER_PAGE);
-
-  const paginatedTickets = filteredTickets.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
-
-  const formatAge = (hours: number) => {
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) {
-      return `${days}d ${Math.floor(hours % 24)}h`;
-    }
-
-    return `${Math.floor(hours)}h`;
-  };
-
-  function TicketTableSkeleton() {
-    return (
-      <tbody>
-        <tr>
-          <td>
-            <h1>Loading Table Data...</h1>
-          </td>
-        </tr>
-        {Array.from({ length: 10 }).map((_, row) => (
-          <tr key={row} className="border-b border-slate-100 animate-pulse">
-            {/* # */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-6 rounded bg-slate-200" />
-            </td>
-
-            {/* SLA Breach % */}
-            <td className="px-4 py-4 min-w-[220px]">
-              <div className="flex items-center gap-3">
-                <div className="h-2 flex-1 rounded-full bg-slate-200" />
-                <div className="h-4 w-10 rounded bg-slate-200" />
-              </div>
-            </td>
-
-            {/* Ticket ID */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-32 rounded bg-slate-200" />
-            </td>
-
-            {/* Category */}
-            <td className="px-4 py-4">
-              <div className="h-6 w-20 rounded-full bg-slate-200" />
-            </td>
-
-            {/* Subject */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-56 rounded bg-slate-200" />
-            </td>
-
-            {/* Customer */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-36 rounded bg-slate-200" />
-            </td>
-
-            {/* Status */}
-            <td className="px-4 py-4">
-              <div className="h-6 w-24 rounded-md bg-slate-200" />
-            </td>
-
-            {/* Action Owner */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-32 rounded bg-slate-200" />
-            </td>
-
-            {/* Target SLA */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-16 rounded bg-slate-200" />
-            </td>
-
-            {/* Age */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-14 rounded bg-slate-200" />
-            </td>
-
-            {/* SLA Due Date */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-24 rounded bg-slate-200" />
-            </td>
-
-            {/* Created At */}
-            <td className="px-4 py-4">
-              <div className="h-4 w-24 rounded bg-slate-200" />
+    function TicketTableSkeleton() {
+      return (
+        <tbody>
+          <tr>
+            <td>
+              <h1>Loading Table Data...</h1>
             </td>
           </tr>
-        ))}
-      </tbody>
-    );
-  }
-  const tableRef = useRef<HTMLDivElement>(null);
+          {Array.from({ length: 10 }).map((_, row) => (
+            <tr key={row} className="border-b border-slate-100 animate-pulse">
+              {/* # */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-6 rounded bg-slate-200" />
+              </td>
 
-  useImperativeHandle(ref, () => ({
-    exportPdf,
-    exportCsv,
-  }));
+              {/* SLA Breach % */}
+              <td className="px-4 py-4 min-w-[220px]">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 flex-1 rounded-full bg-slate-200" />
+                  <div className="h-4 w-10 rounded bg-slate-200" />
+                </div>
+              </td>
 
-  async function exportPdf() {
-    const pdf = new jsPDF("l", "mm", "a4");
+              {/* Ticket ID */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-32 rounded bg-slate-200" />
+              </td>
 
-    autoTable(pdf, {
-      head: [
-        [
-          "#",
-          "SLA Breach %",
-          "Ticket ID",
-          "Category",
-          "Subject",
-          "Customer",
-          "Status",
-          "Target SLA",
-          "Age",
-          "Created",
+              {/* Category */}
+              <td className="px-4 py-4">
+                <div className="h-6 w-20 rounded-full bg-slate-200" />
+              </td>
+
+              {/* Subject */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-56 rounded bg-slate-200" />
+              </td>
+
+              {/* Customer */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-36 rounded bg-slate-200" />
+              </td>
+
+              {/* Status */}
+              <td className="px-4 py-4">
+                <div className="h-6 w-24 rounded-md bg-slate-200" />
+              </td>
+
+              {/* Action Owner */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-32 rounded bg-slate-200" />
+              </td>
+
+              {/* Target SLA */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-16 rounded bg-slate-200" />
+              </td>
+
+              {/* Age */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-14 rounded bg-slate-200" />
+              </td>
+
+              {/* SLA Due Date */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-24 rounded bg-slate-200" />
+              </td>
+
+              {/* Created At */}
+              <td className="px-4 py-4">
+                <div className="h-4 w-24 rounded bg-slate-200" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      );
+    }
+    const tableRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(ref, () => ({
+      exportPdf,
+      exportCsv,
+    }));
+
+    async function exportPdf() {
+      const pdf = new jsPDF("l", "mm", "a4");
+
+      autoTable(pdf, {
+        head: [
+          [
+            "#",
+            "SLA Breach %",
+            "Ticket ID",
+            "Category",
+            "Subject",
+            "Customer",
+            "Status",
+            "Target SLA",
+            "Age",
+            "Created",
+          ],
         ],
-      ],
-      body: filteredTickets.map((ticket, index) => {
+        body: filteredTickets.map((ticket, index) => {
+          const metrics = getTicketMetrics(ticket);
+
+          return [
+            index + 1,
+            ticket.id,
+            metrics.percent,
+            ticket.category,
+            ticket.title,
+            ticket.customerName,
+            ticket.status,
+            ticket.slaTarget,
+            formatAge(metrics.ageHours),
+            new Date(ticket.createdAt).toLocaleDateString(),
+          ];
+        }),
+      });
+
+      pdf.save("tickets.pdf");
+    }
+
+    //csv exporter
+    function exportCsv() {
+      const headers = [
+        "#",
+        "Ticket ID",
+        "SLA Breach %",
+        "Category",
+        "Subject",
+        "Customer",
+        "Status",
+        "Target SLA",
+        "Age",
+        "Created At",
+      ];
+
+      const rows = filteredTickets.map((ticket, index) => {
         const metrics = getTicketMetrics(ticket);
 
         return [
@@ -453,90 +514,90 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
           ticket.status,
           ticket.slaTarget,
           formatAge(metrics.ageHours),
-          new Date(ticket.createdAt).toLocaleDateString(),
+          ticket.createdAt,
         ];
-      }),
-    });
+      });
 
-    pdf.save("tickets.pdf");
-  }
+      const csv = [
+        headers.join(","),
+        ...rows.map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+        ),
+      ].join("\n");
 
-  //csv exporter
-  function exportCsv() {
-    const headers = [
-      "#",
-      "Ticket ID",
-      "SLA Breach %",
-      "Category",
-      "Subject",
-      "Customer",
-      "Status",
-      "Target SLA",
-      "Age",
-      "Created At",
-    ];
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+    return (
+      <section ref={tableRef} className="white-section overflow-hidden">
+        <TicketSlaOverview
+          tickets={scopeTickets}
+          getTicketMetrics={getTicketMetrics}
+        />
+        {/* Header */}
 
-    const rows = filteredTickets.map((ticket, index) => {
-      const metrics = getTicketMetrics(ticket);
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* {(user.role === "admin" || user.role === "sys_admin") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMyTicketsOnly((prev) => !prev);
+                  setCurrentPage(1);
+                }}
+                className={`
+      flex h-11 items-center gap-3
+      rounded-xl border px-4
+      text-sm font-medium
+      transition-all duration-200
+      ${
+        myTicketsOnly
+          ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
+          : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50"
+      }
+    `}
+              >
+                <span
+                  className={`
+        relative h-5 w-9 rounded-full transition-colors
+        ${myTicketsOnly ? "bg-white/30" : "bg-slate-200"}
+      `}
+                >
+                  <span
+                    className={`
+          absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm
+          transition-transform duration-200
+          ${myTicketsOnly ? "translate-x-[18px]" : "translate-x-0.5"}
+        `}
+                  />
+                </span>
+                My Tickets
+              </button>
+            )} */}
+            <div className="relative w-full sm:w-80 lg:w-96">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-      return [
-        index + 1,
-        ticket.id,
-        metrics.percent,
-        ticket.category,
-        ticket.title,
-        ticket.customerName,
-        ticket.status,
-        ticket.slaTarget,
-        formatAge(metrics.ageHours),
-        ticket.createdAt,
-      ];
-    });
-
-    const csv = [
-      headers.join(","),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-  return (
-    <section ref={tableRef} className="white-section overflow-hidden">
-      <TicketSlaOverview
-        tickets={tickets}
-        getTicketMetrics={getTicketMetrics}
-      />
-      {/* Header */}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative w-full sm:w-80 lg:w-96">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              type="text"
-              placeholder="Search customer or subject..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="
+              <input
+                type="text"
+                placeholder="Search customer or subject..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="
                 h-11
                 pl-10
                 pr-4
@@ -550,17 +611,17 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                 focus:ring-2
                 focus:ring-blue-500
               "
-            />
-          </div>
+              />
+            </div>
 
-          {/* Ticket Type */}
-          <select
-            value={ticketTypeFilter}
-            onChange={(e) => {
-              setTicketTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="
+            {/* Ticket Type */}
+            <select
+              value={ticketTypeFilter}
+              onChange={(e) => {
+                setTicketTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
     h-11
     rounded-xl
     border
@@ -569,27 +630,27 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
     bg-white
     text-sm
   "
-          >
-            <option value="ALL">All Types</option>
-            <option value="INQ">Inquiries</option>
-            <option value="COM">Complaints</option>
-          </select>
+            >
+              <option value="ALL">All Types</option>
+              <option value="INQ">Inquiries</option>
+              <option value="COM">Complaints</option>
+            </select>
 
-          <div
-            className="
+            <div
+              className="
                           flex
                           flex-col
                           sm:flex-row
                           gap-3
                           "
-          >
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="
+            >
+              <select
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="
                   h-11
                   rounded-xl
                   border
@@ -598,24 +659,24 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                   bg-white
                   text-sm
                 "
-            >
-              <option value="ALL">All Categories</option>
-              <option value="CAT-A">CAT-A</option>
-              <option value="CAT-B">CAT-B</option>
-              <option value="CAT-B2">CAT-B2</option>
-              <option value="CAT-C">CAT-C</option>
-              <option value="CAT-D">CAT-D</option>
-            </select>
+              >
+                <option value="ALL">All Categories</option>
+                <option value="CAT-A">CAT-A</option>
+                <option value="CAT-B">CAT-B</option>
+                <option value="CAT-B2">CAT-B2</option>
+                <option value="CAT-C">CAT-C</option>
+                <option value="CAT-D">CAT-D</option>
+              </select>
 
-            {/* Status */}
+              {/* Status */}
 
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="
                               h-11
                               rounded-xl
                               border
@@ -624,24 +685,24 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                               bg-white
                               text-sm
                               "
-            >
-              <option value="ALL">All Status</option>
-              <option value="OPEN">Open</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="RESOLVED">Resolved</option>
-              <option value="CLOSED">Closed</option>
-            </select>
+              >
+                <option value="ALL">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
 
-            {/* From Date */}
+              {/* From Date */}
 
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="
                       h-11
                       rounded-xl
                       border
@@ -649,18 +710,18 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                       px-4
                       text-sm
                       "
-            />
+              />
 
-            {/* To Date */}
+              {/* To Date */}
 
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="
                 h-11
                 rounded-xl
                 border
@@ -668,19 +729,20 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                 px-4
                 text-sm
                 "
-            />
+              />
 
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("ALL");
-                setTicketTypeFilter("ALL");
-                setCategoryFilter("ALL");
-                setFromDate("");
-                setToDate("");
-                setCurrentPage(1);
-              }}
-              className="
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("ALL");
+                  setTicketTypeFilter("ALL");
+                  setCategoryFilter("ALL");
+                  setFromDate("");
+                  setToDate("");
+                  setMyTicketsOnly(false);
+                  setCurrentPage(1);
+                }}
+                className="
                 h-11
                 px-4
                 rounded-xl
@@ -690,38 +752,38 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                 text-sm
                 font-medium
                 "
-            >
-              Reset Filters
-            </button>
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Table */}
+        {/* Table */}
 
-      <div className="overflow-x-auto">
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-slate-500">
-            Showing{" "}
-            <span className="font-medium">
-              {filteredTickets.length === 0
-                ? 0
-                : (currentPage - 1) * ITEMS_PER_PAGE + 1}
-            </span>
-            {" - "}
-            <span className="font-medium">
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredTickets.length)}
-            </span>
-            {" of "}
-            <span className="font-medium">{filteredTickets.length}</span>
-            {" tickets"}
-          </div>
+        <div className="overflow-x-auto">
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-slate-500">
+              Showing{" "}
+              <span className="font-medium">
+                {filteredTickets.length === 0
+                  ? 0
+                  : (currentPage - 1) * ITEMS_PER_PAGE + 1}
+              </span>
+              {" - "}
+              <span className="font-medium">
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredTickets.length)}
+              </span>
+              {" of "}
+              <span className="font-medium">{filteredTickets.length}</span>
+              {" tickets"}
+            </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="
                   h-10
                   px-3
                   rounded-xl
@@ -733,18 +795,18 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                   hover:bg-slate-50
                   transition
                 "
-            >
-              <ChevronLeft size={18} />
-            </button>
+              >
+                <ChevronLeft size={18} />
+              </button>
 
-            {Array.from({ length: totalPages }).map((_, index) => {
-              const page = index + 1;
+              {Array.from({ length: totalPages }).map((_, index) => {
+                const page = index + 1;
 
-              return (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`
                       h-10
                       min-w-[40px]
                       rounded-xl
@@ -757,18 +819,18 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                           : "border border-slate-200 bg-white hover:bg-slate-50"
                       }
                     `}
-                >
-                  {page}
-                </button>
-              );
-            })}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
 
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="
                   h-10
                   px-3
                   rounded-xl
@@ -780,104 +842,104 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                   hover:bg-slate-50
                   transition
                 "
-            >
-              <ChevronRight size={18} />
-            </button>
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
-        </div>
-        <table className="w-full min-w-[1200px]">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="px-2 py-4">#</th>
-              <th className="px-2 py-4">SLA Breach %</th>
-              <th className="px-4 py-4">Ticket ID</th>
-              <th className="px-2 py-4">Category</th>
-              <th className="px-4 py-4">Subject</th>
-              <th className="px-4 py-4">Customer</th>
-              <th className="px-2 py-4">Status</th>
-              <th className="px-4 py-4">Target SLA</th>
-              <th className="px-1 py-4">Age</th>
-              <th className="px-4 py-4">SLA Due Date</th>
-              <th className="px-4 py-4">Created At</th>
-            </tr>
-          </thead>
+          <table className="w-full min-w-[1200px]">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="px-2 py-4">#</th>
+                <th className="px-2 py-4">SLA Breach %</th>
+                <th className="px-4 py-4">Ticket ID</th>
+                <th className="px-2 py-4">Category</th>
+                <th className="px-4 py-4">Subject</th>
+                <th className="px-4 py-4">Customer</th>
+                <th className="px-2 py-4">Status</th>
+                <th className="px-4 py-4">Target SLA</th>
+                <th className="px-1 py-4">Age</th>
+                <th className="px-4 py-4">SLA Due Date</th>
+                <th className="px-4 py-4">Created At</th>
+              </tr>
+            </thead>
 
-          {isLoading ? (
-            <TicketTableSkeleton />
-          ) : (
-            <tbody>
-              {paginatedTickets.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="
+            {isLoading ? (
+              <TicketTableSkeleton />
+            ) : (
+              <tbody>
+                {paginatedTickets.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={11}
+                      className="
                               text-center
                               py-12
                               text-slate-500
                               "
-                  >
-                    No tickets found for selected filters.
-                  </td>
-                </tr>
-              ) : (
-                paginatedTickets.map((ticket, index) => {
-                  const metrics = getTicketMetrics(ticket);
+                    >
+                      No tickets found for selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedTickets.map((ticket, index) => {
+                    const metrics = getTicketMetrics(ticket);
 
-                  return (
-                    <tr
-                      key={ticket.id}
-                      className="
+                    return (
+                      <tr
+                        key={ticket.id}
+                        className="
                       border-b
                       border-slate-100
                       hover:bg-slate-50
                       transition-colors
                     "
-                    >
-                      {/* Rank */}
-                      <td className="px-2 py-3 font-semibold">{index + 1}</td>
+                      >
+                        {/* Rank */}
+                        <td className="px-2 py-3 font-semibold">{index + 1}</td>
 
-                      {/* SLA Breach % */}
-                      <td className="px-2 py-3 max-w-[175px]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div
-                              className={`h-full transition-all ${
+                        {/* SLA Breach % */}
+                        <td className="px-2 py-3 max-w-[175px]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  metrics.breached || ticket.status === "CLOSED"
+                                    ? "bg-red-500"
+                                    : "bg-green-500"
+                                }`}
+                                style={{
+                                  width: `${Math.min(metrics.percent, 100)}%`,
+                                }}
+                              />
+                            </div>
+
+                            <span
+                              className={`text-xs font-semibold ${
                                 metrics.breached || ticket.status === "CLOSED"
-                                  ? "bg-red-500"
-                                  : "bg-green-500"
+                                  ? "text-red-600"
+                                  : "text-green-600"
                               }`}
-                              style={{
-                                width: `${Math.min(metrics.percent, 100)}%`,
-                              }}
-                            />
+                            >
+                              {metrics.percent}%
+                            </span>
                           </div>
+                        </td>
 
-                          <span
-                            className={`text-xs font-semibold ${
-                              metrics.breached || ticket.status === "CLOSED"
-                                ? "text-red-600"
-                                : "text-green-600"
-                            }`}
+                        {/* Ticket ID */}
+                        <td className="px-1 py-3">
+                          <Link
+                            href={`/tickets/view?id=${ticket.id}`}
+                            className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
                           >
-                            {metrics.percent}%
-                          </span>
-                        </div>
-                      </td>
+                            {ticket.id}
+                          </Link>
+                        </td>
 
-                      {/* Ticket ID */}
-                      <td className="px-1 py-3">
-                        <Link
-                          href={`/tickets/view?id=${ticket.id}`}
-                          className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                          {ticket.id}
-                        </Link>
-                      </td>
-
-                      {/* Category */}
-                      <td className="px-2 py-3">
-                        <span
-                          className={`
+                        {/* Category */}
+                        <td className="px-2 py-3">
+                          <span
+                            className={`
                         inline-block
                         px-3
                         py-1
@@ -899,23 +961,23 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                                   : "bg-purple-600"
                         }
                       `}
-                        >
-                          {ticket.category}
-                        </span>
-                      </td>
+                          >
+                            {ticket.category}
+                          </span>
+                        </td>
 
-                      {/* Subject */}
-                      <td className="px-4 py-3 text-sm">{ticket.title}</td>
+                        {/* Subject */}
+                        <td className="px-4 py-3 text-sm">{ticket.title}</td>
 
-                      {/* Customer */}
-                      <td className="px-4 py-3 text-sm">
-                        {ticket.customerName}
-                      </td>
+                        {/* Customer */}
+                        <td className="px-4 py-3 text-sm">
+                          {ticket.customerName}
+                        </td>
 
-                      {/* Status */}
-                      <td className="px-2 py-3 text-center">
-                        <span
-                          className={`
+                        {/* Status */}
+                        <td className="px-2 py-3 text-center">
+                          <span
+                            className={`
                         inline-block
                         px-3
                         py-1
@@ -932,57 +994,58 @@ const TicketTable = forwardRef<TicketTableRef>((props, ref) => {
                               : "bg-green-100 text-green-700"
                         }
                       `}
+                          >
+                            {ticket.status.replace("_", " ")}
+                          </span>
+                        </td>
+
+                        {/* Target SLA */}
+                        <td className="px-4 py-3 font-normal text-center text-sm">
+                          {ticket.slaTarget}
+                        </td>
+
+                        {/* Age */}
+                        <td
+                          className={`px-1 py-3 font-semibold ${
+                            metrics.breached || ticket.status === "CLOSED"
+                              ? "text-red-600"
+                              : "text-green-600"
+                          }`}
                         >
-                          {ticket.status.replace("_", " ")}
-                        </span>
-                      </td>
+                          {formatAge(metrics.ageHours)}
+                        </td>
 
-                      {/* Target SLA */}
-                      <td className="px-4 py-3 font-normal text-center text-sm">
-                        {ticket.slaTarget}
-                      </td>
-
-                      {/* Age */}
-                      <td
-                        className={`px-1 py-3 font-semibold ${
-                          metrics.breached || ticket.status === "CLOSED"
-                            ? "text-red-600"
-                            : "text-green-600"
-                        }`}
-                      >
-                        {formatAge(metrics.ageHours)}
-                      </td>
-
-                      {/* SLA Due Date */}
-                      <td className="px-4 py-3 text-center text-sm">
-                        {metrics.dueDate.toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-
-                      {/* Created At */}
-                      <td className="px-4 py-3 text-center text-sm">
-                        {new Date(ticket.createdAt).toLocaleDateString(
-                          "en-GB",
-                          {
+                        {/* SLA Due Date */}
+                        <td className="px-4 py-3 text-center text-sm">
+                          {metrics.dueDate.toLocaleDateString("en-GB", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
-                          },
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          )}
-        </table>
-      </div>
-    </section>
-  );
-});
+                          })}
+                        </td>
+
+                        {/* Created At */}
+                        <td className="px-4 py-3 text-center text-sm">
+                          {new Date(ticket.createdAt).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </section>
+    );
+  },
+);
 
 export default TicketTable;

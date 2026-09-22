@@ -62,7 +62,7 @@ export default function Sidebar({
       name: "Assigned To Me",
       href: "/assigned",
       icon: BookOpen,
-      roles: ["actionOwner"],
+      roles: ["admin", "actionOwner"],
     },
 
     // Enable later if you want Reports in the sidebar

@@ -1,12 +1,21 @@
 import DashboardHeader from "@/components/DashboardHeader";
 import TicketTable from "@/components/tickets/TicketTable";
+import { getSession } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 
-export default function TicketsPage() {
+export default async function TicketsPage() {
+  const user = await getSession();
+
+  if (!user) {
+    redirect("/login");
+  }
+  console.log("first role check: ", user);
+
   return (
     <div className="space-y-8">
       <DashboardHeader header="Assigned Tickets" page={23} />
 
-      <TicketTable />
+      <TicketTable user={user} assignedOnly />
 
       <section className="white-card">
         <h4 className="font-semibold text-slate-500">Last Updated</h4>

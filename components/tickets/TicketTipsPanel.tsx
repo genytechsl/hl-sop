@@ -1,12 +1,49 @@
+"use client";
 import {
   Info,
   Clock3,
   CheckCircle2,
-  ArrowRight,
   ShieldCheck,
+  LoaderCircle,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+interface TicketCategory {
+  id: number;
+  code: string;
+  label: string;
+  sla: string;
+  priority: string;
+}
 
 export default function TicketTipsPanel() {
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/settings/ticket-type-categories", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load ticket categories");
+        }
+
+        const data: TicketCategory[] = await response.json();
+
+        setCategories(data);
+      } catch (error) {
+        console.error("Failed to load SLA information:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
   return (
     <div className="space-y-5">
       {/* Ticket Guidelines */}
@@ -84,31 +121,25 @@ export default function TicketTipsPanel() {
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  <SlaRow
-                    category="CAT-A"
-                    description="Critical"
-                    time="24 Hours"
-                  />
-                  <SlaRow
-                    category="CAT-B"
-                    description="Technical"
-                    time="7 Working Days"
-                  />
-                  <SlaRow
-                    category="CAT-B2"
-                    description="SFM Facility"
-                    time="7 Days"
-                  />
-                  <SlaRow
-                    category="CAT-C"
-                    description="Admin / Payment"
-                    time="5 Working Days"
-                  />
-                  <SlaRow
-                    category="CAT-D"
-                    description="Legal"
-                    time="10 Working Days"
-                  />
+                  {loadingCategories ? (
+                    <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-slate-500">
+                      <LoaderCircle size={16} className="animate-spin" />
+                      Loading SLA information...
+                    </div>
+                  ) : categories.length > 0 ? (
+                    categories.map((category) => (
+                      <SlaRow
+                        key={category.id}
+                        category={category.code}
+                        description={category.label}
+                        time={category.sla}
+                      />
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-center text-sm text-slate-400">
+                      No SLA information available.
+                    </div>
+                  )}
                 </div>
               </div>
 
