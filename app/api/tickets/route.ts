@@ -461,16 +461,45 @@ export async function POST(request: NextRequest) {
     let emailSent = false;
 
     if (body.sendEmail) {
+      // const emailResponse = await fetch(
+      //   `${request.nextUrl.origin}/api/tickets/send-email`,
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       ...body,
+      //       ...createdTicket,
+      //       assignedToId,
+      //       actionOwnerEmail: employee.email,
+      //       actionOwnerName: employee.name,
+      //       id,
+      //     }),
+      //   },
+      // );
+      const cookieHeader = request.headers.get("cookie");
+
       const emailResponse = await fetch(
         `${request.nextUrl.origin}/api/tickets/send-email`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+
+            ...(cookieHeader
+              ? {
+                  cookie: cookieHeader,
+                }
+              : {}),
           },
+
           body: JSON.stringify({
             ...body,
             ...createdTicket,
+
+            ticketNumber: id,
+
             assignedToId,
             actionOwnerEmail: employee.email,
             actionOwnerName: employee.name,
@@ -482,6 +511,7 @@ export async function POST(request: NextRequest) {
       if (emailResponse.ok) {
         const emailResult = await emailResponse.json();
         emailSent = emailResult.success;
+        console.log("Email sent successfully!");
       } else {
         console.error(
           "Ticket created but email notification failed:",
