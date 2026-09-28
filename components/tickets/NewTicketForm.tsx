@@ -394,6 +394,19 @@ export default function NewTicketForm() {
     });
   }, [department, employees]);
 
+  useEffect(() => {
+    if (!department) {
+      setActionOwnerId("");
+      return;
+    }
+
+    if (availableEmployees.length > 0) {
+      setActionOwnerId(availableEmployees[0].id);
+    } else {
+      setActionOwnerId("");
+    }
+  }, [department, availableEmployees]);
+
   const emailSuggestions = useMemo(() => {
     return employees.filter((employee) => employee.active);
   }, [employees]);
@@ -884,7 +897,7 @@ export default function NewTicketForm() {
                     value={department}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                       setDepartment(e.target.value);
-                      setActionOwnerId("");
+                      // setActionOwnerId("");
                     }}
                   >
                     <option value="">
@@ -940,7 +953,7 @@ export default function NewTicketForm() {
 
                     {availableEmployees.map((employee) => (
                       <option key={employee.id} value={employee.id}>
-                        {employee.designation} - {employee.name}
+                        {employee.name}
                       </option>
                     ))}
                   </SelectField>
