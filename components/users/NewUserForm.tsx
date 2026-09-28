@@ -416,16 +416,16 @@ export default function NewUserForm() {
             }
           />
 
-          {/* <InputField
+          <InputField
             label="Designation"
             placeholder="Enter designation"
             value={designation}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setDesignation(e.target.value)
             }
-          /> */}
+          />
 
-          <SelectField
+          {/* <SelectField
             label="Designation"
             value={designation}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -438,7 +438,7 @@ export default function NewUserForm() {
             <option value="CMU Manager">CMU Manager</option>
             <option value="SFM Department">SFM</option>
             <option value="Operations Executive">Operations Executive</option>
-          </SelectField>
+          </SelectField> */}
 
           <SelectField
             label="Department"
