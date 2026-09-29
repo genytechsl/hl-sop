@@ -64,6 +64,7 @@ export default function EditUserPage() {
   const [departmentLoading, setDepartmentLoading] = useState(false);
   const [showDepartmentSuggestions, setShowDepartmentSuggestions] =
     useState(false);
+  const [editingDepartment, setEditingDepartment] = useState(false);
 
   async function searchDepartments(value: string) {
     const trimmedValue = value.trim();
@@ -108,12 +109,18 @@ export default function EditUserPage() {
   }
 
   useEffect(() => {
+    if (!editingDepartment) {
+      setDepartments([]);
+      setShowDepartmentSuggestions(false);
+      return;
+    }
+
     const timer = setTimeout(() => {
       searchDepartments(departmentSearch);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [departmentSearch]);
+  }, [departmentSearch, editingDepartment]);
 
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -246,17 +253,17 @@ export default function EditUserPage() {
      * Automatically use the first suggestion only when the user
      * has not manually changed the username.
      */
-    if (suggestions.length > 0 && !usernameEdited) {
-      updateField("username", suggestions[0]);
+    // if (suggestions.length > 0 && !usernameEdited) {
+    //   updateField("username", suggestions[0]);
 
-      /*
-       * The current username is valid even though the API reports
-       * it as existing.
-       */
-      if (suggestions[0].toLowerCase() === originalUsername.toLowerCase()) {
-        setUsernameAvailable(true);
-      }
-    }
+    //   /*
+    //    * The current username is valid even though the API reports
+    //    * it as existing.
+    //    */
+    //   if (suggestions[0].toLowerCase() === originalUsername.toLowerCase()) {
+    //     setUsernameAvailable(true);
+    //   }
+    // }
   }
 
   async function checkUsernameAvailability(value: string) {
@@ -670,63 +677,80 @@ export default function EditUserPage() {
               <div className="relative">
                 <label className="label">Department</label>
 
-                <div className="relative">
-                  <input
-                    value={departmentSearch}
-                    onChange={(e) => {
-                      const value = e.target.value;
-
-                      setDepartmentSearch(value);
-                      updateField("department", value);
-                      setShowDepartmentSuggestions(true);
+                {!editingDepartment ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDepartment(true);
+                      setDepartmentSearch(user.department || "");
                     }}
-                    onFocus={() => {
-                      if (departmentSearch.trim()) {
-                        setShowDepartmentSuggestions(true);
+                    className="input flex w-full items-center justify-between text-left"
+                  >
+                    <span
+                      className={
+                        user.department ? "text-slate-900" : "text-slate-400"
                       }
-                    }}
-                    onBlur={() => {
-                      // Delay closing so a suggestion can be clicked
-                      setTimeout(() => {
-                        setShowDepartmentSuggestions(false);
-                      }, 150);
-                    }}
-                    className="input"
-                    placeholder="Search department..."
-                    required
-                    autoComplete="off"
-                  />
+                    >
+                      {user.department || "No department selected"}
+                    </span>
 
-                  {departmentLoading && (
-                    <LoaderCircle
-                      size={17}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                    <span className="text-xs font-medium text-blue-600">
+                      Edit
+                    </span>
+                  </button>
+                ) : (
+                  <div className="relative">
+                    <input
+                      value={departmentSearch}
+                      onChange={(e) => {
+                        setDepartmentSearch(e.target.value);
+                        setShowDepartmentSuggestions(true);
+                      }}
+                      onFocus={() => {
+                        if (departmentSearch.trim()) {
+                          setShowDepartmentSuggestions(true);
+                        }
+                      }}
+                      className="input pr-10"
+                      placeholder="Search department..."
+                      autoComplete="off"
+                      autoFocus
                     />
-                  )}
-                </div>
 
-                {showDepartmentSuggestions && departments.length > 0 && (
-                  <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                    {departments.map((department) => (
-                      <button
-                        key={department.id}
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-
-                          setDepartmentSearch(department.name);
-                          updateField("department", department.name);
-                          setShowDepartmentSuggestions(false);
-                        }}
-                        className="flex w-full items-center px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        {department.name}
-                      </button>
-                    ))}
+                    {departmentLoading && (
+                      <LoaderCircle
+                        size={17}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                      />
+                    )}
                   </div>
                 )}
 
-                {showDepartmentSuggestions &&
+                {editingDepartment &&
+                  showDepartmentSuggestions &&
+                  departments.length > 0 && (
+                    <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                      {departments.map((department) => (
+                        <button
+                          key={department.id}
+                          type="button"
+                          onClick={() => {
+                            updateField("department", department.name);
+                            setDepartmentSearch(department.name);
+                            setEditingDepartment(false);
+                            setShowDepartmentSuggestions(false);
+                            setDepartments([]);
+                          }}
+                          className="flex w-full items-center px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          {department.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                {editingDepartment &&
+                  showDepartmentSuggestions &&
                   !departmentLoading &&
                   departmentSearch.trim() &&
                   departments.length === 0 && (
