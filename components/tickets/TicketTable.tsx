@@ -1,7 +1,9 @@
 "use client";
 
 import { Search, Filter, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+
 // import { ticketData } from "./ticket-data";
+
 import {
   useRef,
   useImperativeHandle,
@@ -9,10 +11,15 @@ import {
   useState,
   useEffect,
 } from "react";
+
 import TicketSlaOverview from "./TicketSlaOverview";
+
 import Link from "next/link";
+
 import jsPDF from "jspdf";
+
 import { toPng } from "html-to-image";
+
 import autoTable from "jspdf-autotable";
 
 export interface TicketTableRef {
@@ -31,12 +38,20 @@ interface TicketTableProps {
 const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
   ({ user, assignedOnly = false }, ref) => {
     const [tickets, setTickets] = useState<any[]>([]);
+
     const [isLoading, setisLoading] = useState<boolean>(false);
+
     const [statusFilter, setStatusFilter] = useState("ALL");
+
     const [searchTerm, setSearchTerm] = useState("");
+
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+
     const [ticketTypeFilter, setTicketTypeFilter] = useState("ALL");
+
     const [myTicketsOnly, setMyTicketsOnly] = useState(assignedOnly);
+
+    const [sortOption, setSortOption] = useState("SLA_DESC");
 
     const [fromDate, setFromDate] = useState("");
 
@@ -95,6 +110,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       }
 
       const value = Number(match[1]);
+
       const unit = match[2];
 
       if (unit.startsWith("minute")) {
@@ -141,6 +157,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       }
 
       const value = Number(match[1]);
+
       const unit = match[2];
 
       // -----------------------------------------
@@ -217,6 +234,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       }
 
       let current = new Date(startDate);
+
       let totalHours = 0;
 
       while (current < endDate) {
@@ -250,6 +268,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
 
     const getTicketMetrics = (ticket: any) => {
       const createdAt = new Date(ticket.createdAt);
+
       const now = new Date();
 
       const targetHours = getHoursFromSla(ticket.slaTarget);
@@ -278,7 +297,56 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
     };
 
     const sortedTickets = [...tickets].sort((a, b) => {
-      return getTicketMetrics(b).percent - getTicketMetrics(a).percent;
+      switch (sortOption) {
+        case "SLA_ASC":
+          return getTicketMetrics(a).percent - getTicketMetrics(b).percent;
+
+        case "CREATED_DESC":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+
+        case "CREATED_ASC":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+
+        case "TICKET_ID_ASC":
+          return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+
+        case "TICKET_ID_DESC":
+          return String(b.id ?? "").localeCompare(String(a.id ?? ""));
+
+        case "CUSTOMER_ASC":
+          return String(a.customerName ?? "").localeCompare(
+            String(b.customerName ?? ""),
+          );
+
+        case "CUSTOMER_DESC":
+          return String(b.customerName ?? "").localeCompare(
+            String(a.customerName ?? ""),
+          );
+
+        case "CATEGORY_ASC":
+          return String(a.category ?? "").localeCompare(
+            String(b.category ?? ""),
+          );
+
+        case "CATEGORY_DESC":
+          return String(b.category ?? "").localeCompare(
+            String(a.category ?? ""),
+          );
+
+        case "STATUS_ASC":
+          return String(a.status ?? "").localeCompare(String(b.status ?? ""));
+
+        case "STATUS_DESC":
+          return String(b.status ?? "").localeCompare(String(a.status ?? ""));
+
+        case "SLA_DESC":
+        default:
+          return getTicketMetrics(b).percent - getTicketMetrics(a).percent;
+      }
     });
 
     const scopeTickets =
@@ -287,7 +355,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
         : sortedTickets;
 
     const filteredTickets = scopeTickets.filter((ticket) => {
-      // // Admin: optionally show only tickets assigned to themselves
+      // Admin: optionally show only tickets assigned to themselves
       // if (
       //   myTicketsOnly &&
       //   (user.role === "admin" || user.role === "sys_admin") &&
@@ -336,6 +404,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
 
       if (toDate) {
         const end = new Date(toDate);
+
         end.setHours(23, 59, 59, 999);
 
         if (ticketDate > end) {
@@ -371,6 +440,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
               <h1>Loading Table Data...</h1>
             </td>
           </tr>
+
           {Array.from({ length: 10 }).map((_, row) => (
             <tr key={row} className="border-b border-slate-100 animate-pulse">
               {/* # */}
@@ -440,6 +510,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
         </tbody>
       );
     }
+
     const tableRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
@@ -486,7 +557,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       pdf.save("tickets.pdf");
     }
 
-    //csv exporter
+    // csv exporter
     function exportCsv() {
       const headers = [
         "#",
@@ -528,26 +599,37 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       const blob = new Blob([csv], {
         type: "text/csv;charset=utf-8;",
       });
+
       const url = URL.createObjectURL(blob);
+
       const link = document.createElement("a");
+
       link.href = url;
+
       link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+
       document.body.appendChild(link);
+
       link.click();
+
       document.body.removeChild(link);
+
       URL.revokeObjectURL(url);
     }
+
     return (
       <section ref={tableRef} className="white-section overflow-hidden">
         <TicketSlaOverview
           tickets={scopeTickets}
           getTicketMetrics={getTicketMetrics}
         />
+
         {/* Header */}
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* {(user.role === "admin" || user.role === "sys_admin") && (
+            {/* 
+            {(user.role === "admin" || user.role === "sys_admin") && (
               <button
                 type="button"
                 onClick={() => {
@@ -555,34 +637,36 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setCurrentPage(1);
                 }}
                 className={`
-      flex h-11 items-center gap-3
-      rounded-xl border px-4
-      text-sm font-medium
-      transition-all duration-200
-      ${
-        myTicketsOnly
-          ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
-          : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50"
-      }
-    `}
+                  flex h-11 items-center gap-3
+                  rounded-xl border px-4
+                  text-sm font-medium
+                  transition-all duration-200
+                  ${
+                    myTicketsOnly
+                      ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50"
+                  }
+                `}
               >
                 <span
                   className={`
-        relative h-5 w-9 rounded-full transition-colors
-        ${myTicketsOnly ? "bg-white/30" : "bg-slate-200"}
-      `}
+                    relative h-5 w-9 rounded-full transition-colors
+                    ${myTicketsOnly ? "bg-white/30" : "bg-slate-200"}
+                  `}
                 >
                   <span
                     className={`
-          absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm
-          transition-transform duration-200
-          ${myTicketsOnly ? "translate-x-[18px]" : "translate-x-0.5"}
-        `}
+                      absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm
+                      transition-transform duration-200
+                      ${myTicketsOnly ? "translate-x-[18px]" : "translate-x-0.5"}
+                    `}
                   />
                 </span>
                 My Tickets
               </button>
-            )} */}
+            )}
+            */}
+
             <div className="relative w-full sm:w-80 lg:w-96">
               <Search
                 size={18}
@@ -598,23 +682,24 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setCurrentPage(1);
                 }}
                 className="
-                h-11
-                pl-10
-                pr-4
-                w-full
-                rounded-xl
-                border
-                border-slate-200
-                bg-white
-                text-sm
-                outline-none
-                focus:ring-2
-                focus:ring-blue-500
-              "
+                  h-11
+                  pl-10
+                  pr-4
+                  w-full
+                  rounded-xl
+                  border
+                  border-slate-200
+                  bg-white
+                  text-sm
+                  outline-none
+                  focus:ring-2
+                  focus:ring-blue-500
+                "
               />
             </div>
 
             {/* Ticket Type */}
+
             <select
               value={ticketTypeFilter}
               onChange={(e) => {
@@ -622,27 +707,59 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                 setCurrentPage(1);
               }}
               className="
-    h-11
-    rounded-xl
-    border
-    border-slate-200
-    px-4
-    bg-white
-    text-sm
-  "
+                h-11
+                rounded-xl
+                border
+                border-slate-200
+                px-4
+                bg-white
+                text-sm
+              "
             >
               <option value="ALL">All Types</option>
               <option value="INQ">Inquiries</option>
               <option value="COM">Complaints</option>
             </select>
 
+            {/* Sorting */}
+
+            <select
+              value={sortOption}
+              onChange={(e) => {
+                setSortOption(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="
+                h-11
+                rounded-xl
+                border
+                border-slate-200
+                px-4
+                bg-white
+                text-sm
+              "
+            >
+              <option value="SLA_DESC">Sort: SLA Breach % (High to Low)</option>
+              <option value="SLA_ASC">Sort: SLA Breach % (Low to High)</option>
+              <option value="CREATED_DESC">Sort: Created At (Newest)</option>
+              <option value="CREATED_ASC">Sort: Created At (Oldest)</option>
+              <option value="TICKET_ID_ASC">Sort: Ticket ID (A-Z)</option>
+              <option value="TICKET_ID_DESC">Sort: Ticket ID (Z-A)</option>
+              <option value="CUSTOMER_ASC">Sort: Customer (A-Z)</option>
+              <option value="CUSTOMER_DESC">Sort: Customer (Z-A)</option>
+              <option value="CATEGORY_ASC">Sort: Category (A-Z)</option>
+              <option value="CATEGORY_DESC">Sort: Category (Z-A)</option>
+              <option value="STATUS_ASC">Sort: Status (A-Z)</option>
+              <option value="STATUS_DESC">Sort: Status (Z-A)</option>
+            </select>
+
             <div
               className="
-                          flex
-                          flex-col
-                          sm:flex-row
-                          gap-3
-                          "
+                flex
+                flex-col
+                sm:flex-row
+                gap-3
+              "
             >
               <select
                 value={categoryFilter}
@@ -677,14 +794,14 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setCurrentPage(1);
                 }}
                 className="
-                              h-11
-                              rounded-xl
-                              border
-                              border-slate-200
-                              px-4
-                              bg-white
-                              text-sm
-                              "
+                  h-11
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-4
+                  bg-white
+                  text-sm
+                "
               >
                 <option value="ALL">All Status</option>
                 <option value="OPEN">Open</option>
@@ -703,13 +820,13 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setCurrentPage(1);
                 }}
                 className="
-                      h-11
-                      rounded-xl
-                      border
-                      border-slate-200
-                      px-4
-                      text-sm
-                      "
+                  h-11
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-4
+                  text-sm
+                "
               />
 
               {/* To Date */}
@@ -722,12 +839,12 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setCurrentPage(1);
                 }}
                 className="
-                h-11
-                rounded-xl
-                border
-                border-slate-200
-                px-4
-                text-sm
+                  h-11
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-4
+                  text-sm
                 "
               />
 
@@ -740,20 +857,21 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   setFromDate("");
                   setToDate("");
                   setMyTicketsOnly(false);
+                  setSortOption("SLA_DESC");
                   setCurrentPage(1);
                 }}
                 className="
-                h-11
-                px-4
-                rounded-xl
-                border
-                border-slate-200
-                hover:bg-slate-50
-                text-sm
-                font-medium
+                  h-11
+                  px-4
+                  rounded-xl
+                  border
+                  border-slate-200
+                  hover:bg-slate-50
+                  text-sm
+                  font-medium
                 "
               >
-                Reset Filters
+                Reset
               </button>
             </div>
           </div>
@@ -847,6 +965,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
               </button>
             </div>
           </div>
+
           <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="border-b border-slate-200">
@@ -873,10 +992,10 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                     <td
                       colSpan={11}
                       className="
-                              text-center
-                              py-12
-                              text-slate-500
-                              "
+                        text-center
+                        py-12
+                        text-slate-500
+                      "
                     >
                       No tickets found for selected filters.
                     </td>
@@ -889,16 +1008,18 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                       <tr
                         key={ticket.id}
                         className="
-                      border-b
-                      border-slate-100
-                      hover:bg-slate-50
-                      transition-colors
-                    "
+                          border-b
+                          border-slate-100
+                          hover:bg-slate-50
+                          transition-colors
+                        "
                       >
                         {/* Rank */}
+
                         <td className="px-2 py-3 font-semibold">{index + 1}</td>
 
                         {/* SLA Breach % */}
+
                         <td className="px-2 py-3 max-w-[175px]">
                           <div className="flex items-center gap-3">
                             <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
@@ -927,6 +1048,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* Ticket ID */}
+
                         <td className="px-1 py-3">
                           <Link
                             href={`/tickets/view?id=${ticket.id}`}
@@ -937,74 +1059,80 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* Category */}
+
                         <td className="px-2 py-3">
                           <span
                             className={`
-                        inline-block
-                        px-3
-                        py-1
-                        rounded-full
-                        text-xs
-                        font-medium
-                        min-w-[75px]
-                        text-center
-                        text-white
-                        ${
-                          ticket.category === "CAT-A"
-                            ? "bg-red-500"
-                            : ticket.category === "CAT-B"
-                              ? "bg-blue-500"
-                              : ticket.category === "CAT-B2"
-                                ? "bg-cyan-600"
-                                : ticket.category === "CAT-C"
-                                  ? "bg-slate-500"
-                                  : "bg-purple-600"
-                        }
-                      `}
+                              inline-block
+                              px-3
+                              py-1
+                              rounded-full
+                              text-xs
+                              font-medium
+                              min-w-[75px]
+                              text-center
+                              text-white
+                              ${
+                                ticket.category === "CAT-A"
+                                  ? "bg-red-500"
+                                  : ticket.category === "CAT-B"
+                                    ? "bg-blue-500"
+                                    : ticket.category === "CAT-B2"
+                                      ? "bg-cyan-600"
+                                      : ticket.category === "CAT-C"
+                                        ? "bg-slate-500"
+                                        : "bg-purple-600"
+                              }
+                            `}
                           >
                             {ticket.category}
                           </span>
                         </td>
 
                         {/* Subject */}
+
                         <td className="px-4 py-3 text-sm">{ticket.title}</td>
 
                         {/* Customer */}
+
                         <td className="px-4 py-3 text-sm">
                           {ticket.customerName}
                         </td>
 
                         {/* Status */}
+
                         <td className="px-2 py-3 text-center">
                           <span
                             className={`
-                        inline-block
-                        px-3
-                        py-1
-                        rounded-md
-                        text-center
-                        text-xs
-                        font-medium
-                        min-w-[100px]
-                        ${
-                          ticket.status === "OPEN"
-                            ? "bg-red-100 text-red-700"
-                            : ticket.status === "IN_PROGRESS"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-green-100 text-green-700"
-                        }
-                      `}
+                              inline-block
+                              px-3
+                              py-1
+                              rounded-md
+                              text-center
+                              text-xs
+                              font-medium
+                              min-w-[100px]
+                              ${
+                                ticket.status === "OPEN"
+                                  ? "bg-red-100 text-red-700"
+                                  : ticket.status === "IN_PROGRESS"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-green-100 text-green-700"
+                              }
+                            `}
                           >
                             {ticket.status.replace("_", " ")}
                           </span>
                         </td>
 
                         {/* Target SLA */}
+
                         <td className="px-4 py-3 font-normal text-center text-sm">
                           {ticket.slaTarget}
                         </td>
 
                         {/* Age */}
+
                         <td
                           className={`px-1 py-3 font-semibold ${
                             metrics.breached || ticket.status === "CLOSED"
@@ -1016,6 +1144,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* SLA Due Date */}
+
                         <td className="px-4 py-3 text-center text-sm">
                           {metrics.dueDate.toLocaleDateString("en-GB", {
                             day: "2-digit",
@@ -1025,6 +1154,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* Created At */}
+
                         <td className="px-4 py-3 text-center text-sm">
                           {new Date(ticket.createdAt).toLocaleDateString(
                             "en-GB",
