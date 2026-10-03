@@ -479,34 +479,33 @@ export async function POST(request: NextRequest) {
       //   },
       // );
       const cookieHeader = request.headers.get("cookie");
+      // console.log("send mail next url origin: ", request.nextUrl.origin);
+      const appUrl = process.env.APP_URL || "http://localhost:3000";
 
-      const emailResponse = await fetch(
-        `${request.nextUrl.origin}/api/tickets/send-email`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      const emailResponse = await fetch(`${appUrl}/api/tickets/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
 
-            ...(cookieHeader
-              ? {
-                  cookie: cookieHeader,
-                }
-              : {}),
-          },
-
-          body: JSON.stringify({
-            ...body,
-            ...createdTicket,
-
-            ticketNumber: id,
-
-            assignedToId,
-            actionOwnerEmail: employee.email,
-            actionOwnerName: employee.name,
-            id,
-          }),
+          ...(cookieHeader
+            ? {
+                cookie: cookieHeader,
+              }
+            : {}),
         },
-      );
+
+        body: JSON.stringify({
+          ...body,
+          ...createdTicket,
+
+          ticketNumber: id,
+
+          assignedToId,
+          actionOwnerEmail: employee.email,
+          actionOwnerName: employee.name,
+          id,
+        }),
+      });
 
       if (emailResponse.ok) {
         const emailResult = await emailResponse.json();
