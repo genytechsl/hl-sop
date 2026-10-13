@@ -617,6 +617,54 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
       URL.revokeObjectURL(url);
     }
 
+    const wrapText = (value: string | null | undefined, maxChars = 12) => {
+      const text = String(value ?? "").trim();
+
+      if (!text) return "—";
+
+      const lines: string[] = [];
+
+      for (const word of text.split(/\s+/)) {
+        let remaining = word;
+
+        while (remaining.length > maxChars) {
+          lines.push(remaining.slice(0, maxChars - 1) + "-");
+          remaining = remaining.slice(maxChars - 1);
+        }
+
+        if (!lines.length) {
+          lines.push(remaining);
+          continue;
+        }
+
+        const last = lines[lines.length - 1];
+
+        if (last.length + 1 + remaining.length <= maxChars) {
+          lines[lines.length - 1] += " " + remaining;
+        } else {
+          lines.push(remaining);
+        }
+      }
+
+      return lines.join("\n");
+    };
+
+    const formatTableDate = (date: Date | string) => {
+      const value = new Date(date);
+
+      if (Number.isNaN(value.getTime())) {
+        return { dayMonth: "—", year: "" };
+      }
+
+      return {
+        dayMonth: value.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+        }),
+        year: String(value.getFullYear()),
+      };
+    };
+
     return (
       <section ref={tableRef} className="white-section overflow-hidden">
         <TicketSlaOverview
@@ -966,21 +1014,54 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
             </div>
           </div>
 
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1200px] table-fixed text-sm">
+            <colgroup>
+              <col style={{ width: "3%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "5%" }} />
+              <col style={{ width: "5%" }} />
+            </colgroup>
+
             <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-2 py-4">#</th>
-                <th className="px-2 py-4">SLA Breach %</th>
-                <th className="px-4 py-4">Ticket ID</th>
-                <th className="px-2 py-4">Category</th>
-                <th className="px-4 py-4">Subject</th>
-                <th className="px-4 py-4">Customer</th>
-                <th className="px-4 py-4">Property</th>
-                <th className="px-2 py-4">Status</th>
-                <th className="px-4 py-4">Target SLA</th>
-                <th className="px-1 py-4">Age</th>
-                <th className="px-4 py-4">SLA Due Date</th>
-                <th className="px-4 py-4">Created At</th>
+              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600">
+                <th className="px-2 py-4 text-center whitespace-nowrap">#</th>
+                <th className="px-2 py-4 text-left whitespace-nowrap">
+                  SLA Breach%
+                </th>
+                <th className="px-2 py-4 text-left whitespace-nowrap">
+                  Ticket ID
+                </th>
+                <th className="px-2 py-4 text-center whitespace-nowrap">
+                  Category
+                </th>
+                <th className="px-2 py-4 text-left whitespace-nowrap">
+                  Subject
+                </th>
+                <th className="px-2 py-4 text-left whitespace-nowrap">
+                  Customer
+                </th>
+                <th className="px-2 py-4 text-left whitespace-nowrap">
+                  Property
+                </th>
+                <th className="px-2 py-4 text-center whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-2 py-4 text-center whitespace-nowrap">
+                  Target SLA
+                </th>
+                <th className="px-2 py-4 text-center whitespace-nowrap">Age</th>
+                <th className="px-1 py-4 text-center whitespace-nowrap">Due</th>
+                <th className="px-1 py-4 text-center whitespace-nowrap">
+                  Created
+                </th>
               </tr>
             </thead>
 
@@ -991,12 +1072,8 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                 {paginatedTickets.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={11}
-                      className="
-                        text-center
-                        py-12
-                        text-slate-500
-                      "
+                      colSpan={12}
+                      className="py-12 text-center text-slate-500"
                     >
                       No tickets found for selected filters.
                     </td>
@@ -1004,43 +1081,37 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                 ) : (
                   paginatedTickets.map((ticket, index) => {
                     const metrics = getTicketMetrics(ticket);
+                    const isBreached = metrics.breached;
+                    const dueDate = formatTableDate(metrics.dueDate);
+                    const createdDate = formatTableDate(ticket.createdAt);
 
                     return (
                       <tr
                         key={ticket.id}
-                        className="
-                          border-b
-                          border-slate-100
-                          hover:bg-slate-50
-                          transition-colors
-                        "
+                        className="border-b border-slate-100 transition-colors hover:bg-slate-50"
                       >
                         {/* Rank */}
+                        <td className="px-2 py-3 text-center font-semibold whitespace-nowrap">
+                          {index + 1}
+                        </td>
 
-                        <td className="px-2 py-3 font-semibold">{index + 1}</td>
-
-                        {/* SLA Breach % */}
-
-                        <td className="px-2 py-3 max-w-[175px]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                        {/* SLA Breach Percentage */}
+                        <td className="px-2 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200">
                               <div
                                 className={`h-full transition-all ${
-                                  metrics.breached || ticket.status === "CLOSED"
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
+                                  isBreached ? "bg-red-500" : "bg-green-500"
                                 }`}
                                 style={{
-                                  width: `${Math.min(metrics.percent, 100)}%`,
+                                  width: `${Math.min(Math.max(metrics.percent, 0), 100)}%`,
                                 }}
                               />
                             </div>
 
                             <span
-                              className={`text-xs font-semibold ${
-                                metrics.breached || ticket.status === "CLOSED"
-                                  ? "text-red-600"
-                                  : "text-green-600"
+                              className={`shrink-0 text-xs font-semibold ${
+                                isBreached ? "text-red-600" : "text-green-600"
                               }`}
                             >
                               {metrics.percent}%
@@ -1049,8 +1120,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* Ticket ID */}
-
-                        <td className="px-1 py-3">
+                        <td className="px-2 py-3 whitespace-nowrap">
                           <Link
                             href={`/tickets/view?id=${ticket.id}`}
                             className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -1060,115 +1130,96 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         </td>
 
                         {/* Category */}
-
-                        <td className="px-2 py-3">
+                        <td className="px-2 py-3 text-center whitespace-nowrap">
                           <span
-                            className={`
-                              inline-block
-                              px-3
-                              py-1
-                              rounded-full
-                              text-xs
-                              font-medium
-                              min-w-[75px]
-                              text-center
-                              text-white
-                              ${
-                                ticket.category === "CAT-A"
-                                  ? "bg-red-500"
-                                  : ticket.category === "CAT-B"
-                                    ? "bg-blue-500"
-                                    : ticket.category === "CAT-B2"
-                                      ? "bg-cyan-600"
-                                      : ticket.category === "CAT-C"
-                                        ? "bg-slate-500"
-                                        : "bg-purple-600"
-                              }
-                            `}
+                            className={`inline-block min-w-[65px] rounded-full px-2 py-1 text-center text-xs font-medium text-white ${
+                              ticket.category === "CAT-A"
+                                ? "bg-red-500"
+                                : ticket.category === "CAT-B"
+                                  ? "bg-blue-500"
+                                  : ticket.category === "CAT-B2"
+                                    ? "bg-cyan-600"
+                                    : ticket.category === "CAT-C"
+                                      ? "bg-slate-500"
+                                      : "bg-purple-600"
+                            }`}
                           >
                             {ticket.category}
                           </span>
                         </td>
 
                         {/* Subject */}
-
-                        <td className="px-4 py-3 text-sm">{ticket.title}</td>
+                        <td className="px-2 py-3 align-top text-sm">
+                          <span className="block whitespace-pre-line break-words">
+                            {wrapText(ticket.title, 12)}
+                          </span>
+                        </td>
 
                         {/* Customer */}
-
-                        <td className="px-4 py-3 text-sm">
-                          {ticket.customerName}
+                        <td className="px-2 py-3 align-top text-sm">
+                          <span className="block whitespace-pre-line break-words">
+                            {wrapText(ticket.customerName, 12)}
+                          </span>
                         </td>
 
                         {/* Property */}
-
-                        <td className="px-4 py-3 text-sm">{ticket.property}</td>
+                        <td className="px-2 py-3 align-top text-sm">
+                          <span className="block whitespace-pre-line break-words">
+                            {wrapText(ticket.property, 12)}
+                          </span>
+                        </td>
 
                         {/* Status */}
-
-                        <td className="px-2 py-3 text-center">
+                        <td className="px-2 py-3 text-center whitespace-nowrap">
                           <span
-                            className={`
-                              inline-block
-                              px-3
-                              py-1
-                              rounded-md
-                              text-center
-                              text-xs
-                              font-medium
-                              min-w-[100px]
-                              ${
-                                ticket.status === "OPEN"
-                                  ? "bg-red-100 text-red-700"
-                                  : ticket.status === "IN_PROGRESS"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-green-100 text-green-700"
-                              }
-                            `}
+                            className={`inline-block min-w-[95px] rounded-md px-2 py-1 text-center text-xs font-medium ${
+                              ticket.status === "OPEN"
+                                ? "bg-red-100 text-red-700"
+                                : ticket.status === "IN_PROGRESS"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-green-100 text-green-700"
+                            }`}
                           >
-                            {ticket.status.replace("_", " ")}
+                            {ticket.status.replace(/_/g, " ")}
                           </span>
                         </td>
 
                         {/* Target SLA */}
-
-                        <td className="px-4 py-3 font-normal text-center text-sm">
+                        <td className="px-2 py-3 text-center text-sm whitespace-nowrap">
                           {ticket.slaTarget}
                         </td>
 
                         {/* Age */}
-
                         <td
-                          className={`px-1 py-3 font-semibold ${
-                            metrics.breached || ticket.status === "CLOSED"
-                              ? "text-red-600"
-                              : "text-green-600"
+                          className={`px-2 py-3 text-center font-semibold whitespace-nowrap ${
+                            isBreached ? "text-red-600" : "text-green-600"
                           }`}
                         >
                           {formatAge(metrics.ageHours)}
                         </td>
 
                         {/* SLA Due Date */}
-
-                        <td className="px-4 py-3 text-center text-sm">
-                          {metrics.dueDate.toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                        <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
+                          <div className="flex flex-col items-center leading-5">
+                            <span className="font-medium">
+                              {dueDate.dayMonth}
+                            </span>
+                            <span className="text-slate-500">
+                              {dueDate.year}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Created At */}
-
-                        <td className="px-4 py-3 text-center text-sm">
-                          {new Date(ticket.createdAt).toLocaleDateString(
-                            "en-GB",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )}
+                        <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
+                          <div className="flex flex-col items-center leading-5">
+                            <span className="font-medium">
+                              {createdDate.dayMonth}
+                            </span>
+                            <span className="text-slate-500">
+                              {createdDate.year}
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     );
