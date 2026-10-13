@@ -975,6 +975,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                 <th className="px-2 py-4">Category</th>
                 <th className="px-4 py-4">Subject</th>
                 <th className="px-4 py-4">Customer</th>
+                <th className="px-4 py-4">Property</th>
                 <th className="px-2 py-4">Status</th>
                 <th className="px-4 py-4">Target SLA</th>
                 <th className="px-1 py-4">Age</th>
@@ -1098,6 +1099,10 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                         <td className="px-4 py-3 text-sm">
                           {ticket.customerName}
                         </td>
+
+                        {/* Property */}
+
+                        <td className="px-4 py-3 text-sm">{ticket.property}</td>
 
                         {/* Status */}
 

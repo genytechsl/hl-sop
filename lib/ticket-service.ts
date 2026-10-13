@@ -124,6 +124,7 @@ export async function getTickets(): Promise<Ticket[]> {
       createdAt: "desc",
     },
   });
+  console.log(tickets);
 
   return tickets.map(formatTicket);
 }
