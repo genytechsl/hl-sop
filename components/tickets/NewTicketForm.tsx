@@ -562,6 +562,8 @@ export default function NewTicketForm() {
   };
 
   const handleSubmit = async (sendEmail: boolean) => {
+    let createdTicketId: string | null = null;
+
     try {
       setisSaving(true);
       const newTicket = {
@@ -612,82 +614,137 @@ export default function NewTicketForm() {
         return;
       }
 
-      // Upload attachments after ticket creation
-      if (attachments.length > 0) {
-        const formData = new FormData();
-
-        attachments.forEach((file) => {
-          formData.append("files", file);
-        });
-
-        const attachmentResponse = await fetch(
-          `/api/tickets/${result_newTicketCreated.ticketId}/attachments`,
-          {
-            method: "POST",
-            body: formData,
-          },
+      // Ticket creation succeeded. Never report a later attachment error as
+      // a ticket-creation failure, because retrying would create duplicates.
+      const createdId: string = result_newTicketCreated.ticketId;
+      if (!createdId) {
+        throw new Error(
+          "Ticket created, but the response contained no ticket ID.",
         );
+      }
+      createdTicketId = createdId;
 
-        const attachmentResult = await attachmentResponse.json();
+      // Upload each file in its own request. This avoids sending the entire
+      // selection as one oversized multipart body through Next.js Proxy.
+      const failedUploads: string[] = [];
 
-        if (!attachmentResponse.ok) {
-          console.error("Attachment upload failed:", attachmentResult);
+      for (const file of attachments) {
+        const formData = new FormData();
+        formData.append("files", file);
 
-          setToast({
-            open: true,
-            type: "warning",
-            title: "Ticket Created",
-            message:
-              "The ticket was created, but one or more attachments could not be uploaded.",
-          });
+        try {
+          const uploadResponse = await fetch(
+            `/api/tickets/${encodeURIComponent(createdTicketId)}/attachments`,
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+
+          if (!uploadResponse.ok) {
+            // HTTP 413 from Nginx is commonly HTML, not JSON.
+            // Read the body as text to avoid throwing while parsing JSON.
+            const responseText = await uploadResponse.text();
+            let errorMessage = `HTTP ${uploadResponse.status}`;
+
+            try {
+              const details = JSON.parse(responseText) as {
+                message?: string;
+                error?: string;
+              };
+              errorMessage = details.message || details.error || errorMessage;
+            } catch {
+              // Preserve the HTTP status when the server sends HTML/plain text.
+            }
+
+            console.error("Attachment upload failed:", {
+              ticketId: createdTicketId,
+              filename: file.name,
+              status: uploadResponse.status,
+              message: errorMessage,
+            });
+            failedUploads.push(`${file.name}: ${errorMessage}`);
+          }
+        } catch (uploadError) {
+          console.error(
+            "Attachment upload request failed:",
+            file.name,
+            uploadError,
+          );
+          failedUploads.push(`${file.name}: Network error`);
         }
       }
 
-      const response_remark = await fetch("/api/remarks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ticketId: result_newTicketCreated.ticketId,
-          remarkType: "New Ticket Open",
-          statusChangedTo: "OPEN",
-        }),
-      });
+      // A remark failure must not make an already-created ticket appear lost.
+      try {
+        const remarkResponse = await fetch("/api/remarks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ticketId: createdTicketId,
+            remarkType: "New Ticket Open",
+            statusChangedTo: "OPEN",
+          }),
+        });
 
-      if (result_newTicketCreated.emailSent) {
-        setNewTicketToast({
+        if (!remarkResponse.ok) {
+          console.error("Ticket was created, but the initial remark failed:", {
+            ticketId: createdTicketId,
+            status: remarkResponse.status,
+          });
+        }
+      } catch (remarkError) {
+        console.error(
+          "Ticket was created, but the initial remark failed:",
+          remarkError,
+        );
+      }
+
+      setNewTicketToast({
+        open: true,
+        ticketId: createdTicketId,
+      });
+      setTitle("");
+      setDescription("");
+      setAttachments([]);
+      setSelectedEmails([]);
+      setSearch("");
+      setSelectedCustomer(null);
+      setComplaintSource("Customer Call");
+
+      if (failedUploads.length > 0) {
+        setToast({
           open: true,
-          ticketId: result_newTicketCreated.ticketId,
+          type: "warning",
+          title: "Ticket Created — Attachment Upload Incomplete",
+          message: `Ticket ${createdTicketId} was created, but ${failedUploads.length} of ${attachments.length} file(s) could not be uploaded. ${failedUploads.slice(0, 2).join("; ")}. Do not create another ticket.`,
         });
-        setTitle("");
-        setDescription("");
-        setAttachments([]);
-        setSelectedEmails([]);
-        setSearch("");
-        setSelectedCustomer(null);
-        setComplaintSource("Customer Call");
-      } else {
-        setNewTicketToast({
-          open: true,
-          ticketId: result_newTicketCreated.ticketId,
-        });
-        setTitle("");
-        setDescription("");
-        setAttachments([]);
-        setSelectedEmails([]);
-        setSearch("");
-        setSelectedCustomer(null);
-        setComplaintSource("Customer Call");
       }
     } catch (error) {
-      setToast({
-        open: true,
-        type: "error",
-        title: "Failed!",
-        message:
-          "Something went wrong while creating the ticket. Please try again.",
-      });
+      console.error("New ticket workflow failed:", error);
+
+      if (createdTicketId) {
+        setNewTicketToast({
+          open: true,
+          ticketId: createdTicketId,
+        });
+        setToast({
+          open: true,
+          type: "warning",
+          title: "Ticket Created",
+          message: `Ticket ${createdTicketId} already exists, but a later operation failed. Check the ticket before trying again.`,
+        });
+      } else {
+        setToast({
+          open: true,
+          type: "error",
+          title: "Failed!",
+          message:
+            "Something went wrong while creating the ticket. Please try again.",
+        });
+      }
     } finally {
       setisSaving(false);
     }
