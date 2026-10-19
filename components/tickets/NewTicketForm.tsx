@@ -1354,6 +1354,7 @@ export default function NewTicketForm() {
             <h2 className="text-xl font-bold text-slate-800">
               3. Attachments (Optional)
             </h2>
+            <h5>Maximum file size: 10 MB per attachment.</h5>
 
             <div className="mt-6 grid lg:grid-cols-5 gap-6">
               {/* Upload Area */}
