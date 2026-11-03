@@ -23,6 +23,7 @@ interface User {
   role: string;
   designation: string;
   email: string;
+  active?: boolean;
 }
 
 interface Props {
@@ -308,6 +309,8 @@ export default function TicketHeader({ ticket, user }: Props) {
   const [status, setStatus] = useState(ticket.status);
   const [remark, setRemark] = useState("");
   const [saving, setSaving] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [notificationWarning, setNotificationWarning] = useState("");
   const [employees, setEmployees] = useState<User[]>([]);
   const [assignedToId, setAssignedToId] = useState(ticket.assignedToId || "");
   const [reassigning, setReassigning] = useState(false);
@@ -412,7 +415,7 @@ export default function TicketHeader({ ticket, user }: Props) {
 
         const data = await response.json();
 
-        setEmployees(data);
+        setEmployees(Array.isArray(data) ? data.filter((employee: User) => employee.active !== false && ["actionOwner", "admin"].includes(employee.role)) : []);
       } catch (error) {
         console.error("Failed to load employees:", error);
       }
@@ -512,30 +515,18 @@ export default function TicketHeader({ ticket, user }: Props) {
     try {
       setSaving(true);
 
-      /*
-       * Add remark
-       */
-      const response = await fetch("/api/remarks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ticketId: ticket.id,
-          remarkType: remark,
-          statusChangedTo: status,
-        }),
-      });
-
-      if (!response.ok) {
-        setToast({
-          open: true,
-          type: "error",
-          title: "Failed",
-          message: "Unable to add remarks. Please try again.",
-        });
-
-        return;
+      // Upload separately, as in ticket creation, to respect multipart proxy limits.
+      // Remove each successful file so a retry cannot duplicate completed uploads.
+      for (const file of files) {
+        const data = new FormData();
+        data.append("files", file);
+        const upload = await fetch(`/api/tickets/${encodeURIComponent(ticket.id)}/attachments`, {method: "POST", body: data});
+        if (!upload.ok) {
+          const result = await upload.json().catch(() => null);
+          setToast({open: true, type: "error", title: "Attachment upload failed", message: result?.message || `Could not upload ${file.name}. Status has not been changed. Retry the remaining files.`});
+          return;
+        }
+        setFiles(current => current.filter(item => item !== file));
       }
 
       /*
@@ -569,12 +560,15 @@ export default function TicketHeader({ ticket, user }: Props) {
         return;
       }
 
-      setToast({
-        open: true,
-        type: "success",
-        title: "Success",
-        message: "Status updated successfully. Remark added.",
-      });
+      const result = await responseUpdateTicketStatus.json();
+      if (result.notificationWarning) {
+        setToast({open: true, type: "warning", title: "Status updated", message: result.notificationWarning});
+        setRemark("");
+        setNotificationWarning(result.notificationWarning);
+        // Keep a persistent warning until the user refreshes.
+        return;
+      }
+      setToast({open: true, type: "success", title: "Success", message: "Status updated successfully. Remark added."});
 
       setRemark("");
 
@@ -607,7 +601,7 @@ export default function TicketHeader({ ticket, user }: Props) {
         ------------------------------------------------- */}
 
         <div className="xl:col-span-2 white-section">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <span
                 className={`
@@ -625,7 +619,7 @@ export default function TicketHeader({ ticket, user }: Props) {
                 {ticket.category} • {ticket.categoryLabel}
               </span>
 
-              <h1 className="mt-4 text-4xl font-bold text-black">
+              <h1 className="mt-4 break-words text-2xl sm:text-4xl font-bold text-slate-900">
                 {ticket.id}
               </h1>
 
@@ -724,7 +718,7 @@ export default function TicketHeader({ ticket, user }: Props) {
           <div className="divide-y divide-slate-100">
             {/* TARGET SLA */}
 
-            <div className="flex items-center justify-between my-2">
+            <div className="flex flex-wrap items-center justify-between my-2">
               <div className="flex items-center gap-3 text-slate-500">
                 <AlertTriangle size={16} className="text-amber-500" />
 
@@ -738,14 +732,14 @@ export default function TicketHeader({ ticket, user }: Props) {
 
             {/* ASSIGNED TO */}
 
-            <div className="flex items-center justify-between my-2 gap-4">
+            <div className="flex flex-wrap items-center justify-between my-2 gap-4">
               <div className="flex items-center gap-3 text-slate-500 shrink-0">
                 <User size={16} className="text-blue-500" />
 
                 <span className="text-sm">Assigned To</span>
               </div>
 
-              {status === "RETURN" && user.role !== "actionOwner" ? (
+              {ticket.status === "RETURN" && ["admin", "sys_admin"].includes(user.role) ? (
                 <div className="relative min-w-[190px]">
                   <select
                     value={assignedToId}
@@ -810,7 +804,7 @@ export default function TicketHeader({ ticket, user }: Props) {
 
             {/* CREATED DATE */}
 
-            <div className="flex items-center justify-between my-2 gap-4">
+            <div className="flex flex-wrap items-center justify-between my-2 gap-4">
               <div className="flex items-center gap-3 text-slate-500">
                 <Calendar size={16} className="text-green-500" />
 
@@ -855,7 +849,7 @@ export default function TicketHeader({ ticket, user }: Props) {
       ------------------------------------------------- */}
 
       <div className="white-section">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold text-slate-800">
               Update Ticket Status
@@ -955,6 +949,26 @@ export default function TicketHeader({ ticket, user }: Props) {
             </div>
           </div>
 
+          {!['RESOLVED', 'CLOSED'].includes(ticket.status) && (
+            <div className="lg:col-span-4">
+              <label htmlFor="remark-attachments" className="mb-2 block text-sm font-medium text-slate-600">Attachments (optional)</label>
+              <input id="remark-attachments" type="file" multiple disabled={saving}
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx,.msg"
+                className="w-full min-w-0 rounded-xl border border-slate-200 p-3 text-sm"
+                onChange={event => {
+                  const selected = Array.from(event.target.files ?? []);
+                  const allowed = /\.(pdf|jpe?g|png|webp|docx|xlsx|msg)$/i;
+                  const mime = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-outlook", "application/octet-stream"]);
+                  const invalid = selected.filter(file => file.size > 10 * 1024 * 1024 || !(allowed.test(file.name) || mime.has(file.type)));
+                  if (invalid.length) setToast({open: true, type: "warning", title: "Invalid attachment", message: `Unsupported type or over 10 MB: ${invalid.map(file => file.name).join(", ")}`});
+                  setFiles(current => [...current, ...selected.filter(file => !invalid.includes(file) && !current.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified))]);
+                  event.target.value = "";
+                }} />
+              <p className="mt-2 text-xs text-slate-500">PDF, JPG, PNG, WEBP, DOCX, XLSX or MSG. Maximum 10 MB per file. Files upload before the status update, including when resolving.</p>
+              {files.map((file, index) => <div key={`${file.name}-${index}`} className="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm"><span className="min-w-0 break-all">{file.name}</span><button type="button" disabled={saving} className="text-red-600" onClick={() => setFiles(current => current.filter((_, i) => i !== index))}>Remove</button></div>)}
+            </div>
+          )}
+
           {/* REMARKS */}
 
           <div className="lg:col-span-3">
@@ -983,9 +997,10 @@ export default function TicketHeader({ ticket, user }: Props) {
           </div>
         </div>
 
+        {notificationWarning && <div role="alert" className="alert-warning mt-4">{notificationWarning} <button type="button" className="underline" onClick={() => window.location.reload()}>Refresh ticket</button></div>}
         {/* FOOTER */}
 
-        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
+        <div className="mt-6 flex flex-wrap items-center justify-between border-t border-slate-100 pt-5">
           <div className="text-sm text-slate-500">
             {slaBreached && (
               <span className="font-semibold text-red-600">

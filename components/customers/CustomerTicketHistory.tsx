@@ -116,7 +116,7 @@ export default function CustomerTicketHistory({
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="min-h-[190px] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between">
             <div className="rounded-xl bg-slate-100 p-2.5 text-slate-500">
               <Ticket size={18} />
             </div>
@@ -327,7 +327,7 @@ function SummaryCard({
   return (
     <div className="h-full min-h-[190px] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <div className="rounded-xl bg-slate-100 p-2.5 text-slate-500">
             {icon}
           </div>

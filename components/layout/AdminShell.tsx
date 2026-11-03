@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import Sidebar from "./Sidebar";
+import ThemeToggle from "./ThemeToggle";
 import MobileNavbar from "./MobileNavbar";
 
 import type { SessionUser } from "@/lib/auth/session";
@@ -18,7 +19,7 @@ export default function AdminShell({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-shell min-h-screen bg-slate-50">
       <Sidebar
         open={open}
         setOpen={setOpen}
@@ -36,7 +37,7 @@ export default function AdminShell({
       >
         <MobileNavbar setOpen={setOpen} />
 
-        <main className="p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 p-3 sm:p-4 md:p-6 lg:p-8"><div className="mb-4 flex justify-end"><ThemeToggle /></div>{children}</main>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { sendEmail } from "@/lib/mailer";
 
 import { updateTicketStatus } from "@/lib/ticket-service";
 import { customerTicketResolvedEmail } from "@/lib/customer-email";
@@ -26,7 +27,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const { ticketId, status, customerEmail, customerName } = body;
+    const { ticketId, status, customerEmail, customerName, remark } = body;
+    if (!["OPEN", "IN_PROGRESS", "BEING_PROCESSED", "RESOLVED", "CLOSED", "RETURN"].includes(status) || typeof remark !== "string" || !remark.trim()) {
+      return NextResponse.json({message: "A valid status and remarks are required."}, {status: 400});
+    }
 
     if (!ticketId || !status) {
       return NextResponse.json(
@@ -50,6 +54,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         assignedToId: true,
+        status: true,
       },
     });
 
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
     // UPDATE TICKET STATUS
     // =========================================================
 
-    const ticket = await updateTicketStatus(ticketId, status);
+    const ticket = await updateTicketStatus(ticketId, status, { text: remark.trim(), updatedById: sessionUser.id });
 
     if (!ticket) {
       return NextResponse.json(
@@ -113,6 +118,20 @@ export async function POST(request: NextRequest) {
           status: 404,
         },
       );
+    }
+
+    let notificationWarning: string | undefined;
+    if (status === "RETURN" && existingTicket.status !== "RETURN") {
+      try {
+        await sendEmail({
+          to: "cmu@homelandsskyline.lk",
+          subject: `[Returned] ${ticketId}`,
+          html: `<p>A ticket has been returned and requires administrator review and reassignment.</p><p>Ticket: ${String(ticketId).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]!)}</p>`,
+        });
+      } catch (error) {
+        console.error("Returned-ticket notification failed:", error);
+        notificationWarning = "Ticket updated, but the CMU notification could not be sent. Please notify CMU manually.";
+      }
     }
 
     // =========================================================
@@ -146,7 +165,7 @@ export async function POST(request: NextRequest) {
     // RESPONSE
     // =========================================================
 
-    return NextResponse.json(ticket);
+    return NextResponse.json({ ...ticket, notificationWarning });
   } catch (error) {
     console.error("POST ticket status error:", error);
 

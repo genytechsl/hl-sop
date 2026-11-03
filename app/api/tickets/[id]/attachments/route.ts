@@ -50,6 +50,7 @@ export async function POST(
       select: {
         id: true,
         assignedToId: true,
+        status: true,
       },
     });
 
@@ -60,9 +61,12 @@ export async function POST(
       );
     }
 
-    /*
-     * Only known authorized roles may upload.
-     */
+    if (sessionUser.role === "actionOwner" && ticket.assignedToId !== sessionUser.id) {
+      return NextResponse.json({message: "Ticket not found."}, {status: 404});
+    }
+    if (["RESOLVED", "CLOSED"].includes(ticket.status)) {
+      return NextResponse.json({message: "Attachments cannot be added after resolution."}, {status: 409});
+    }
 
 
     // =========================================================
@@ -80,6 +84,31 @@ export async function POST(
         { message: "No files were provided." },
         { status: 400 },
       );
+    }
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          {
+            message: `File "${file.name}" exceeds the 10 MB limit.`,
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (!ALLOWED_TYPES.has(file.type) && !/\.(pdf|jpe?g|png|webp|docx|xlsx|msg)$/i.test(file.name)) {
+        return NextResponse.json(
+          {
+            message: `File type "${file.type}" is not allowed.`,
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
     }
 
     // =========================================================
@@ -104,28 +133,6 @@ export async function POST(
     // =========================================================
 
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json(
-          {
-            message: `File "${file.name}" exceeds the 10 MB limit.`,
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      if (!ALLOWED_TYPES.has(file.type)) {
-        return NextResponse.json(
-          {
-            message: `File type "${file.type}" is not allowed.`,
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
       const extension = path.extname(file.name);
 
       const storedName = `${crypto.randomUUID()}${extension}`;

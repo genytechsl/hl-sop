@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { TICKET_ROLES, authorizeRoles } from "@/app/api/_rbac";
+import { authorizeRoles } from "@/app/api/_rbac";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     // AUTHENTICATION
     // =========================================================
 
-    const auth = await authorizeRoles(TICKET_ROLES);
+    const auth = await authorizeRoles(["admin", "sys_admin"]);
 
     if (!auth.ok) {
       return auth.response;
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         assignedToId: true,
+        status: true,
       },
     });
 
@@ -58,6 +59,10 @@ export async function POST(request: NextRequest) {
           status: 404,
         },
       );
+    }
+
+    if (existingTicket.status !== "RETURN") {
+      return NextResponse.json({ message: "Only returned tickets can be reassigned." }, { status: 409 });
     }
 
     // =========================================================

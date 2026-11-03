@@ -1725,7 +1725,7 @@ export default function NewTicketForm() {
       fixed
       bottom-6
       right-6
-      w-[380px]
+      w-[calc(100vw-2rem)] sm:w-[380px]
       rounded-2xl
       border
       border-green-200

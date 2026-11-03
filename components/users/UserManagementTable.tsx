@@ -499,7 +499,7 @@ export default function UserManagementTable() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between border-t border-slate-200 px-4 py-4">
         <div className="text-sm text-slate-500">
           Showing{" "}
           <span className="font-medium">

@@ -60,14 +60,15 @@ export default function NewCustomerForm() {
   }
 
   function isEmpty(): boolean {
-    if (!name.trim() || !NIC.trim() || !email.trim() || !mobile.trim()) {
-      showWarning("Missing Information", "Please fill in all required fields.");
+    if (!name.trim()) {
+      showWarning("Missing Information", "Please enter the customer name.");
       return true;
     }
     return false;
   }
 
   function isNICValid(): boolean {
+    if (!NIC.trim()) return true;
     const oldNIC = /^[0-9]{9}[VvXx]$/;
     const newNIC = /^[0-9]{12}$/;
     if (!(oldNIC.test(NIC.trim()) || newNIC.test(NIC.trim()))) {
@@ -80,7 +81,7 @@ export default function NewCustomerForm() {
   function isEmailValid(): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const primaryEmail = email.trim();
-    if (!emailRegex.test(primaryEmail)) {
+    if (primaryEmail && !emailRegex.test(primaryEmail)) {
       showWarning(
         "Invalid Email",
         "Please enter a valid primary email address.",
@@ -127,7 +128,7 @@ export default function NewCustomerForm() {
   function isMobileValid(): boolean {
     const mobileRegex = /^0\d{9}$/;
     const primaryMobile = mobile.trim();
-    if (!mobileRegex.test(primaryMobile)) {
+    if (primaryMobile && !mobileRegex.test(primaryMobile)) {
       showWarning(
         "Invalid Mobile Number",
         "Please enter a valid Sri Lankan primary mobile number.",
@@ -318,7 +319,7 @@ export default function NewCustomerForm() {
           </div>
           <div className="md:col-span-1">
             <InputField
-              label="NIC"
+              label="NIC (optional)"
               placeholder="Enter NIC number"
               value={NIC}
               onChange={(e: any) => setNIC(e.target.value)}
@@ -354,7 +355,7 @@ export default function NewCustomerForm() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
             <div className="mb-4">
               <InputField
-                label="Primary Email Address"
+                label="Primary Email Address (optional)"
                 type="email"
                 placeholder="Enter primary email address"
                 value={email}
@@ -410,7 +411,7 @@ export default function NewCustomerForm() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
             <div className="mb-4">
               <InputField
-                label="Primary Mobile Number"
+                label="Primary Mobile Number (optional)"
                 type="tel"
                 placeholder="Enter primary mobile number"
                 value={mobile}
@@ -507,7 +508,7 @@ export default function NewCustomerForm() {
 
       {/* Property Information */}
       <div className="white-section mb-4">
-        <div className="flex items-center justify-between gap-4 mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
             <h3 className="text-lg font-semibold text-slate-800">
               Property Information
@@ -539,7 +540,7 @@ export default function NewCustomerForm() {
               key={index}
               className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex flex-wrap items-center justify-between mb-5">
                 <h4 className="font-medium text-slate-800">
                   Property {index + 1}
                 </h4>

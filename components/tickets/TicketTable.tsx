@@ -1,4 +1,5 @@
 "use client";
+import { getTicketSlaMetrics } from "@/lib/ticket-metrics";
 
 import { Search, Filter, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -267,32 +268,14 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
     };
 
     const getTicketMetrics = (ticket: any) => {
-      const createdAt = new Date(ticket.createdAt);
-
-      const now = new Date();
-
-      const targetHours = getHoursFromSla(ticket.slaTarget);
-
-      const workingDaySla = isWorkingDaySla(ticket.slaTarget);
-
-      const ageHours = workingDaySla
-        ? getWorkingHoursBetween(createdAt, now)
-        : (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-
-      const percent = Math.round((ageHours / targetHours) * 100);
-
-      const breached =
-        ageHours > targetHours &&
-        ["OPEN", "IN_PROGRESS"].includes(ticket.status);
-
-      const dueDate = calculateSlaDueDate(ticket.createdAt, ticket.slaTarget);
-
+      const metrics = getTicketSlaMetrics(ticket);
       return {
-        ageHours,
-        targetHours,
-        percent,
-        breached,
-        dueDate,
+        ...metrics,
+        // Null is displayed explicitly rather than as a changing age.
+        ageHours: metrics.ageHours ?? NaN,
+        percent: metrics.percent ?? NaN,
+        targetHours: getHoursFromSla(ticket.slaTarget),
+        dueDate: calculateSlaDueDate(ticket.createdAt, ticket.slaTarget),
       };
     };
 
@@ -423,6 +406,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
     );
 
     const formatAge = (hours: number) => {
+      if (!Number.isFinite(hours)) return "Unknown";
       const days = Math.floor(hours / 24);
 
       if (days > 0) {
@@ -542,7 +526,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
           return [
             index + 1,
             ticket.id,
-            metrics.percent,
+            Number.isFinite(metrics.percent) ? metrics.percent : "Unknown",
             ticket.category,
             ticket.title,
             ticket.customerName,
@@ -578,7 +562,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
         return [
           index + 1,
           ticket.id,
-          metrics.percent,
+          Number.isFinite(metrics.percent) ? metrics.percent : "Unknown",
           ticket.category,
           ticket.title,
           ticket.customerName,
@@ -927,7 +911,7 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
 
         {/* Table */}
 
-        <div className="overflow-x-auto">
+        <div>
           <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-slate-500">
               Showing{" "}
@@ -974,7 +958,10 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                     onClick={() => setCurrentPage(page)}
                     className={`
                       h-10
-                      min-w-[40px]
+                      w-10
+                      p-3
+                      m-auto
+                      hidden sm:inline-flex min-w-[40px]
                       rounded-xl
                       text-sm
                       font-medium
@@ -998,8 +985,10 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                 disabled={currentPage === totalPages}
                 className="
                   h-10
-                  px-3
+                  w-10
+                  p-3
                   rounded-xl
+                  m-auto
                   border
                   border-slate-200
                   bg-white
@@ -1014,220 +1003,233 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
             </div>
           </div>
 
-          <table className="w-full min-w-[1200px] table-fixed text-sm">
-            <colgroup>
-              <col style={{ width: "3%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "13%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "5%" }} />
-              <col style={{ width: "5%" }} />
-            </colgroup>
+          <div
+            className="overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Tickets table, scroll horizontally for more columns"
+          >
+            <table className="w-full min-w-[1200px] table-fixed text-sm">
+              <colgroup>
+                <col style={{ width: "3%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "5%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
 
-            <thead>
-              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600">
-                <th className="px-2 py-4 text-center whitespace-nowrap">#</th>
-                <th className="px-2 py-4 text-left whitespace-nowrap">
-                  SLA Breach%
-                </th>
-                <th className="px-2 py-4 text-left whitespace-nowrap">
-                  Ticket ID
-                </th>
-                <th className="px-2 py-4 text-center whitespace-nowrap">
-                  Category
-                </th>
-                <th className="px-2 py-4 text-left whitespace-nowrap">
-                  Subject
-                </th>
-                <th className="px-2 py-4 text-left whitespace-nowrap">
-                  Customer
-                </th>
-                <th className="px-2 py-4 text-left whitespace-nowrap">
-                  Property
-                </th>
-                <th className="px-2 py-4 text-center whitespace-nowrap">
-                  Status
-                </th>
-                <th className="px-2 py-4 text-center whitespace-nowrap">
-                  Target SLA
-                </th>
-                <th className="px-2 py-4 text-center whitespace-nowrap">Age</th>
-                <th className="px-1 py-4 text-center whitespace-nowrap">Due</th>
-                <th className="px-1 py-4 text-center whitespace-nowrap">
-                  Created
-                </th>
-              </tr>
-            </thead>
+              <thead>
+                <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600">
+                  <th className="px-2 py-4 text-center whitespace-nowrap">#</th>
+                  <th className="px-2 py-4 text-left whitespace-nowrap">
+                    SLA Breach%
+                  </th>
+                  <th className="px-2 py-4 text-left whitespace-nowrap">
+                    Ticket ID
+                  </th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
+                    Category
+                  </th>
+                  <th className="px-2 py-4 text-left whitespace-nowrap">
+                    Subject
+                  </th>
+                  <th className="px-2 py-4 text-left whitespace-nowrap">
+                    Customer
+                  </th>
+                  <th className="px-2 py-4 text-left whitespace-nowrap">
+                    Property
+                  </th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
+                    Status
+                  </th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
+                    Target SLA
+                  </th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
+                    Age
+                  </th>
+                  <th className="px-1 py-4 text-center whitespace-nowrap">
+                    Due
+                  </th>
+                  <th className="px-1 py-4 text-center whitespace-nowrap">
+                    Created
+                  </th>
+                </tr>
+              </thead>
 
-            {isLoading ? (
-              <TicketTableSkeleton />
-            ) : (
-              <tbody>
-                {paginatedTickets.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={12}
-                      className="py-12 text-center text-slate-500"
-                    >
-                      No tickets found for selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedTickets.map((ticket, index) => {
-                    const metrics = getTicketMetrics(ticket);
-                    const isBreached = metrics.breached;
-                    const dueDate = formatTableDate(metrics.dueDate);
-                    const createdDate = formatTableDate(ticket.createdAt);
-
-                    return (
-                      <tr
-                        key={ticket.id}
-                        className="border-b border-slate-100 transition-colors hover:bg-slate-50"
+              {isLoading ? (
+                <TicketTableSkeleton />
+              ) : (
+                <tbody>
+                  {paginatedTickets.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={12}
+                        className="py-12 text-center text-slate-500"
                       >
-                        {/* Rank */}
-                        <td className="px-2 py-3 text-center font-semibold whitespace-nowrap">
-                          {index + 1}
-                        </td>
+                        No tickets found for selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedTickets.map((ticket, index) => {
+                      const metrics = getTicketMetrics(ticket);
+                      const isBreached = metrics.breached;
+                      const dueDate = formatTableDate(metrics.dueDate);
+                      const createdDate = formatTableDate(ticket.createdAt);
 
-                        {/* SLA Breach Percentage */}
-                        <td className="px-2 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200">
-                              <div
-                                className={`h-full transition-all ${
-                                  isBreached ? "bg-red-500" : "bg-green-500"
+                      return (
+                        <tr
+                          key={ticket.id}
+                          className="border-b border-slate-100 transition-colors hover:bg-slate-50"
+                        >
+                          {/* Rank */}
+                          <td className="px-2 py-3 text-center font-semibold whitespace-nowrap">
+                            {index + 1}
+                          </td>
+
+                          {/* SLA Breach Percentage */}
+                          <td className="px-2 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200">
+                                <div
+                                  className={`h-full transition-all ${
+                                    isBreached ? "bg-red-500" : "bg-green-500"
+                                  }`}
+                                  style={{
+                                    width: `${Math.min(Math.max(Number.isFinite(metrics.percent) ? metrics.percent : 0, 0), 100)}%`,
+                                  }}
+                                />
+                              </div>
+
+                              <span
+                                className={`shrink-0 text-xs font-semibold ${
+                                  isBreached ? "text-red-600" : "text-green-600"
                                 }`}
-                                style={{
-                                  width: `${Math.min(Math.max(metrics.percent, 0), 100)}%`,
-                                }}
-                              />
+                              >
+                                {Number.isFinite(metrics.percent)
+                                  ? `${metrics.percent}%`
+                                  : "Unknown"}
+                              </span>
                             </div>
+                          </td>
 
+                          {/* Ticket ID */}
+                          <td className="px-2 py-3 whitespace-nowrap">
+                            <Link
+                              href={`/tickets/view?id=${ticket.id}`}
+                              className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              {ticket.id}
+                            </Link>
+                          </td>
+
+                          {/* Category */}
+                          <td className="px-2 py-3 text-center whitespace-nowrap">
                             <span
-                              className={`shrink-0 text-xs font-semibold ${
-                                isBreached ? "text-red-600" : "text-green-600"
+                              className={`inline-block min-w-[65px] rounded-full px-2 py-1 text-center text-xs font-medium text-white ${
+                                ticket.category === "CAT-A"
+                                  ? "bg-red-500"
+                                  : ticket.category === "CAT-B"
+                                    ? "bg-blue-500"
+                                    : ticket.category === "CAT-B2"
+                                      ? "bg-cyan-600"
+                                      : ticket.category === "CAT-C"
+                                        ? "bg-slate-500"
+                                        : "bg-purple-600"
                               }`}
                             >
-                              {metrics.percent}%
+                              {ticket.category}
                             </span>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Ticket ID */}
-                        <td className="px-2 py-3 whitespace-nowrap">
-                          <Link
-                            href={`/tickets/view?id=${ticket.id}`}
-                            className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
-                          >
-                            {ticket.id}
-                          </Link>
-                        </td>
+                          {/* Subject */}
+                          <td className="px-2 py-3 align-top text-sm">
+                            <span className="block whitespace-pre-line break-words">
+                              {wrapText(ticket.title, 12)}
+                            </span>
+                          </td>
 
-                        {/* Category */}
-                        <td className="px-2 py-3 text-center whitespace-nowrap">
-                          <span
-                            className={`inline-block min-w-[65px] rounded-full px-2 py-1 text-center text-xs font-medium text-white ${
-                              ticket.category === "CAT-A"
-                                ? "bg-red-500"
-                                : ticket.category === "CAT-B"
-                                  ? "bg-blue-500"
-                                  : ticket.category === "CAT-B2"
-                                    ? "bg-cyan-600"
-                                    : ticket.category === "CAT-C"
-                                      ? "bg-slate-500"
-                                      : "bg-purple-600"
+                          {/* Customer */}
+                          <td className="px-2 py-3 align-top text-sm">
+                            <span className="block whitespace-pre-line break-words">
+                              {wrapText(ticket.customerName, 12)}
+                            </span>
+                          </td>
+
+                          {/* Property */}
+                          <td className="px-2 py-3 align-top text-sm">
+                            <span className="block whitespace-pre-line break-words">
+                              {wrapText(ticket.property, 12)}
+                            </span>
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-2 py-3 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-block min-w-[95px] rounded-md px-2 py-1 text-center text-xs font-medium ${
+                                ticket.status === "OPEN"
+                                  ? "bg-red-100 text-red-700"
+                                  : ticket.status === "IN_PROGRESS"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-green-100 text-green-700"
+                              }`}
+                            >
+                              {ticket.status.replace(/_/g, " ")}
+                            </span>
+                          </td>
+
+                          {/* Target SLA */}
+                          <td className="px-2 py-3 text-center text-sm whitespace-nowrap">
+                            {ticket.slaTarget}
+                          </td>
+
+                          {/* Age */}
+                          <td
+                            className={`px-2 py-3 text-center font-semibold whitespace-nowrap ${
+                              isBreached ? "text-red-600" : "text-green-600"
                             }`}
                           >
-                            {ticket.category}
-                          </span>
-                        </td>
+                            {formatAge(metrics.ageHours)}
+                          </td>
 
-                        {/* Subject */}
-                        <td className="px-2 py-3 align-top text-sm">
-                          <span className="block whitespace-pre-line break-words">
-                            {wrapText(ticket.title, 12)}
-                          </span>
-                        </td>
+                          {/* SLA Due Date */}
+                          <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
+                            <div className="flex flex-col items-center leading-5">
+                              <span className="font-medium">
+                                {dueDate.dayMonth}
+                              </span>
+                              <span className="text-slate-500">
+                                {dueDate.year}
+                              </span>
+                            </div>
+                          </td>
 
-                        {/* Customer */}
-                        <td className="px-2 py-3 align-top text-sm">
-                          <span className="block whitespace-pre-line break-words">
-                            {wrapText(ticket.customerName, 12)}
-                          </span>
-                        </td>
-
-                        {/* Property */}
-                        <td className="px-2 py-3 align-top text-sm">
-                          <span className="block whitespace-pre-line break-words">
-                            {wrapText(ticket.property, 12)}
-                          </span>
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-2 py-3 text-center whitespace-nowrap">
-                          <span
-                            className={`inline-block min-w-[95px] rounded-md px-2 py-1 text-center text-xs font-medium ${
-                              ticket.status === "OPEN"
-                                ? "bg-red-100 text-red-700"
-                                : ticket.status === "IN_PROGRESS"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-green-100 text-green-700"
-                            }`}
-                          >
-                            {ticket.status.replace(/_/g, " ")}
-                          </span>
-                        </td>
-
-                        {/* Target SLA */}
-                        <td className="px-2 py-3 text-center text-sm whitespace-nowrap">
-                          {ticket.slaTarget}
-                        </td>
-
-                        {/* Age */}
-                        <td
-                          className={`px-2 py-3 text-center font-semibold whitespace-nowrap ${
-                            isBreached ? "text-red-600" : "text-green-600"
-                          }`}
-                        >
-                          {formatAge(metrics.ageHours)}
-                        </td>
-
-                        {/* SLA Due Date */}
-                        <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
-                          <div className="flex flex-col items-center leading-5">
-                            <span className="font-medium">
-                              {dueDate.dayMonth}
-                            </span>
-                            <span className="text-slate-500">
-                              {dueDate.year}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Created At */}
-                        <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
-                          <div className="flex flex-col items-center leading-5">
-                            <span className="font-medium">
-                              {createdDate.dayMonth}
-                            </span>
-                            <span className="text-slate-500">
-                              {createdDate.year}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            )}
-          </table>
+                          {/* Created At */}
+                          <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
+                            <div className="flex flex-col items-center leading-5">
+                              <span className="font-medium">
+                                {createdDate.dayMonth}
+                              </span>
+                              <span className="text-slate-500">
+                                {createdDate.year}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              )}
+            </table>
+          </div>
         </div>
       </section>
     );

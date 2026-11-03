@@ -55,15 +55,15 @@ export default function Toast({
       className={`toast-enter 
         fixed
         bottom-6
-        right-6
-        min-w-[480px]
+        right-3 left-3 sm:left-auto sm:right-6
+        w-auto sm:w-[480px] max-w-[calc(100vw-1.5rem)]
         min-h-[100px]
         rounded-2xl
         border
         ${s.border}
         ${s.bg}
         shadow-2xl
-        p-8
+        p-4 sm:p-6
         z-[9999]
         
       `}

@@ -548,14 +548,20 @@ export default function CustomerViewPage() {
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                     />
                     <input
-                      readOnly
+                      // readOnly
                       value={customer.NIC}
+                      onChange={(e) =>
+                        setCustomer({
+                          ...customer,
+                          NIC: e.target.value,
+                        })
+                      }
                       className="input bg-slate-50 pl-11 text-slate-500"
                     />
                   </div>
-                  <p className="helper-text">
+                  {/* <p className="helper-text">
                     Customer National Identity Card number cannot be changed.
-                  </p>
+                  </p> */}
                 </div>
 
                 <div>
@@ -602,7 +608,7 @@ export default function CustomerViewPage() {
 
               <div className="card-body">
                 <div>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <label className="label">Primary Email Address</label>
                     <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
                       Primary
@@ -700,7 +706,7 @@ export default function CustomerViewPage() {
 
               <div className="card-body">
                 <div>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <label className="label">Primary Mobile Number</label>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
                       Primary
@@ -826,7 +832,7 @@ export default function CustomerViewPage() {
                     key={index}
                     className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
                   >
-                    <div className="mb-5 flex items-center justify-between">
+                    <div className="mb-5 flex flex-wrap items-center justify-between">
                       <div>
                         <p className="text-sm font-semibold text-slate-800">
                           Property {index + 1}
@@ -900,7 +906,7 @@ export default function CustomerViewPage() {
 
           {/* Save */}
           <div className="card">
-            <div className="card-footer flex items-center justify-between">
+            <div className="card-footer flex flex-wrap items-center justify-between">
               <div className="hidden sm:block">
                 <p className="text-sm font-medium text-slate-700">
                   Ready to save changes?

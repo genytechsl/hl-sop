@@ -104,6 +104,7 @@ export async function searchCustomers(keyword: string): Promise<Customer[]> {
 }
 
 export async function createCustomer(customer: Customer): Promise<Customer> {
+  const nic = (customer.NIC ?? "").trim();
   const existingCustomer = await prisma.customer.findUnique({
     where: {
       id: customer.id,
@@ -112,11 +113,9 @@ export async function createCustomer(customer: Customer): Promise<Customer> {
   if (existingCustomer) {
     throw new Error("Customer already exists");
   }
-  const existingNic = await prisma.customer.findFirst({
-    where: {
-      nic: customer.NIC,
-    },
-  });
+  const existingNic = nic
+    ? await prisma.customer.findFirst({ where: { nic } })
+    : null;
   if (existingNic) {
     throw new Error("Existing account found under this NIC");
   }
@@ -124,11 +123,11 @@ export async function createCustomer(customer: Customer): Promise<Customer> {
     data: {
       id: customer.id,
       name: customer.name,
-      email: customer.email,
+      email: customer.email?.trim() ?? "",
       otherEmails: customer.otherEmails ?? [],
-      mobile: customer.mobile,
+      mobile: customer.mobile?.trim() ?? "",
       otherMobiles: customer.otherMobiles ?? [],
-      nic: customer.NIC,
+      nic,
       active: customer.active,
       properties: {
         create: customer.properties.map((property) => ({
@@ -171,14 +170,15 @@ export async function updateCustomer(
   if (!existingCustomer) {
     throw new Error("Customer not found");
   }
-  const duplicateNic = await prisma.customer.findFirst({
+  const nic = (updatedCustomer.NIC ?? "").trim();
+  const duplicateNic = nic ? await prisma.customer.findFirst({
     where: {
-      nic: updatedCustomer.NIC,
+      nic,
       NOT: {
         id: updatedCustomer.id,
       },
     },
-  });
+  }) : null;
   if (duplicateNic) {
     throw new Error("Existing account found under this NIC");
   }
@@ -194,11 +194,11 @@ export async function updateCustomer(
       },
       data: {
         name: updatedCustomer.name,
-        email: updatedCustomer.email,
+        email: updatedCustomer.email?.trim() ?? "",
         otherEmails: updatedCustomer.otherEmails ?? [],
-        mobile: updatedCustomer.mobile,
+        mobile: updatedCustomer.mobile?.trim() ?? "",
         otherMobiles: updatedCustomer.otherMobiles ?? [],
-        nic: updatedCustomer.NIC,
+        nic,
         active: updatedCustomer.active,
         properties: {
           create: updatedCustomer.properties.map((property) => ({

@@ -24,6 +24,8 @@ export type Ticket = {
   priority: string;
   assignedToId: string;
   createdAt: string;
+  resolvedAt?: string | null;
+  closedAt?: string | null;
   customerName: string;
   customerEmail?: string;
   customerMobile?: number;
@@ -61,6 +63,20 @@ export type CreateTicketInput = {
 };
 
 function formatTicket(ticket: any): Ticket {
+  const history = [...(ticket.remarks ?? [])].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  let previousStatus = "";
+  let resolvedAt: string | null = null;
+  let closedAt: string | null = null;
+  for (const remark of history) {
+    const status = remark.statusChangedTo;
+    if (!status || status === previousStatus) continue;
+    const date = new Date(remark.createdAt);
+    if (!Number.isFinite(date.getTime())) continue;
+    if (status === "RESOLVED") resolvedAt = date.toISOString();
+    else if (status === "CLOSED") closedAt = date.toISOString();
+    else { resolvedAt = null; closedAt = null; }
+    previousStatus = status;
+  }
   return {
     id: ticket.id,
     title: ticket.title,
@@ -75,6 +91,8 @@ function formatTicket(ticket: any): Ticket {
     priority: ticket.priority,
     assignedToId: ticket.assignedToId ?? "",
     createdAt: ticket.createdAt,
+    resolvedAt,
+    closedAt,
     // createdAt: formatDateTime(ticket.createdAt),
 
     customerName: ticket.customer?.name ?? "",
@@ -283,27 +301,16 @@ export async function createTicket(ticket: CreateTicketInput): Promise<Ticket> {
 export async function updateTicketStatus(
   ticketId: string,
   status: string,
+  remark?: { text: string; updatedById: string },
 ): Promise<Ticket | null> {
-  const existing = await prisma.ticket.findUnique({
-    where: {
-      id: ticketId,
-    },
-  });
-
-  if (!existing) {
-    return null;
-  }
-
   const updatedTicket = await prisma.ticket.update({
-    where: {
-      id: ticketId,
-    },
+    where: { id: ticketId },
     data: {
       status,
+      ...(remark ? { remarks: { create: { remarkType: remark.text, statusChangedTo: status, updatedById: remark.updatedById, createdAt: new Date() } } } : {}),
     },
     include: ticketInclude,
   });
-
   return formatTicket(updatedTicket);
 }
 
