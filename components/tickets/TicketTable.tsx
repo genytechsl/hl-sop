@@ -1012,15 +1012,16 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
             <table className="w-full min-w-[1200px] table-fixed text-sm">
               <colgroup>
                 <col style={{ width: "3%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "13%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "12%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "10%" }} />
-                <col style={{ width: "10%" }} />
+                <col style={{ width: "6%" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "7%" }} />
+                <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
                 <col style={{ width: "5%" }} />
               </colgroup>
@@ -1061,6 +1062,9 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                   <th className="px-1 py-4 text-center whitespace-nowrap">
                     Created
                   </th>
+                  <th className="px-1 py-4 text-center whitespace-nowrap">
+                    Closed At
+                  </th>
                 </tr>
               </thead>
 
@@ -1083,6 +1087,10 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                       const isBreached = metrics.breached;
                       const dueDate = formatTableDate(metrics.dueDate);
                       const createdDate = formatTableDate(ticket.createdAt);
+                      const closedDate =
+                        ticket.status === "CLOSED" && ticket.closedAt
+                          ? formatTableDate(ticket.closedAt)
+                          : { dayMonth: "—", year: "" };
 
                       return (
                         <tr
@@ -1220,6 +1228,19 @@ const TicketTable = forwardRef<TicketTableRef, TicketTableProps>(
                               <span className="text-slate-500">
                                 {createdDate.year}
                               </span>
+                            </div>
+                          </td>
+
+                          <td className="px-1 py-3 text-center text-xs whitespace-nowrap">
+                            <div className="flex flex-col items-center leading-5">
+                              <span className="font-medium">
+                                {closedDate.dayMonth}
+                              </span>
+                              {closedDate.year && (
+                                <span className="text-slate-500">
+                                  {closedDate.year}
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
