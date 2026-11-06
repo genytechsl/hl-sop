@@ -19,6 +19,40 @@ import {
 import Toast from "@/components/BottomRIghtToast";
 import CustomerTicketHistory from "@/components/customers/CustomerTicketHistory";
 
+import {
+  getCountries,
+  getCountryCallingCode,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js";
+import {
+  CountryPhoneInput,
+  emptyPhone,
+  normalizePhone,
+  type PhoneInput,
+} from "@/components/customers/NewCustomerForm";
+
+function toPhoneInput(value?: string | null): PhoneInput {
+  const number = value?.trim() ?? "";
+  if (!number) return emptyPhone();
+
+  const parsed = parsePhoneNumberFromString(number, {
+    defaultCountry: "LK",
+    extract: false,
+  });
+
+  if (!parsed || parsed.ext) return { country: "LK", number };
+
+  const country =
+    parsed.country ??
+    getCountries().find(
+      (code) => getCountryCallingCode(code) === parsed.countryCallingCode,
+    );
+
+  return country
+    ? { country, number: parsed.nationalNumber }
+    : { country: "LK", number };
+}
+
 interface Property {
   propertyName: string;
   address: string;
@@ -45,6 +79,8 @@ export default function CustomerViewPage() {
   const id = searchParams.get("id");
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [mobile, setMobile] = useState<PhoneInput>(emptyPhone);
+  const [otherMobiles, setOtherMobiles] = useState<PhoneInput[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<CustomerTab>("details");
@@ -84,10 +120,13 @@ export default function CustomerViewPage() {
 
       setCustomer({
         ...data,
+
         otherEmails: data.otherEmails ?? [],
         otherMobiles: data.otherMobiles ?? [],
         properties: data.properties ?? [],
       });
+      setMobile(toPhoneInput(data.mobile));
+      setOtherMobiles((data.otherMobiles ?? []).map(toPhoneInput));
     } catch (error) {
       console.error("Failed to load customer:", error);
       setToast({
@@ -114,10 +153,10 @@ export default function CustomerViewPage() {
     if (!customer) return false;
 
     if (
-      customer.name.trim() === "" ||
-      customer.email.trim() === "" ||
-      customer.mobile.trim() === "" ||
-      customer.NIC.trim() === ""
+      customer.name.trim() === ""
+      // customer.email.trim() === "" ||
+      // customer.mobile.trim() === "" ||
+      // customer.NIC.trim() === ""
     ) {
       showWarning(
         "Missing Information",
@@ -179,51 +218,50 @@ export default function CustomerViewPage() {
     return true;
   }
 
-  function isMobileValid(): boolean {
-    if (!customer) return false;
+  function getMobilePayload() {
+    const primaryMobile = normalizePhone(mobile);
 
-    const phoneRegex = /^0\d{9}$/;
-    const primaryMobile = customer.mobile.trim();
-
-    if (!phoneRegex.test(primaryMobile)) {
+    if (primaryMobile === null) {
       showWarning(
         "Invalid Mobile Number",
-        "Please enter a valid Sri Lankan primary mobile number.",
+        "Please enter a phone number that matches the selected country.",
       );
-      return false;
+      return null;
     }
 
-    const otherMobiles = customer.otherMobiles
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const additionalNumbers: string[] = [];
 
-    for (const number of otherMobiles) {
-      if (!phoneRegex.test(number)) {
+    for (const entry of otherMobiles) {
+      const number = normalizePhone(entry);
+
+      if (number === null) {
         showWarning(
           "Invalid Contact Number",
-          `"${number}" is not a valid Sri Lankan telephone number.`,
+          `"${entry.number}" does not match the selected country.`,
         );
-        return false;
+        return null;
       }
+
+      if (number) additionalNumbers.push(number);
     }
 
-    if (otherMobiles.includes(primaryMobile)) {
+    if (primaryMobile && additionalNumbers.includes(primaryMobile)) {
       showWarning(
         "Duplicate Contact Number",
-        "The primary mobile number cannot also be added as an additional contact number.",
+        "The primary number cannot also be an additional number.",
       );
-      return false;
+      return null;
     }
 
-    if (new Set(otherMobiles).size !== otherMobiles.length) {
+    if (new Set(additionalNumbers).size !== additionalNumbers.length) {
       showWarning(
         "Duplicate Contact Number",
         "The same additional contact number has been entered more than once.",
       );
-      return false;
+      return null;
     }
 
-    return true;
+    return { mobile: primaryMobile, otherMobiles: additionalNumbers };
   }
 
   function isPropertyValid(): boolean {
@@ -288,33 +326,17 @@ export default function CustomerViewPage() {
   }
 
   function addOtherMobile() {
-    if (!customer) return;
-
-    setCustomer({
-      ...customer,
-      otherMobiles: [...customer.otherMobiles, ""],
-    });
+    setOtherMobiles((prev) => [...prev, emptyPhone()]);
   }
 
-  function updateOtherMobile(index: number, value: string) {
-    if (!customer) return;
-
-    const otherMobiles = [...customer.otherMobiles];
-    otherMobiles[index] = value;
-
-    setCustomer({
-      ...customer,
-      otherMobiles,
-    });
+  function updateOtherMobile(index: number, value: PhoneInput) {
+    setOtherMobiles((prev) =>
+      prev.map((item, i) => (i === index ? value : item)),
+    );
   }
 
   function removeOtherMobile(index: number) {
-    if (!customer) return;
-
-    setCustomer({
-      ...customer,
-      otherMobiles: customer.otherMobiles.filter((_, i) => i !== index),
-    });
+    setOtherMobiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function saveCustomer() {
@@ -323,11 +345,14 @@ export default function CustomerViewPage() {
     if (
       !isRequiredFieldsValid() ||
       !isEmailValid() ||
-      !isMobileValid() ||
+      // !isMobileValid() ||
       !isPropertyValid()
     ) {
       return;
     }
+
+    const mobilePayload = getMobilePayload();
+    if (!mobilePayload) return;
 
     try {
       setSaving(true);
@@ -339,10 +364,11 @@ export default function CustomerViewPage() {
         otherEmails: customer.otherEmails
           .map((item) => item.trim())
           .filter(Boolean),
-        mobile: customer.mobile.trim(),
-        otherMobiles: customer.otherMobiles
-          .map((item) => item.trim())
-          .filter(Boolean),
+        // mobile: customer.mobile.trim(),
+        // otherMobiles: customer.otherMobiles
+        //   .map((item) => item.trim())
+        //   .filter(Boolean),
+        ...mobilePayload,
         properties: customer.properties
           .filter(
             (property) =>
@@ -377,6 +403,8 @@ export default function CustomerViewPage() {
         otherMobiles: payload.otherMobiles,
         properties: payload.properties,
       });
+      setMobile(toPhoneInput(payload.mobile));
+      setOtherMobiles(payload.otherMobiles.map(toPhoneInput));
 
       setToast({
         open: true,
@@ -713,7 +741,7 @@ export default function CustomerViewPage() {
                     </span>
                   </div>
 
-                  <div className="relative">
+                  {/* <div className="relative">
                     <Phone
                       size={17}
                       className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -730,37 +758,34 @@ export default function CustomerViewPage() {
                       }
                       placeholder="Enter primary mobile number"
                     />
-                  </div>
+                  </div> */}
+                  <CountryPhoneInput
+                    label="Primary mobile number"
+                    value={mobile}
+                    onChange={setMobile}
+                  />
 
                   <p className="helper-text">
                     This number remains the customer's primary mobile number.
                   </p>
                 </div>
 
-                {customer.otherMobiles.length > 0 && (
+                {otherMobiles.length > 0 && (
                   <div className="mt-5 space-y-4 border-t border-slate-200 pt-5">
-                    {customer.otherMobiles.map((number, index) => (
+                    {otherMobiles.map((number, index) => (
                       <div key={index}>
                         <label className="label">
                           Additional Contact Number {index + 1}
                         </label>
 
                         <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Phone
-                              size={17}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                            />
-                            <input
-                              type="tel"
-                              className="input pl-11"
-                              value={number}
-                              onChange={(e) =>
-                                updateOtherMobile(index, e.target.value)
-                              }
-                              placeholder="Enter additional contact number"
-                            />
-                          </div>
+                          <CountryPhoneInput
+                            label={`Additional contact number ${index + 1}`}
+                            value={number}
+                            onChange={(value) =>
+                              updateOtherMobile(index, value)
+                            }
+                          />
 
                           <button
                             type="button"

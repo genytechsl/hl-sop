@@ -9,12 +9,12 @@ import {
   type CountryCode,
 } from "libphonenumber-js";
 
-type PhoneInput = {
+export type PhoneInput = {
   country: CountryCode;
   number: string;
 };
 
-const emptyPhone = (): PhoneInput => ({ country: "LK", number: "" });
+export const emptyPhone = (): PhoneInput => ({ country: "LK", number: "" });
 
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = getCountries()
@@ -24,7 +24,7 @@ const countries = getCountries()
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-function normalizePhone({ country, number }: PhoneInput): string | null {
+export function normalizePhone({ country, number }: PhoneInput): string | null {
   const input = number.trim();
   if (!input) return "";
 
@@ -45,7 +45,7 @@ function normalizePhone({ country, number }: PhoneInput): string | null {
   return parsed.number;
 }
 
-function CountryPhoneInput({
+export function CountryPhoneInput({
   label,
   value,
   onChange,
