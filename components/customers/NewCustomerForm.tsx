@@ -2,14 +2,98 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle, Plus, Save, X } from "lucide-react";
 import Toast from "../BottomRIghtToast";
+import {
+  getCountries,
+  getCountryCallingCode,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js";
+
+type PhoneInput = {
+  country: CountryCode;
+  number: string;
+};
+
+const emptyPhone = (): PhoneInput => ({ country: "LK", number: "" });
+
+const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countries = getCountries()
+  .map((code) => ({
+    code,
+    name: countryNames.of(code) ?? code,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+function normalizePhone({ country, number }: PhoneInput): string | null {
+  const input = number.trim();
+  if (!input) return "";
+
+  const parsed = parsePhoneNumberFromString(input, {
+    defaultCountry: country,
+    extract: false,
+  });
+
+  if (
+    !parsed?.isPossible() ||
+    parsed.ext ||
+    parsed.countryCallingCode !== getCountryCallingCode(country) ||
+    (parsed.country && parsed.country !== country)
+  ) {
+    return null;
+  }
+
+  return parsed.number;
+}
+
+function CountryPhoneInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: PhoneInput;
+  onChange: (value: PhoneInput) => void;
+}) {
+  return (
+    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-2">
+      <select
+        aria-label={`${label} country`}
+        value={value.country}
+        onChange={(e) =>
+          onChange({ ...value, country: e.target.value as CountryCode })
+        }
+        className="input min-w-0"
+      >
+        {countries.map(({ code, name }) => (
+          <option key={code} value={code}>
+            {name} (+{getCountryCallingCode(code)})
+          </option>
+        ))}
+      </select>
+
+      <input
+        aria-label={label}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        placeholder="Enter phone number"
+        value={value.number}
+        onChange={(e) => onChange({ ...value, number: e.target.value })}
+        className="input min-w-0"
+      />
+    </div>
+  );
+}
 
 export default function NewCustomerForm() {
   const [name, setName] = useState("");
   const [NIC, setNIC] = useState("");
   const [email, setEmail] = useState("");
   const [otherEmails, setOtherEmails] = useState<string[]>([]);
-  const [mobile, setMobile] = useState("");
-  const [otherMobiles, setOtherMobiles] = useState<string[]>([]);
+  // const [mobile, setMobile] = useState("");
+  // const [otherMobiles, setOtherMobiles] = useState<string[]>([]);
+  const [mobile, setMobile] = useState<PhoneInput>(emptyPhone);
+  const [otherMobiles, setOtherMobiles] = useState<PhoneInput[]>([]);
   const [properties, setProperties] = useState([
     {
       propertyName: "",
@@ -125,45 +209,89 @@ export default function NewCustomerForm() {
     return true;
   }
 
-  function isMobileValid(): boolean {
-    const mobileRegex = /^0\d{9}$/;
-    const primaryMobile = mobile.trim();
-    if (primaryMobile && !mobileRegex.test(primaryMobile)) {
+  // function isMobileValid(): boolean {
+  //   const mobileRegex = /^0\d{9}$/;
+  //   const primaryMobile = mobile.trim();
+  //   if (primaryMobile && !mobileRegex.test(primaryMobile)) {
+  //     showWarning(
+  //       "Invalid Mobile Number",
+  //       "Please enter a valid Sri Lankan primary mobile number.",
+  //     );
+  //     return false;
+  //   }
+  //   const cleanedOtherMobiles = otherMobiles
+  //     .map((item) => item.trim())
+  //     .filter(Boolean);
+  //   for (const item of cleanedOtherMobiles) {
+  //     if (!mobileRegex.test(item)) {
+  //       showWarning(
+  //         "Invalid Contact Number",
+  //         `"${item}" is not a valid Sri Lankan contact number.`,
+  //       );
+  //       return false;
+  //     }
+  //   }
+  //   if (cleanedOtherMobiles.includes(primaryMobile)) {
+  //     showWarning(
+  //       "Duplicate Contact Number",
+  //       "The primary mobile number cannot also be added as an additional number.",
+  //     );
+  //     return false;
+  //   }
+  //   if (new Set(cleanedOtherMobiles).size !== cleanedOtherMobiles.length) {
+  //     showWarning(
+  //       "Duplicate Contact Number",
+  //       "The same additional contact number has been entered more than once.",
+  //     );
+  //     return false;
+  //   }
+  //   return true;
+  // }
+  function getMobilePayload() {
+    const primaryMobile = normalizePhone(mobile);
+
+    if (primaryMobile === null) {
       showWarning(
         "Invalid Mobile Number",
-        "Please enter a valid Sri Lankan primary mobile number.",
+        "Please enter a phone number that matches the selected country.",
       );
-      return false;
+      return null;
     }
-    const cleanedOtherMobiles = otherMobiles
-      .map((item) => item.trim())
-      .filter(Boolean);
-    for (const item of cleanedOtherMobiles) {
-      if (!mobileRegex.test(item)) {
+
+    const additionalNumbers: string[] = [];
+
+    for (const entry of otherMobiles) {
+      const number = normalizePhone(entry);
+
+      if (number === null) {
         showWarning(
           "Invalid Contact Number",
-          `"${item}" is not a valid Sri Lankan contact number.`,
+          `"${entry.number}" does not match the selected country.`,
         );
-        return false;
+        return null;
       }
+
+      if (number) additionalNumbers.push(number);
     }
-    if (cleanedOtherMobiles.includes(primaryMobile)) {
+
+    if (primaryMobile && additionalNumbers.includes(primaryMobile)) {
       showWarning(
         "Duplicate Contact Number",
-        "The primary mobile number cannot also be added as an additional number.",
+        "The primary number cannot also be added as an additional number.",
       );
-      return false;
+      return null;
     }
-    if (new Set(cleanedOtherMobiles).size !== cleanedOtherMobiles.length) {
+
+    if (new Set(additionalNumbers).size !== additionalNumbers.length) {
       showWarning(
         "Duplicate Contact Number",
         "The same additional contact number has been entered more than once.",
       );
-      return false;
+      return null;
     }
-    return true;
-  }
 
+    return { mobile: primaryMobile, otherMobiles: additionalNumbers };
+  }
   function isPropertyValid(): boolean {
     const validProperties = properties.filter(
       (property) => property.propertyName.trim() && property.address.trim(),
@@ -201,11 +329,21 @@ export default function NewCustomerForm() {
     setOtherEmails((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // function addOtherMobile() {
+  //   setOtherMobiles((prev) => [...prev, ""]);
+  // }
+
+  // function updateOtherMobile(index: number, value: string) {
+  //   setOtherMobiles((prev) =>
+  //     prev.map((item, i) => (i === index ? value : item)),
+  //   );
+  // }
+
   function addOtherMobile() {
-    setOtherMobiles((prev) => [...prev, ""]);
+    setOtherMobiles((prev) => [...prev, emptyPhone()]);
   }
 
-  function updateOtherMobile(index: number, value: string) {
+  function updateOtherMobile(index: number, value: PhoneInput) {
     setOtherMobiles((prev) =>
       prev.map((item, i) => (i === index ? value : item)),
     );
@@ -216,23 +354,21 @@ export default function NewCustomerForm() {
   }
 
   const handleRegisterCustomer = async () => {
-    if (
-      isEmpty() ||
-      !isNICValid() ||
-      !isEmailValid() ||
-      !isMobileValid() ||
-      !isPropertyValid()
-    ) {
+    if (isEmpty() || !isNICValid() || !isEmailValid() || !isPropertyValid()) {
       return;
     }
+
+    const mobilePayload = getMobilePayload();
+    if (!mobilePayload) return;
     try {
       setIsSaving(true);
       const payload = {
         name: name.trim(),
         email: email.trim(),
         otherEmails: otherEmails.map((item) => item.trim()).filter(Boolean),
-        mobile: mobile.trim(),
-        otherMobiles: otherMobiles.map((item) => item.trim()).filter(Boolean),
+        // mobile: mobile.trim(),
+        // otherMobiles: otherMobiles.map((item) => item.trim()).filter(Boolean),
+        ...mobilePayload,
         NIC: NIC.trim(),
         active,
         receiveEmailNotifications,
@@ -277,7 +413,8 @@ export default function NewCustomerForm() {
       setNIC("");
       setEmail("");
       setOtherEmails([]);
-      setMobile("");
+      // setMobile("");
+      setMobile(emptyPhone());
       setOtherMobiles([]);
       setProperties([
         {
@@ -410,12 +547,21 @@ export default function NewCustomerForm() {
           {/* Mobile Section */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
             <div className="mb-4">
-              <InputField
+              {/* <InputField
                 label="Primary Mobile Number (optional)"
                 type="tel"
                 placeholder="Enter primary mobile number"
                 value={mobile}
                 onChange={(e: any) => setMobile(e.target.value)}
+              /> */}
+              <p className="mb-2 text-sm font-medium text-slate-700">
+                Primary Mobile Number (optional)
+              </p>
+
+              <CountryPhoneInput
+                label="Primary mobile number"
+                value={mobile}
+                onChange={setMobile}
               />
               <p className="mt-2 text-xs text-slate-500">
                 This will remain the customer's primary mobile number.
@@ -430,7 +576,7 @@ export default function NewCustomerForm() {
                       Additional Contact Number {index + 1}
                     </label>
                     <div className="flex gap-2">
-                      <input
+                      {/* <input
                         type="tel"
                         placeholder="Enter additional contact number"
                         value={otherMobile}
@@ -438,6 +584,11 @@ export default function NewCustomerForm() {
                           updateOtherMobile(index, e.target.value)
                         }
                         className="w-full h-11 px-4 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      /> */}
+                      <CountryPhoneInput
+                        label={`Additional contact number ${index + 1}`}
+                        value={otherMobile}
+                        onChange={(value) => updateOtherMobile(index, value)}
                       />
                       <button
                         type="button"
